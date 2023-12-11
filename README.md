@@ -3,5 +3,8 @@ Image processor that applies filters to images using CUDA.
 
 # TODO:
 
-- imgui
-- cuda <--> amd
+1. how to get 1D pixel array of any image (library)
+2. parse filter file -> get filter array of pixels
+3. 
+4. dear imgui 
+5. cuda <--> amd, work on any GPU 
