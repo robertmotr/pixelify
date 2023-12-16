@@ -56,7 +56,7 @@ __device__ inline int blockReduceMin(int val) {
     return val;
 }
 
-__global__ void reduce10_max(int32_t *in, int32_t *out, unsigned int n);
-__global__ void reduce10_min(int32_t *in, int32_t *out, unsigned int n);
+__global__ void reduce_max(int32_t *in, int32_t *out, unsigned int n);
+__global__ void reduce_min(int32_t *in, int32_t *out, unsigned int n);
 
 #endif

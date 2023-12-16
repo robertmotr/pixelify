@@ -1,6 +1,6 @@
 #include "reduce.h"
 
-__global__ void reduce10_max(int *in, int* out, unsigned int N)
+__global__ void reduce_max(int *in, int* out, unsigned int N)
 {
     int max_val = INT_MIN; // Initialize to smallest possible value
 
@@ -14,7 +14,7 @@ __global__ void reduce10_max(int *in, int* out, unsigned int N)
         atomicMax(out, max_val);
 }
 
-__global__ void reduce10_min(int *in, int* out, unsigned int N)
+__global__ void reduce_min(int *in, int* out, unsigned int N)
 {
     int min_val = INT_MAX; // Initialize to largest possible value
 

@@ -2,6 +2,15 @@
 #define __KERNELS__H
 #include <stdio.h>
 
+// simple rgb pixel struct
+struct pixel {
+  unsigned char r, g, b;
+};
+// simple rgb with alpha value pixel struct
+struct pixel_a {
+  unsigned char r, g, b, a;
+};
+
 #define CUDA_CHECK_ERROR(errorMessage) do { \
     cudaError_t error = cudaGetLastError(); \
     if (error != cudaSuccess) { \
@@ -30,7 +39,7 @@ __device__ __forceinline__ void normalize_pixel_cuda(int32_t *target, int32_t pi
 
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
-__device__ __forceinline__ int apply_filter_cuda(const int32_t *input, const int8_t *filter, int32_t dimension, 
+__device__ __forceinline__ int apply_filter_cuda(const void *input, const int8_t *filter, int32_t dimension, 
     int width, int height, int row, int col) {
     
     int32_t sum = 0;
@@ -57,13 +66,13 @@ __device__ __forceinline__ int apply_filter_cuda(const int32_t *input, const int
 }
 
 void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
-                 int32_t *output, int32_t width, int32_t height, float *time_in, float *time_out, float *time_total);
+                 int32_t *output, int32_t width, int32_t height, bool has_alpha);
 
-__global__ void kernel5(const int8_t *filter, int32_t dimension,
-                        const int32_t *input, int32_t *output, int32_t width,
+__global__ void kernel(const int8_t *filter, int32_t dimension,
+                        const void *input, void *output, int32_t width,
                         int32_t height);
 
-__global__ void normalize5(int32_t *image, int32_t width, int32_t height,
+__global__ void normalize(void *image, int32_t width, int32_t height,
                            int32_t *smallest, int32_t *biggest);
 
 #endif
