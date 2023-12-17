@@ -2,7 +2,7 @@
 
 __global__ void reduce_max(int *in, int* out, unsigned int N)
 {
-    int max_val = INT_MIN; // Initialize to smallest possible value
+    int max_val = INT_MIN; 
 
     for(int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
         max_val = max(max_val, in[i]);
@@ -16,7 +16,7 @@ __global__ void reduce_max(int *in, int* out, unsigned int N)
 
 __global__ void reduce_min(int *in, int* out, unsigned int N)
 {
-    int min_val = INT_MAX; // Initialize to largest possible value
+    int min_val = INT_MAX;
 
     for(int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
         min_val = min(min_val, in[i]);

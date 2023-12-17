@@ -1,14 +1,11 @@
 #ifndef __KERNELS__H
 #define __KERNELS__H
+
 #include <stdio.h>
 
-// simple rgb pixel struct
-struct pixel {
-  unsigned char r, g, b;
-};
-// simple rgb with alpha value pixel struct
-struct pixel_a {
-  unsigned char r, g, b, a;
+template <int channels>
+struct Pixel {
+    unsigned char data[channels];
 };
 
 #define CUDA_CHECK_ERROR(errorMessage) do { \
@@ -29,7 +26,9 @@ __device__ __forceinline__ int32_t find_index_cuda(int32_t width, int32_t height
     // -1 if out of bounds, returns 1D array indexing otherwise
     return -1;
 }
-__device__ __forceinline__ void normalize_pixel_cuda(int32_t *target, int32_t pixel_idx, int32_t smallest,
+
+template <int channels>
+__device__ __forceinline__ void normalize_pixel_cuda(Pixel<channels> *target, int32_t pixel_idx, int32_t smallest,
 					 int32_t largest) {
 	if(smallest == largest) {
 		return; // to prevent division by zero (see line below)
@@ -39,6 +38,7 @@ __device__ __forceinline__ void normalize_pixel_cuda(int32_t *target, int32_t pi
 
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
+template <int channels>
 __device__ __forceinline__ int apply_filter_cuda(const void *input, const int8_t *filter, int32_t dimension, 
     int width, int height, int row, int col) {
     
@@ -65,14 +65,17 @@ __device__ __forceinline__ int apply_filter_cuda(const void *input, const int8_t
     return sum;
 }
 
+template <int channels>
 void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
                  int32_t *output, int32_t width, int32_t height, bool has_alpha);
 
+template <int channels>
 __global__ void kernel(const int8_t *filter, int32_t dimension,
-                        const void *input, void *output, int32_t width,
+                        const Pixel<channels> *input, Pixel<channels> *output, int32_t width,
                         int32_t height);
 
-__global__ void normalize(void *image, int32_t width, int32_t height,
-                           int32_t *smallest, int32_t *biggest);
+template<int channels>
+__global__ void normalize(Pixel<channels> *image, int32_t width, int32_t height,
+                           Pixel<channels> *smallest, Pixel<channels> *biggest);
 
 #endif

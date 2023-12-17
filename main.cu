@@ -3,10 +3,11 @@
 #include <unistd.h>
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "kernel.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 
-int filter[] = {
+int8_t filter[] = {
         1,  4,  6,  4,  1,
         4, 16, 24, 16,  4,
         6, 24, 36, 24,  6,
@@ -41,7 +42,22 @@ int main(int argc, char **argv) {
   printf("Image properties:\n");
   printf("Width: %d\nHeight: %d\nChannels: %d\n", width, height, channels);
 
-  
+  if(channels == 3) {
+    const Pixel<3> *pixels_input = reinterpret_cast<const Pixel<3>*>(image_data);
+    Pixel<3> *pixels_output = (Pixel<3>*) malloc(sizeof(Pixel<3>) * height * width);
+    run_kernel(filter, 5, pixels_input, pixels_output, width, height, false);
+
+  }
+  else if(channels == 4) {
+    const Pixel<4> *pixels_input = reinterpret_cast<const Pixel<4>*>(image_data);
+    Pixel<4> *pixels_output = (Pixel<4>*) malloc(sizeof(Pixel<4>) * height * width);
+    run_kernel(filter, 5, pixels_input, pixels_output, width, height, true);
+  }
+  else {
+    // not rgb/rgba so invalid 
+    printf("Invalid # of channels.\n");
+    return -1;
+  } 
 
   return 0;
 }

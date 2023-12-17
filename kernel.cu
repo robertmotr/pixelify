@@ -2,8 +2,13 @@
 #include <cstdint>
 #include "reduce.h"
 
-void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
-                 int32_t *output, int32_t width, int32_t height, bool has_alpha) {
+template<int channels>
+void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *input,
+                 Pixel<channels> *output, int32_t width, int32_t height,
+                 int red, int green, int blue, int alpha) {
+  // red, green, blue, alpha are scalars for how much of the filter we apply
+  // onto the RGBA portions of the pixel
+
   int pixels = width * height;
   int blockSize;
   cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
@@ -12,32 +17,29 @@ void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
    // we will malloc one huge block instead of many small ones for performance
    // in batched_transfer
    // then we will set pointers to the correct locations in the block
-  int32_t *batched_transfer;
-  int transfer_size = 2 * pixels * sizeof(int32_t) + dimension * dimension * sizeof(int8_t);
+  Pixel<channels> *batched_transfer;
+  int transfer_size = 2 * pixels * sizeof(Pixel<channels>) + dimension * dimension * sizeof(int8_t);
 
-  int32_t *device_input, *device_output;
+  Pixel<channels> *device_input, *device_output;
   int8_t *device_filter;
-  int32_t *h_smallest, *h_largest;
+  Pixel<channels> *h_smallest, *h_largest;
 
-  h_smallest = (int32_t*) malloc(sizeof(int32_t));
-  h_largest = (int32_t*) malloc(sizeof(int32_t));
-  *h_smallest = INT32_MAX;
-  *h_largest = INT32_MIN;
+  h_smallest = (Pixel<channels>*) malloc(sizeof(Pixel<channels>));
+  h_largest = (Pixel<channels>*) malloc(sizeof(Pixel<channels>));
+  
+  for(int i = 0; i < channels; ++i) {
+    h_smallest->data[i] = 0;
+    h_largest->data[i] = 255;
+    // initialize smallest/largest variables to min/max for unsigned char size 
+  }
 
-  int32_t *d_smallest, *d_largest;
+  Pixel<channels> *d_smallest, *d_largest;
 
   // create copy of input, output on pinned memory on host
-  int32_t *h_pinned_input, *h_pinned_output;
-  cudaMallocHost(&h_pinned_input, pixels * sizeof(int32_t));
-  cudaMallocHost(&h_pinned_output, pixels * sizeof(int32_t));
-  cudaMemcpy(h_pinned_input, input, pixels * sizeof(int32_t), cudaMemcpyHostToHost);
-
-  cudaEvent_t start_in, stop_in, start_out, stop_out;
-  cudaEventCreate(&start_in);
-  cudaEventCreate(&stop_in);
-
-  // measure transfer in
-  cudaEventRecord(start_in);
+  Pixel<channels> *h_pinned_input, *h_pinned_output;
+  cudaMallocHost(&h_pinned_input, pixels * sizeof(Pixel<channels>));
+  cudaMallocHost(&h_pinned_output, pixels * sizeof(Pixel<channels>));
+  cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
 
   // malloc one huge block instead of many small ones for performance
   cudaMalloc(&batched_transfer, transfer_size);
@@ -45,13 +47,13 @@ void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
   device_output = batched_transfer + pixels;
   device_filter = (int8_t*) (batched_transfer + 2 * pixels);
 
-  cudaMalloc(&d_smallest, sizeof(int32_t));
-  cudaMalloc(&d_largest, sizeof(int32_t));
+  cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
+  cudaMalloc(&d_largest, sizeof(Pixel<channels>));
 
-  cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(int32_t), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(device_filter, filter, dimension * dimension * sizeof(int8_t), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_smallest, h_smallest, sizeof(int32_t), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_largest, h_largest, sizeof(int32_t), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
 
   cudaDeviceSynchronize();
 
@@ -69,7 +71,7 @@ void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
   reduce_min<<<gridSize, blockSize>>>(device_output, d_smallest, pixels);
 
   cudaDeviceSynchronize();
-  CUDA_CHECK_ERROR("reduce10");
+  CUDA_CHECK_ERROR("reduction");
 
   normalize<<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest);
 
