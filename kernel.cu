@@ -5,7 +5,7 @@
 template<int channels>
 void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *input,
                  Pixel<channels> *output, int32_t width, int32_t height,
-                 int red, int green, int blue, int alpha) {
+                 int red_scalar, int green_scalar, int blue_scalar, int alpha_scalar) {
   // red, green, blue, alpha are scalars for how much of the filter we apply
   // onto the RGBA portions of the pixel
 
@@ -17,7 +17,7 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
    // we will malloc one huge block instead of many small ones for performance
    // in batched_transfer
    // then we will set pointers to the correct locations in the block
-  Pixel<channels> *batched_transfer;
+  void *batched_transfer;
   int transfer_size = 2 * pixels * sizeof(Pixel<channels>) + dimension * dimension * sizeof(int8_t);
 
   Pixel<channels> *device_input, *device_output;
@@ -59,7 +59,7 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
 
   CUDA_CHECK_ERROR("cuda memcpys");
 
-  kernel<<<gridSize, blockSize>>>(device_filter, dimension, device_input, device_output, width, height);
+  kernel<channels><<<gridSize, blockSize>>>(device_filter, dimension, device_input, device_output, width, height);
 
   CUDA_CHECK_ERROR("launching kernel3");
 
@@ -67,24 +67,24 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
 
   CUDA_CHECK_ERROR("cuda device synchronize after kernel3");
 
-  reduce_max<<<gridSize, blockSize>>>(device_output, d_largest, pixels);
-  reduce_min<<<gridSize, blockSize>>>(device_output, d_smallest, pixels);
+  reduce_max<channels><<<gridSize, blockSize>>>(device_output, d_largest, pixels);
+  reduce_min<channels><<<gridSize, blockSize>>>(device_output, d_smallest, pixels);
 
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("reduction");
 
-  normalize<<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest);
+  normalize<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest);
 
   CUDA_CHECK_ERROR("normalize");
 
   cudaDeviceSynchronize();
 
-  cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(int32_t), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
 
   CUDA_CHECK_ERROR("sync after normalize");
 
-  cudaMemcpy(output, h_pinned_output, pixels * sizeof(int32_t), cudaMemcpyHostToHost);
+  cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaFreeHost(h_pinned_input);
   cudaFreeHost(h_pinned_output);
 
@@ -94,9 +94,10 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
   cudaFree(d_smallest); cudaFree(d_largest);
 }
 
+template<int channels>
 __global__  void kernel(const int8_t *filter, int32_t dimension,
-                        const int32_t *input, int32_t *output, int32_t width,
-                        int32_t height) {
+                        const Pixel<channels> *input, Pixel<channels> *output, int32_t width,
+                        int32_t height, int red_scalar, int green_scalar, int blue_scalar, int alpha_scalar) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
@@ -104,11 +105,14 @@ __global__  void kernel(const int8_t *filter, int32_t dimension,
   int col = tid % width;
 
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
-    int sum = apply_filter_cuda(input, filter, dimension, width, height, row, col);
-    output[pixel_idx] = sum;
+    for(int channel = 0; channel < channels; channel++) {
+      int sum = apply_filter_cuda<3>(input, filter, dimension, width, height, row, col);
+      
+    }
   }
 }
 
+template<int channels>
 __global__ void normalize(int32_t *image, int32_t width, int32_t height,
                            int32_t *smallest, int32_t *biggest) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;

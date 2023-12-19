@@ -39,7 +39,7 @@ __device__ __forceinline__ void normalize_pixel_cuda(Pixel<channels> *target, in
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
 template <int channels>
-__device__ __forceinline__ int apply_filter_cuda(const void *input, const int8_t *filter, int32_t dimension, 
+__device__ __forceinline__ int apply_filter_cuda(const Pixel<channels> *input, const int8_t *filter, int32_t dimension, 
     int width, int height, int row, int col) {
     
     int32_t sum = 0;
@@ -66,13 +66,14 @@ __device__ __forceinline__ int apply_filter_cuda(const void *input, const int8_t
 }
 
 template <int channels>
-void run_kernel(const int8_t *filter, int32_t dimension, const int32_t *input,
-                 int32_t *output, int32_t width, int32_t height, bool has_alpha);
+void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *input,
+                 Pixel<channels> *output, int32_t width, int32_t height,
+                 int red, int green, int blue, int alpha);
 
 template <int channels>
 __global__ void kernel(const int8_t *filter, int32_t dimension,
                         const Pixel<channels> *input, Pixel<channels> *output, int32_t width,
-                        int32_t height);
+                        int32_t height, int red, int green, int blue, int alpha);
 
 template<int channels>
 __global__ void normalize(Pixel<channels> *image, int32_t width, int32_t height,
