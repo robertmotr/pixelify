@@ -4,8 +4,7 @@
 
 template<int channels>
 void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *input,
-                 Pixel<channels> *output, int32_t width, int32_t height,
-                 int red_scalar, int green_scalar, int blue_scalar, int alpha_scalar) {
+                 Pixel<channels> *output, int32_t width, int32_t height) {
   // red, green, blue, alpha are scalars for how much of the filter we apply
   // onto the RGBA portions of the pixel
 
@@ -96,8 +95,7 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
 
 template<int channels>
 __global__  void kernel(const int8_t *filter, int32_t dimension,
-                        const Pixel<channels> *input, Pixel<channels> *output, int32_t width,
-                        int32_t height, int red_scalar, int green_scalar, int blue_scalar, int alpha_scalar) {
+                        const Pixel<channels> *input, Pixel<channels> *output, int32_t width, int32_t height) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
@@ -106,19 +104,19 @@ __global__  void kernel(const int8_t *filter, int32_t dimension,
 
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     for(int channel = 0; channel < channels; channel++) {
-      int sum = apply_filter_cuda<3>(input, filter, dimension, width, height, row, col);
-      
+      int sum = apply_filter_cuda<3>(input, filter, channel, dimension, width, height, row, col);
+      output[pixel_idx].data[channel] = sum;
     }
   }
 }
 
 template<int channels>
-__global__ void normalize(int32_t *image, int32_t width, int32_t height,
-                           int32_t *smallest, int32_t *biggest) {
+__global__ void normalize(Pixel<channels> *target, int32_t width, int32_t height,
+                           Pixel<channels> *smallest, Pixel<channels> *largest) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
-    normalize_pixel_cuda(image, pixel_idx, *smallest, *biggest);
+    normalize_pixel_cuda(target, pixel_idx, smallest, largest);
   }
 }
