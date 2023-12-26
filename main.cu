@@ -42,21 +42,27 @@ int main(int argc, char **argv) {
   printf("Image properties:\n");
   printf("Width: %d\nHeight: %d\nChannels: %d\n", width, height, channels);
 
+  unsigned char *image_output = NULL;
+
   if(channels == 3) {
     const Pixel<3> *pixels_input = reinterpret_cast<const Pixel<3>*>(image_data);
     Pixel<3> *pixels_output = (Pixel<3>*) malloc(sizeof(Pixel<3>) * height * width);
+    image_output = (unsigned char*) pixels_output;
     run_kernel<3>(filter, 5, pixels_input, pixels_output, width, height);
   }
   else if(channels == 4) {
     const Pixel<4> *pixels_input = reinterpret_cast<const Pixel<4>*>(image_data);
     Pixel<4> *pixels_output = (Pixel<4>*) malloc(sizeof(Pixel<4>) * height * width);
+    image_output = (unsigned char*) pixels_output;
     run_kernel<4>(filter, 5, pixels_input, pixels_output, width, height);
   }
   else {
     // not rgb/rgba so invalid 
     printf("Invalid # of channels.\n");
     return -1;
-  } 
+  }
+
+  stbi_write_png(output.c_str(), width, height, channels, image_output, 0); 
 
   return 0;
 }
