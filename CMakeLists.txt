@@ -1,70 +1,37 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Do no set the host compiler to a version higher than the one supported by
-# nvcc:
-# https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
-# This may be unnecessary and has to be updated every term based on the
-# the gcc version of the lab / local machine.
-# set(CMAKE_CXX_COMPILER "g++-8")
+project(pixelify VERSION 1.0)
 
-set(CMAKE_CXX_COMPILER "/usr/bin/g++-10")
-set(CMAKE_CUDA_HOST_COMPILER "/usr/bin/g++-10")
+enable_language(CUDA)
+set(CMAKE_CUDA_ARCHITECTURES 61)
 
-project(csc367a4 LANGUAGES CXX CUDA)
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CUDA_STANDARD 11)
 
-add_subdirectory(googletest)
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -G, -g, -Wall, -Werror, --device-debug)
 
-set(CMAKE_CUDA_FLAGS "-arch=sm_61")
+include_directories(${CMAKE_SOURCE_DIR})
 
-add_library(a4_options INTERFACE)
-target_compile_features(a4_options INTERFACE cxx_std_11)
-
-add_library(a4_kernels
-  best_cpu.cu
-  pgm.cu
-  kernel1.cu
-  kernel2.cu
-  kernel3.cu
-  kernel4.cu
-  kernel5.cu
+# CUDA sources
+set(CUDA_SOURCES
+    kernel.cu
+    main.cu
+    reduce.cu
 )
 
-target_link_libraries(a4_kernels
-  PUBLIC a4_options
+# C++ sources
+set(CPP_SOURCES
+    parse.h
+    stb_image_write.h
+    stb_image.h
 )
 
-add_executable(main
-  main.cu
-)
+# Create a CUDA executable
+add_executable(pixelify ${CUDA_SOURCES} ${CPP_SOURCES})
 
-target_link_libraries(main
-  PUBLIC a4_kernels a4_options
-)
+# Link libraries if needed
+# target_link_libraries(my_cuda_executable some_library)
 
-add_library(pgm
-  pgm.cu
-)
-
-set_property(TARGET main PROPERTY CUDA_ARCHITECTURES 61)
-
-add_executable(pgm_creator
-  pgm_creator.cu
-)
-
-target_link_libraries(pgm_creator
-  PUBLIC pgm a4_options
-)
-
-set_property(TARGET pgm_creator PROPERTY CUDA_ARCHITECTURES 61)
-set_property(TARGET pgm PROPERTY CUDA_ARCHITECTURES 61)
-
-add_executable(test_solution
-  tests.cu
-)
-target_link_libraries(test_solution
-  PUBLIC pgm a4_kernels gtest a4_options
-)
-
-set_property(TARGET test_solution PROPERTY CUDA_ARCHITECTURES 61)
-
-set_property(TARGET a4_kernels PROPERTY CUDA_ARCHITECTURES 61)
+# Optional: Set build type (Debug or Release)
+set(CMAKE_BUILD_TYPE Debug)

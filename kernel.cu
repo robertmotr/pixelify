@@ -16,7 +16,7 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
    // we will malloc one huge block instead of many small ones for performance
    // in batched_transfer
    // then we will set pointers to the correct locations in the block
-  void *batched_transfer;
+  char *batched_transfer;
   int transfer_size = 2 * pixels * sizeof(Pixel<channels>) + dimension * dimension * sizeof(int8_t);
 
   Pixel<channels> *device_input, *device_output;
