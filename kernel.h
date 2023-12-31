@@ -3,10 +3,17 @@
 
 #include <stdio.h>
 
+#define OUT_OF_BOUNDS -1
+#define BLOCK_SIZE 1024
+
 template <int channels>
 struct Pixel {
     int data[channels];
 };
+
+#define PIXEL_NULL_CHANNEL INT_MIN
+#define NULL_PIXEL_3 Pixel<3>{PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL}
+#define NULL_PIXEL_4 Pixel<4>{PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL}
 
 #define CUDA_CHECK_ERROR(errorMessage) do { \
     cudaError_t error = cudaGetLastError(); \
@@ -24,17 +31,17 @@ __device__ __forceinline__ int32_t find_index_cuda(int32_t width, int32_t height
         return row * width + column;
     }
     // -1 if out of bounds, returns 1D array indexing otherwise
-    return -1;
+    return OUT_OF_BOUNDS;
 }
 
 // smallest and largest hold the smallest and largest pixel values for each channel
-template <int channels>
+template <unsigned int channels>
 __device__ __forceinline__ void normalize_pixel_cuda(Pixel<channels> *target, int32_t pixel_idx, 
                                                     const Pixel<channels> *smallest, const Pixel<channels> *largest) {
     // normalize each respective channel
-    for (int channel = 0; channel < channels; channel++) {
-        int min = smallest[pixel_idx].data[channel];
-        int max = largest[pixel_idx].data[channel];
+    for (int channel = 0; channel < 3; channel++) {
+        int min = smallest->data[channel];
+        int max = largest->data[channel];
         int value = target[pixel_idx].data[channel];
 
         if(max == min) continue; // to prevent division by zero (... / (max - min))
@@ -44,8 +51,8 @@ __device__ __forceinline__ void normalize_pixel_cuda(Pixel<channels> *target, in
 
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
-template <int channels>
-__device__ __forceinline__ int apply_filter_cuda(const Pixel<channels> *input, const int8_t *filter, const unsigned char mask,
+template<unsigned int channels>
+__device__ __forceinline__ int apply_filter_cuda(const Pixel<channels> *input, const int8_t *filter, const unsigned int mask,
     int32_t dimension, int width, int height, int row, int col) {
     
     int32_t sum = 0;
@@ -61,7 +68,7 @@ __device__ __forceinline__ int apply_filter_cuda(const Pixel<channels> *input, c
 
             int filter_idx = find_index_cuda(width, height, filter_x, filter_y);
 
-            if (filter_idx != -1) {
+            if (filter_idx != OUT_OF_BOUNDS) {
                 int member_value = input[filter_idx].data[mask];
                 int8_t filter_value = filter[i * dimension + j];
                 sum += member_value * filter_value;
@@ -71,17 +78,29 @@ __device__ __forceinline__ int apply_filter_cuda(const Pixel<channels> *input, c
     return sum;
 }
 
-template <int channels>
+template <unsigned int channels>
 void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *input,
                  Pixel<channels> *output, int32_t width, int32_t height);
 
-template <int channels>
+template <unsigned int channels>
 __global__ void kernel(const int8_t *filter, int32_t dimension,
                         const Pixel<channels> *input, Pixel<channels> *output, int32_t width,
                         int32_t height);
 
-template<int channels>
+template<unsigned int channels>
 __global__ void normalize(Pixel<channels> *image, int32_t width, int32_t height,
                            Pixel<channels> *smallest, Pixel<channels> *biggest);
+
+// explicit instantiations
+template __device__ __forceinline__ void normalize_pixel_cuda<3u>(Pixel<3u> *target, int32_t pixel_idx, 
+                                                    const Pixel<3u> *smallest, const Pixel<3u> *largest);
+template __device__ __forceinline__ void normalize_pixel_cuda<4u>(Pixel<4u> *target, int32_t pixel_idx,
+                                                    const Pixel<4u> *smallest, const Pixel<4u> *largest);
+
+template __device__ __forceinline__ int apply_filter_cuda<3u>(const Pixel<3u> *input, const int8_t *filter, const unsigned int mask,
+    int32_t dimension, int width, int height, int row, int col);
+
+template __device__ __forceinline__ int apply_filter_cuda<4u>(const Pixel<4u> *input, const int8_t *filter, const unsigned int mask,
+    int32_t dimension, int width, int height, int row, int col);
 
 #endif

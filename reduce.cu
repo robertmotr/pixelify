@@ -1,62 +1,45 @@
 #include "reduce.h"
 #include "kernel.h"
 
-template <unsigned int blockSize, unsigned int channels>
-__device__ void warpReduce(volatile Pixel<channels> *sdata, unsigned int tid,
-                           Pixel<channels> (*reduction_op)(Pixel<channels> *a, Pixel<channels> *b)) {
-    if (blockSize >= 64) sdata[tid] = reduction_op(&sdata[tid], &sdata[tid + 32]);
-    if (blockSize >= 32) sdata[tid] = reduction_op(&sdata[tid], &sdata[tid + 16]);
-    if (blockSize >= 16) sdata[tid] = reduction_op(&sdata[tid], &sdata[tid + 8]);
-    if (blockSize >= 8) sdata[tid] = reduction_op(&sdata[tid], &sdata[tid + 4]);
-    if (blockSize >= 4) sdata[tid] = reduction_op(&sdata[tid], &sdata[tid + 2]);
-    if (blockSize >= 2) sdata[tid] = reduction_op(&sdata[tid], &sdata[tid + 1]);
-}
-template <unsigned int blockSize, int channels, bool reduction_type>
-__global__ void reduce_pixels(Pixel<channels> *g_idata, Pixel<channels> *g_result, unsigned int n, bool reduction_op) {
-    extern __shared__ Pixel<channels> sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x*(blockSize*2) + tid;
-    unsigned int gridSize = blockSize*2*gridDim.x;
+// explicit instantiation
+template __global__ void reduce_image<3u>(const Pixel<3u> *pixels_in, Pixel<3u> *d_result,
+                                          unsigned int n, bool op);
 
-    Pixel<channels> (*op)(Pixel<channels> *a, Pixel<channels> *b);
-    op = (reduction_op == PIXEL_MAX) ? pixel_max : pixel_min;
+template __global__ void reduce_image<4u>(const Pixel<4u> *pixels_in, Pixel<4u> *d_result,
+                                            unsigned int n, bool op);         
 
-    sdata[tid] = 0;
-    while (i < n) {
-        // Replace += with pixel-wise reduction using op()
-        sdata[tid] = op(&sdata[tid], &g_idata[i]);
-        sdata[tid] = op(&sdata[tid], &g_idata[i + blockSize]);
-        i += gridSize;
+template<unsigned int channels>
+__global__ void reduce_image(const Pixel<channels> *pixels_in, Pixel<channels> *d_result,
+                            unsigned int n, bool op) {
+
+    __shared__ Pixel<channels> result[1];
+    // set result to NULL for comparison                            
+    for(int ch = 0; ch < channels; ch++) {
+        result->data[ch] = PIXEL_NULL_CHANNEL;
     }
-    __syncthreads();
 
-        // double check if this if branch is actually needed
-    // im doing it cuz the original code didnt have it back when GPU block sizes were 512 max
-    if (blockSize >= 1024) {
-        if (tid < 512) {
-            sdata[tid] = op(&sdata[tid], &sdata[tid + 512]);
+    // use find_min instead of builtin min() because we use INT_MIN
+    // as NULL
+    int (*reduce_op)(int, int) = (op == PIXEL_MAX) ? static_cast<int(*)(int, int)>(max) : find_min;
+
+    for(int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += blockDim.x * gridDim.x) {
+        for(int ch = 0; ch < channels; ch++) {
+            result->data[ch] = reduce_op(result->data[ch], pixels_in[i].data[ch]);
         }
-        __syncthreads();
-    } 
+    }
+    
+    for(int ch = 0; ch < channels; ch++) {
+        result->data[ch] = block_reduce(result->data[ch], op);
+    }
 
-    if (blockSize >= 512) {
-        if (tid < 256) {
-            sdata[tid] = op(&sdata[tid], &sdata[tid + 256]);
+
+    if(threadIdx.x == 0) {
+        for(int ch = 0; ch < channels; ch++) {
+            if(op == PIXEL_MAX) {
+                atomicMax(&d_result->data[ch], result->data[ch]);
+            } else {
+                atomicMin(&d_result->data[ch], result->data[ch]);
+            }
         }
-        __syncthreads();
     }
-    if (blockSize >= 256) {
-        if (tid < 128) {
-            sdata[tid] = op(&sdata[tid], &sdata[tid + 128]);
-        } 
-        __syncthreads();
-    }
-    if (blockSize >= 128) {
-         if (tid < 64) {
-            sdata[tid] = op(&sdata[tid], &sdata[tid + 64]);
-        } 
-        __syncthreads();
-    }
-    if (tid < 32) warpReduce(sdata, tid);
-    if (tid == 0) g_result[blockIdx.x] = sdata[0];
 }
