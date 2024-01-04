@@ -3,8 +3,11 @@ Image processor that applies filters to images using CUDA.
 
 # TODO:
 
-1. how to get 1D pixel array of any png (library)
-2. parse filter file -> get filter array of pixels
-3. 
-4. dear imgui 
-5. cuda <--> amd, work on any GPU 
+## must haves:
+- parse filter file -> get filter array of pixels 
+- imgui implementation
+- test cases for all cases
+- support anti-aliasing methods + other applications aside from filters?
+
+## would be nice to haves:
+- cuda <--> amd, work on any GPU, maybe use HIP or some transpiling method 
