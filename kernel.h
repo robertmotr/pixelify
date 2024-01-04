@@ -2,18 +2,10 @@
 #define __KERNELS__H
 
 #include <stdio.h>
+#include "pixel.h"
 
 #define OUT_OF_BOUNDS -1
 #define BLOCK_SIZE 1024
-
-template <int channels>
-struct Pixel {
-    int data[channels];
-};
-
-#define PIXEL_NULL_CHANNEL INT_MIN
-#define NULL_PIXEL_3 Pixel<3>{PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL}
-#define NULL_PIXEL_4 Pixel<4>{PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL, PIXEL_NULL_CHANNEL}
 
 #define CUDA_CHECK_ERROR(errorMessage) do { \
     cudaError_t error = cudaGetLastError(); \

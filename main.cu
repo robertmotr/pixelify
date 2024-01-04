@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string>
 #include <unistd.h>
+#include "pixel.h"
 #include "kernel.h"
-#include "reduce.h"
+#include <stdlib.h>
+#include <assert.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -50,39 +52,14 @@ int main(int argc, char **argv) {
   unsigned char *image_output = new unsigned char[width * height * channels];
 
   if(channels == 3) {
-    Pixel<3> *pixels_input = new Pixel<3>[width * height];
-    for(size_t i = 0; i < width * height; i++) {
-      pixels_input[i].data[0] = image_data[i * 3];
-      pixels_input[i].data[1] = image_data[i * 3 + 1];
-      pixels_input[i].data[2] = image_data[i * 3 + 2];  
-    }
-
-    Pixel<3> *pixels_output = new Pixel<3>[width * height];
-    run_kernel<3>(filter, 3, pixels_input, pixels_output, width, height);
-    
-    for(size_t i = 0; i < width * height; i++) {
-      image_output[i * 3] = pixels_output[i].data[0];
-      image_output[i * 3 + 1] = pixels_output[i].data[1];
-      image_output[i * 3 + 2] = pixels_output[i].data[2];
-    }
+    Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
+    Pixel<3> *pixels_out = new Pixel<3>[width * height];
+    run_kernel<3>(filter, 3, pixels_in, pixels_out, width, height);
   }
   else if(channels == 4) {
-    Pixel<4> *pixels_input = new Pixel<4>[width * height];
-    for(size_t i = 0; i < width * height; i++) {
-      pixels_input[i].data[0] = image_data[i * 4];
-      pixels_input[i].data[1] = image_data[i * 4 + 1];
-      pixels_input[i].data[2] = image_data[i * 4 + 2];
-      pixels_input[i].data[3] = image_data[i * 4 + 3];
-    }
-    Pixel<4> *pixels_output = new Pixel<4>[width * height];
-    run_kernel<4>(filter, 3, pixels_input, pixels_output, width, height);
-
-    for(size_t i = 0; i < width * height; i++) {
-      image_output[i * 4] = pixels_output[i].data[0];
-      image_output[i * 4 + 1] = pixels_output[i].data[1];
-      image_output[i * 4 + 2] = pixels_output[i].data[2];
-      image_output[i * 4 + 3] = pixels_output[i].data[3];
-    }
+    Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
+    Pixel<4> *pixels_out = new Pixel<4>[width * height];
+    run_kernel<4>(filter, 3, pixels_in, pixels_out, width, height);
   }
   else {
     // not rgb/rgba so invalid 

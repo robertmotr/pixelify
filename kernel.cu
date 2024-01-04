@@ -1,6 +1,6 @@
 #include "kernel.h"
 #include <cstdint>
-#include "reduce.h"
+#include "pixel.h"
 
 // explicitly instantiate
 template void run_kernel<3u>(const int8_t *filter, int32_t dimension, const Pixel<3u> *input,
