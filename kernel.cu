@@ -1,26 +1,7 @@
 #include "kernel.h"
 #include <cstdint>
+#include "reduce.h"
 #include "pixel.h"
-
-// explicitly instantiate
-template void run_kernel<3u>(const int8_t *filter, int32_t dimension, const Pixel<3u> *input,
-                 Pixel<3u> *output, int32_t width, int32_t height);
-
-template void run_kernel<4u>(const int8_t *filter, int32_t dimension, const Pixel<4u> *input,
-                  Pixel<4u> *output, int32_t width, int32_t height);
-
-template __global__ void kernel<3u>(const int8_t *filter, int32_t dimension,
-                        const Pixel<3u> *input, Pixel<3u> *output, int32_t width, int32_t height);
-
-template __global__ void kernel<4u>(const int8_t *filter, int32_t dimension,
-                        const Pixel<4u> *input, Pixel<4u> *output, int32_t width, int32_t height);
-
-template __global__ void normalize<3u>(Pixel<3u> *target, int32_t width, int32_t height,
-                           Pixel<3u> *smallest, Pixel<3u> *largest);
-
-template __global__ void normalize<4u>(Pixel<4u> *target, int32_t width, int32_t height,
-                            Pixel<4u> *smallest, Pixel<4u> *largest);
-
 
 template<unsigned int channels>
 void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *input,
@@ -76,36 +57,19 @@ void run_kernel(const int8_t *filter, int32_t dimension, const Pixel<channels> *
 
   cudaDeviceSynchronize();
 
-  // CUDA_CHECK_ERROR("cuda device synchronize after kernel3");
+  CUDA_CHECK_ERROR("cuda device synchronize after kernel3");
 
-  // // parallel reduction to find largest and smallest pixel values
-  // // for each channel respectively
-  // reduce_image<channels><<<gridSize, BLOCK_SIZE>>>(device_output, d_largest, width * height, PIXEL_MAX);
-  // reduce_image<channels><<<gridSize, BLOCK_SIZE>>>(device_output, d_smallest, width * height, PIXEL_MIN);
+  // parallel reduction to find largest and smallest pixel values
+  // for each channel respectively
+  image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
+  image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
+  cudaDeviceSynchronize();
+  CUDA_CHECK_ERROR("reduction");
 
-  // cudaDeviceSynchronize();
-  // CUDA_CHECK_ERROR("reduction");
-
-  // // send back the largest and smallest pixel values for debugging
-  // cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  // cudaMemcpy(h_largest, d_largest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  // // print them out now
-  // printf("Smallest: ");
-  // for(int ch = 0; ch < channels; ch++) {
-  //   printf("%d ", h_smallest->data[ch]);
-  // }
-
-  // printf("\nLargest: ");
-  // for(int ch = 0; ch < channels; ch++) {
-  //   printf("%d ", h_largest->data[ch]);
-  // }
-  // printf("\n");
-  
-  // // now normalize the image
-  // normalize<channels><<<gridSize, BLOCK_SIZE>>>(device_output, width, height, d_smallest, d_largest);
-
-  // cudaDeviceSynchronize();
-  // CUDA_CHECK_ERROR("normalize");
+  // now normalize the image
+  normalize<channels><<<gridSize, BLOCK_SIZE>>>(device_output, width, height, d_smallest, d_largest);
+  cudaDeviceSynchronize();
+  CUDA_CHECK_ERROR("normalize");
 
   cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
@@ -149,3 +113,26 @@ __global__ void normalize(Pixel<channels> *target, int32_t width, int32_t height
     normalize_pixel_cuda<channels>(target, pixel_idx, smallest, largest);
   }
 }
+
+// explicitly instantiate
+template void run_kernel<3u>(const int8_t *filter, int32_t dimension, const Pixel<3u> *input,
+                 Pixel<3u> *output, int32_t width, int32_t height);
+
+template void run_kernel<4u>(const int8_t *filter, int32_t dimension, const Pixel<4u> *input,
+                  Pixel<4u> *output, int32_t width, int32_t height);
+
+template __global__ void kernel<3u>(const int8_t *filter, int32_t dimension,
+                        const Pixel<3u> *input, Pixel<3u> *output, int32_t width, int32_t height);
+
+template __global__ void kernel<4u>(const int8_t *filter, int32_t dimension,
+                        const Pixel<4u> *input, Pixel<4u> *output, int32_t width, int32_t height);
+
+template __global__ void normalize<3u>(Pixel<3u> *target, int32_t width, int32_t height,
+                           Pixel<3u> *smallest, Pixel<3u> *largest);
+
+template __global__ void normalize<4u>(Pixel<4u> *target, int32_t width, int32_t height,
+                            Pixel<4u> *smallest, Pixel<4u> *largest);
+
+template void image_reduction<3u>(Pixel<3u> *d_input, Pixel<3u>* d_result, unsigned int size, bool op);
+
+template void image_reduction<4u>(Pixel<4u> *d_input, Pixel<4u>* d_result, unsigned int size, bool op);

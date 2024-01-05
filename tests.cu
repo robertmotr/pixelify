@@ -3,6 +3,9 @@
 #include "cub/cub.cuh"
 #include "reduce.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 void print_to(const Pixel<3>& pixel, ::std::ostream* os) {
     *os << "Pixel(" << pixel.data[0] << ", " << pixel.data[1] << ", " << pixel.data[2] << ")";
 }
@@ -150,6 +153,76 @@ TEST(kernel_correctness, simple_box_blur) {
     cudaFree(d_filter);
 }
 
+TEST(parallel_reduction_correctness, real_sample_image) {
+    int width, height, channels;
+
+    int ok = stbi_info("../sample_images/Puzzle_Mountain.png", &width, &height, &channels);
+    if(ok != 1) {
+        printf("Failed to get image properties: %s\n", stbi_failure_reason());
+        FAIL();
+    }
+
+    unsigned char* image_data = stbi_load("../sample_images/Puzzle_Mountain.png", &width, &height, &channels, 0);
+    if (image_data == NULL) {
+        printf("Failed to load image: %s\n", stbi_failure_reason());
+        FAIL();
+    }
+
+    unsigned char *image_output = new unsigned char[width * height * channels];
+    Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
+    
+    Pixel<3> *d_input, *d_smallest, *d_largest;
+
+    cudaMalloc(&d_input, sizeof(Pixel<3>) * width * height);
+    cudaMalloc(&d_smallest, sizeof(Pixel<3>));
+    cudaMalloc(&d_largest, sizeof(Pixel<3>));
+
+    cudaMemcpy(d_input, pixels_in, sizeof(Pixel<3>) * width * height, cudaMemcpyHostToDevice);
+
+    image_reduction<3>(d_input, d_largest, width * height, MAX_REDUCE);
+    image_reduction<3>(d_input, d_smallest, width * height, MIN_REDUCE);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("sync after reduction");
+
+    Pixel<3> *h_smallest = new Pixel<3>();
+    Pixel<3> *h_largest = new Pixel<3>();
+
+    cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+
+    // print values of h smallest/hlargest
+    char buf[100];
+    sprintf(buf, "Global max values: [%d, %d, %d]\nGlobal min values: [%d, %d, %d]\n", 
+            h_largest->data[0], h_largest->data[1], h_largest->data[2],
+            h_smallest->data[0], h_smallest->data[1], h_smallest->data[2]);
+    
+    system("python3 ../test_reduction.py > output.txt");
+
+    FILE *f = fopen("output.txt", "r");
+    if (f == NULL) {
+        perror("Error opening output.txt");
+        FAIL();
+    }
+
+    char output_buf[200];
+    size_t bytes_read = fread(output_buf, 1, sizeof(output_buf) - 1, f);
+    output_buf[bytes_read] = '\0'; 
+
+    fclose(f);
+
+    printf("\nBUF RESULT:\n%s", buf);
+    printf("\nOUTPUTBUF RESULT:\n%s", output_buf);
+
+    if(strcmp(buf, output_buf) != 0) {
+        std::cout << strcmp(buf, output_buf) << " STRCMP RESULT" << "\n";
+        system("rm output.txt");
+        FAIL();
+    }
+    system("rm output.txt");
+    
+    SUCCEED();
+}
+
 TEST(parallel_reduction_correctness, small_image) {
     Pixel<3> input[9] = {
         {1, 1, 1}, {2, 2, 2}, {3, 3, 3},
@@ -291,6 +364,8 @@ TEST(image_processing_correctness, simple_case) {
         ASSERT_EQ(expected[i], output[i]);
     }
 }
+
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

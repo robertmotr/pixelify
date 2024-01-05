@@ -18,6 +18,7 @@ set(HEADERS
     stb_image.h 
     stb_image_write.h
     pixel.h
+    reduce.h
 )
 
 add_library(pixelify_lib ${SOURCES} ${HEADERS})
@@ -36,4 +37,4 @@ set_target_properties(pixelify tests PROPERTIES
     CUDA_STANDARD_REQUIRED ON
 )
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -rdynamic -g -G -lineinfo --diag-suppress=326")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -rdynamic -g -G --diag-suppress=326")

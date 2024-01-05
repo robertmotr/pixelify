@@ -52,7 +52,7 @@ __device__ __forceinline__ int apply_filter_cuda(const Pixel<channels> *input, c
     int start_i = row - dimension / 2;
     int start_j = col - dimension / 2;
 
-    // Iterate over the filter
+    // iterate over the filter
     for (int i = 0; i < dimension; ++i) {
         for (int j = 0; j < dimension; ++j) {
             int filter_x = start_i + i;
