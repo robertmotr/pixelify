@@ -32,7 +32,7 @@ struct max_op {
 };
 
 template<unsigned int channels>
-void image_reduction(Pixel<channels> *d_input, Pixel<channels> *d_result, unsigned int size, bool operation) {
+void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, unsigned int size, bool operation) {
     void *d_temp_storage = nullptr;
     size_t temp_storage_bytes = 0;
 

@@ -1,6 +1,8 @@
 #ifndef __PIXEL__H
 #define __PIXEL__H
 
+#define PIXEL_NULL_CHANNEL INT_MIN
+
 template<unsigned int channels>
 struct Pixel {
     int data[channels];
@@ -14,36 +16,27 @@ struct Pixel {
         }
         return true;
     }
-    __host__ __device__ 
-    Pixel() {
-        for(int i = 0; i < channels; i++) {
-            data[i] = 0;
-        }
-    }
 
+    template<typename... Args>
+    __host__ __device__
+    Pixel(Args... args) : data{static_cast<int>(args)...} {}
 
     __host__ __device__
-    Pixel(int value) {
-        for(int i = 0; i < channels; i++) {
-            data[i] = value;
-        }
-    }
+    Pixel() : Pixel(0) {}
 
     __host__ __device__
-    Pixel(int a, int b, int c) {
-        data[0] = a;
-        data[1] = b;
-        data[2] = c;
-    }
+    Pixel(int value) : Pixel(value, value, value) {}
 };
-
-#define PIXEL_NULL_CHANNEL INT_MIN
 
 template<unsigned int channels>
 unsigned char *pixel_to_raw_image(const Pixel<channels> *input, unsigned int size) {
     unsigned char *output = new unsigned char[size * channels];
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
+            if(input[i].data[j] < 0 || input[i].data[j] > 255) {
+                printf("Pixel value out of range: %d\n", input[i].data[j]);
+            }
+
             output[i * channels + j] = (unsigned char) input[i].data[j];
         }
     }

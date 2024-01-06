@@ -16,7 +16,7 @@ def find_global_max_min(image_path):
     return global_max, global_min
 
 if __name__ == "__main__":
-    image_path = "../sample_images/Puzzle_Mountain.png"
+    image_path = "/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png"
     max_values, min_values = find_global_max_min(image_path)
 
     print("Global max values:", max_values)

@@ -17,6 +17,12 @@ int8_t filter[] = {
   0, 0, 0
 };
 
+int8_t blur[] = {
+  5, 5, 5,
+  5, 5, 5,
+  5, 5, 5
+};
+
 int main(int argc, char **argv) {
   if(argc != 3) {
     printf("Usage: %s <input> <output>\n", argv[0]);
@@ -54,18 +60,16 @@ int main(int argc, char **argv) {
   if(channels == 3) {
     Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
     Pixel<3> *pixels_out = new Pixel<3>[width * height];
-    memcpy(pixels_out, pixels_in, width * height * sizeof(Pixel<3>));
-    for(int pixel = 0; pixel < width * height; pixel++) {
-      for(int ch = 0; ch < 3; ch++) {
-        pixels_out[pixel].data[ch] *= 0.5;
-      }
-    }
+
+    run_kernel<3>(blur, 3, pixels_in, pixels_out, width, height);
 
     image_output = pixel_to_raw_image<3>(pixels_out, width * height);
   }
   else if(channels == 4) {
     Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
     Pixel<4> *pixels_out = new Pixel<4>[width * height];
+
+    run_kernel<4>(blur, 3, pixels_in, pixels_out, width, height);
 
     image_output = pixel_to_raw_image<4>(pixels_out, width * height);
   }

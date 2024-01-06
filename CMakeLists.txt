@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.28)
 
 project(pixelify LANGUAGES CXX CUDA)
 
+enable_testing()
+set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CUDA_ARCHITECTURES 61)
 
 add_subdirectory(googletest)
@@ -15,10 +17,10 @@ set(SOURCES
 
 set(HEADERS
     kernel.h
-    stb_image.h 
-    stb_image_write.h
     pixel.h
     reduce.h
+    stb_image.h 
+    stb_image_write.h
 )
 
 add_library(pixelify_lib ${SOURCES} ${HEADERS})
@@ -32,9 +34,11 @@ target_link_libraries(pixelify PUBLIC pixelify_lib)
 
 add_executable(tests tests.cu)
 target_link_libraries(tests PUBLIC pixelify_lib gtest)
+include(GoogleTest)
+gtest_discover_tests(tests)
 
 set_target_properties(pixelify tests PROPERTIES
     CUDA_STANDARD_REQUIRED ON
 )
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -rdynamic -g -G --diag-suppress=326")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fno-omit-frame-pointer -fstack-protector-strong -ggdb -G -O0 --diag-suppress=326")
