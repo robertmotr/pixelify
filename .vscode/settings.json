@@ -3,5 +3,7 @@
     "files.associations": {
         "numeric": "cpp",
         "*.tcc": "cpp"
-    }
+    },
+    "C_Cpp.default.compileCommands": "/home/robert/Desktop/pixelify/builddir/compile_commands.json",
+    "makefile.makefilePath": "CMakeLists.txt"
 }

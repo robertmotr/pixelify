@@ -6,9 +6,6 @@ enable_testing()
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CUDA_ARCHITECTURES 61)
 
-add_subdirectory(googletest)
-add_subdirectory(cub)
-
 set(IMGUI_DIR imgui)
 include_directories(${IMGUI_DIR})
 
