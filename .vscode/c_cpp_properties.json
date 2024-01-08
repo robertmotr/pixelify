@@ -3,7 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/external/imgui",
+                "${workspaceFolder}/external/cccl/cub"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
