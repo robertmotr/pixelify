@@ -1,8 +1,8 @@
 #ifndef __REDUCE__H
 #define __REDUCE__H
 
-#include "pixel.h"
-#include "cub/cub.cuh"
+#include "include/pixel.h"
+#include "external/cccl/cub/cub/cub.cuh"
 
 #define MAX_REDUCE true
 #define MIN_REDUCE false

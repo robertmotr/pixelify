@@ -1,4 +1,4 @@
-#include "gui.h"
+#include "include/gui.h"
 
 void render_gui() {
     glfwSetErrorCallback(glfw_error_callback);

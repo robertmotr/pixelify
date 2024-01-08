@@ -2,8 +2,9 @@
 #define __KERNELS__H
 
 #include <stdio.h>
-#include "pixel.h"
 #include <assert.h>
+
+#include "include/pixel.h"
 
 #define OUT_OF_BOUNDS -1
 
