@@ -4,14 +4,14 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "include/pixel.h"
-#include "include/kernel.h"
-#include "include/gui.h"
+#include "pixel.h"
+#include "kernel.h"
+#include "gui.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "external/stb_image.h"
+#include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "external/stb_image_write.h"
+#include "stb_image_write.h"
 
 int8_t filter[] = {
   0, 0, 0,

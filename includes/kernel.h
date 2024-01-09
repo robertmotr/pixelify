@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "includes/pixel.h"
+#include "pixel.h"
 
 #define OUT_OF_BOUNDS -1
 

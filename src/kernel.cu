@@ -1,6 +1,6 @@
-#include "includes/kernel.h"
-#include "includes/reduce.h"
-#include "includes/pixel.h"
+#include "kernel.h"
+#include "reduce.h"
+#include "pixel.h"
 
 template<unsigned int channels>
 void run_kernel(const int8_t *filter, int dimension, const Pixel<channels> *input,
