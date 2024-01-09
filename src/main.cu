@@ -7,6 +7,7 @@
 #include "pixel.h"
 #include "kernel.h"
 #include "gui.h"
+#include "render.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"

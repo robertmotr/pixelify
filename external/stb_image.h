@@ -1,3 +1,6 @@
+#pragma diag_suppress all
+#pragma GCC system_header
+
 /* stb_image - v2.29 - public domain image loader - http://nothings.org/stb
                                   no warranty implied; use at your own risk
 

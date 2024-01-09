@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.28)
-set(CMAKE_VERBOSE_MAKEFILE on)
 
 project(pixelify LANGUAGES CXX CUDA)
 enable_language(CUDA CXX)
@@ -9,11 +8,11 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 
 set(CMAKE_CUDA_ARCHITECTURES 61)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 set(SOURCES 
     src/main.cu
     src/gui.cpp
+    src/render.cpp
     src/kernel.cu
 )
 
@@ -63,7 +62,7 @@ target_link_libraries(tests pixelify_tests gtest pixelify_lib)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
-set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -diag-suppress=326")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -DNDEBUG")

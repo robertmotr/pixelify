@@ -1,7 +1,5 @@
-#ifndef __GUI__H
-#define __GUI__H
-
-#include <stdio.h>
+#ifndef __UI__H__
+#define __UI__H__
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -13,11 +11,6 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-static void glfw_error_callback(int error, const char* description)
-{
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
-}
+void display_ui(const GLFWvidmode *mode);
 
-void render_gui();
-
-#endif // __GUI__H
+#endif // __UI__H__
