@@ -91,7 +91,6 @@ void render_gui() {
             ImGui::RenderPlatformWindowsDefault();
             glfwMakeContextCurrent(backup_current_context);
         }
-
         glfwSwapBuffers(window);
     }
     // Cleanup

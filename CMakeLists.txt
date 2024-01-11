@@ -25,6 +25,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/cub/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
 )
 
 set(IMGUI_SOURCES
@@ -36,6 +37,7 @@ set(IMGUI_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/misc/cpp/imgui_stdlib.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/imgui_impl_glfw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/imgui_impl_opengl3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog/ImGuiFileDialog.cpp
 )
 
 
@@ -48,6 +50,7 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/cub/cub   
 )
 add_executable(pixelify src/main.cu)
@@ -59,7 +62,7 @@ add_executable(tests tests/tests.cu)
 target_link_libraries(tests pixelify_tests gtest pixelify_lib)
 
 # both Debug and Release builds
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -diag-suppress=326")
