@@ -5,8 +5,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include <iostream>
-
 // Simple helper function to load an image into a OpenGL texture with common settings
 bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
                             int* out_width, int* out_height, int* out_channels) {
