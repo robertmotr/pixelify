@@ -3,6 +3,7 @@
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
+
 #include "imgui_impl_opengl3.h"
 #include "ImGuiFileDialog.h"
 #include <iostream>
@@ -13,6 +14,6 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-void display_ui(const GLFWvidmode *mode);
+void display_ui(const GLFWvidmode *mode, ImGuiIO& io);
 
 #endif // __UI__H__

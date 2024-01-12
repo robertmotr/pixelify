@@ -24,23 +24,17 @@ bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
 
-    GLenum format;
-    if (*out_channels == 3)
-        format = GL_RGB;
-    else if (*out_channels == 4)
-        format = GL_RGBA;
-    else {
+        // Upload pixels into texture
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+    if(!(*out_channels == 3 || *out_channels == 4)) {
         // Handle unsupported channel count
         printf("Unsupported number of channels: %d\n", *out_channels);
         stbi_image_free(image_data);
         return false;
     }
-    // Upload pixels into texture
-#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-#endif
-
-    glTexImage2D(GL_TEXTURE_2D, 0, format, *out_width, *out_height, 0, format, GL_UNSIGNED_BYTE, image_data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, *out_width, *out_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
 
     GLenum error = glGetError();
     if (error != GL_NO_ERROR)
@@ -57,16 +51,22 @@ bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned 
 }
 
 
-void display_ui(const GLFWvidmode *mode) {
-
+void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
     static int width, height, channels;
     static char input[256] =                "";
     static char output[256] =               "";
     static char filter[256] =               "";
     static bool show_original =             false;
     static bool show_preview =              false;
+    static bool normalize =                 false;
     static unsigned char *image_data =      NULL;
     static GLuint texture =                 0;
+    static int filter_strength =            50;
+    static int red_strength =               50;
+    static int green_strength =             50;
+    static int blue_strength =              50;
+    static int alpha_strength =             50;
+    static int brightness =                 50;
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
@@ -81,18 +81,45 @@ void display_ui(const GLFWvidmode *mode) {
     ImGui::BeginChild("Main panel", main_panel_size, true);
     ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
     ImGui::SetNextItemWidth(200.0f);
-    if (ImGui::BeginTabBar("tab_bar", tab_bar_flags))
-    {
-        if (ImGui::BeginTabItem("Original image"))
-        {
-            if(show_original) {
-                ImGui::Text("pointer = %p", texture);
-                ImGui::Text("size = %d x %d", width, height);
-                ImGui::Image((void*)(intptr_t)&texture, ImVec2(width, height));
-            } else {
-                ImGui::Text("No image loaded. Please select an input file on the right side panel, and click Load Image.");
+    
+    if (ImGui::BeginTabBar("tab_bar", tab_bar_flags)) {
+        if (ImGui::BeginTabItem("Original image")) {
+            if (show_original) {
+            ImGui::Text("size = %d x %d", width, height);
+            static bool use_text_color_for_tint = false;
+            ImVec2 pos = ImGui::GetCursorScreenPos();
+            ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 
+            ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 
+            ImVec4 tint_col = use_text_color_for_tint ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+            ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+
+            // Render the original image
+            ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
+
+            // Check if the mouse is within the bounds of the image
+            if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
+                if (ImGui::BeginTooltip()) {
+                    float region_sz = 32.0f;
+                    float region_x = ImGui::GetIO().MousePos.x - pos.x - region_sz * 0.5f;
+                    float region_y = ImGui::GetIO().MousePos.y - pos.y - region_sz * 0.5f;
+                    float zoom = 4.0f;
+
+                    // Clamp the region within the bounds of the image
+                    region_x = std::clamp(region_x, 0.0f, static_cast<float>(width - region_sz));
+                    region_y = std::clamp(region_y, 0.0f, static_cast<float>(height - region_sz));
+
+                    ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
+                    ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
+                    ImVec2 uv0 = ImVec2((region_x) / width, (region_y) / height);
+                    ImVec2 uv1 = ImVec2((region_x + region_sz) / width, (region_y + region_sz) / height);
+                    ImGui::Image((void*)(intptr_t)texture, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
+                    ImGui::EndTooltip();
+                }
             }
-            ImGui::EndTabItem();
+        } else {
+                    ImGui::Text("No image loaded. Please select an input file on the right side panel, and click Load Image.");
+                }
+        ImGui::EndTabItem();
         }
         ImGui::SetNextItemWidth(200.0f);
         if (ImGui::BeginTabItem("Preview image"))
@@ -155,6 +182,52 @@ void display_ui(const GLFWvidmode *mode) {
     ImGui::Spacing();
     ImGui::Spacing();
     ImGui::InputTextWithHint("Output file path", "Absolute path for your output image", output, IM_ARRAYSIZE(output));
+    static ImGuiComboFlags flags = 0;
+    ImGui::SameLine(); 
+    ImGui::Spacing();
+    ImGui::Spacing();
+    // Using the generic BeginCombo() API, you have full control over how to display the combo contents.
+    // (your selection data could be an index, a pointer to the object, an id for the object, a flag intrusively
+    // stored in the object itself, etc.)
+    const char* items[] = {};
+    static int item_current_idx = 0; // Here we store our selection data as an index.
+    const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
+    if (ImGui::BeginCombo("Select filter", combo_preview_value, flags)) {
+        for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
+            const bool is_selected = (item_current_idx == n);
+            if (ImGui::Selectable(items[n], is_selected))
+                item_current_idx = n;
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    ImGui::SliderInt("Filter strength (0-100%)", &filter_strength, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
+    ImGui::SliderInt("Shift red values (0-100%)", &red_strength, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
+    ImGui::SliderInt("Shift blue values (0-100%)", &blue_strength, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
+    ImGui::SliderInt("Shift green values (0-100%)", &green_strength, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
+    ImGui::SliderInt("Shift alpha values (0-100%)", &alpha_strength, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
+    ImGui::SliderInt("Shift brightness (0-100%)", &brightness, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
+    ImGui::Checkbox("Normalize image", &normalize);
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    if(ImGui::Button("Apply changes")) {
+        // todo lol
+    }
+
     ImGui::EndChild();
 
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_size.y + 5));

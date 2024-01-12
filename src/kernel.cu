@@ -59,7 +59,6 @@ void run_kernel(const int8_t *filter, int dimension, const Pixel<channels> *inpu
   for(int ch = 0; ch < channels; ch++) {
     if(h_smallest->data[ch] < 0 || h_smallest->data[ch] > 255 ||
        h_largest->data[ch] < 0 || h_largest->data[ch] > 255) {
-        printf("-----normalizing-----\n");
         normalize<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest);
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("normalize");

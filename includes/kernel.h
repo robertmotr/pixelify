@@ -18,6 +18,18 @@
     } \
 } while (0)
 
+struct kernel_data {
+    // shift values are expected to be [0, 100] (percentage)
+    // i.e red_shift = 0 -> no red shift, red_shift = 100 -> red channel is 100% of the channel value
+    bool                        normalize; // false means we clamp values to [0, 255] to be able to display them,
+                                           // true means we also perform linear normalization
+    unsigned char               red_shift;
+    unsigned char               green_shift;
+    unsigned char               blue_shift;
+    unsigned char               alpha_shift; // 0 if no alpha channel, so just do nothing
+    unsigned char               brightness; // 0 if no brightness change, 100 if we want to double the brightness
+};
+
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
 __device__ __forceinline__ int32_t find_index(int width, int height, int row, int column) {
     if (row >= 0 && row < height && column >= 0 && column < width) {
@@ -43,6 +55,8 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
             if(min < 0) min += 255;
         } // to prevent division by zero (... / (max - min))
         // just assign random values if max = min 
+        // this shouldnt happen in real life, so we'll just ignore it
+        // although i am unsure if this is the best way to handle this
 
         target[pixel_idx].data[channel] = (value - min) * 255 / (max - min);
     }

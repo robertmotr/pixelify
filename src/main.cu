@@ -8,31 +8,19 @@
 #include "kernel.h"
 #include "render.h"
 
-int8_t filter[] = {
-  0, 0, 0,
-  0, 1, 0,
-  0, 0, 0
-};
-
-int8_t blur[] = {
-  1, 1, 1,
-  1, 1, 1,
-  1, 1, 1
-};
-
 int main(int argc, char **argv) {
-  if(argc != 4) {
-    printf("GUI/CLI mode must be either true/false, input must be a valid image file, and output is the name of the output file.\n");
-    printf("Usage: %s <GUI/CLI mode> <input> <output>\n", argv[0]);
-    return 1;
-  }
-
-  if(strcmp(argv[1], "true") == 0) {
+  if(argc == 1) {
     // GUI mode
     // call render function
     render_gui();
     return 0;
   }
+  else if(argc != 3) {
+    printf("Input must be a valid image file, and output is the name of the output file.\n");
+    printf("Usage: %s <input> <output>\n", argv[0]);
+    return 1;
+  }
+  else {
   // otherwise cli mode
 
   // std::string input = argv[2];
@@ -88,4 +76,5 @@ int main(int argc, char **argv) {
   // stbi_write_png(output.c_str(), width, height, channels, image_output, 0); 
 
   return 0;
+  }
 }
