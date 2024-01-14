@@ -12,18 +12,6 @@ void print_to(const Pixel<3>& pixel, ::std::ostream* os) {
     *os << "Pixel(" << pixel.data[0] << ", " << pixel.data[1] << ", " << pixel.data[2] << ")";
 }
 
-const int8_t IDENTITY_FILTER[] = {
-    0, 0, 0,
-    0, 1, 0,
-    0, 0, 0
-};
-
-const int8_t BOX_BLUR_FILTER[] = {
-    1, 1, 1,
-    1, 1, 1,
-    1, 1, 1
-};
-
 TEST(kernel_correctness, identity_filter) {
     Pixel<3> input[9] = {
         {1, 1, 1}, {1, 1, 1}, {1, 1, 1},

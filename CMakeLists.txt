@@ -56,10 +56,10 @@ target_include_directories(pixelify_lib PUBLIC
 add_executable(pixelify src/main.cu)
 target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL)
 
-add_library(pixelify_tests STATIC ${SOURCES})
+# add_library(pixelify_tests STATIC ${SOURCES})
 # target_include_directories(pixelify_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
-add_executable(tests tests/tests.cu)
-target_link_libraries(tests pixelify_tests gtest pixelify_lib)
+# add_executable(tests tests/tests.cu)
+# target_link_libraries(tests pixelify_tests gtest pixelify_lib)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

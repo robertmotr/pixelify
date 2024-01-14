@@ -5,9 +5,9 @@
 
 template<unsigned int channels>
 void run_kernel(std::string filter_name, const Pixel<channels> *input,
-                 Pixel<channels> *output, int width, int height, struct kernel_args extra_args) {
+                 Pixel<channels> *output, int width, int height, struct kernel_args extra) {
 
-  filter h_filter = create_filter_from_strength(filter_name, width, height, extra_args.filter_strength);
+  filter h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
 
   int pixels = width * height;
   int blockSize;
@@ -35,7 +35,7 @@ void run_kernel(std::string filter_name, const Pixel<channels> *input,
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
 
   cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  if(filter_name != "NULL") cudaMemcpy(device_filter, h_filter, sizeof(h_filter), cudaMemcpyHostToDevice);
+  if(filter_name != "NULL") cudaMemcpy(device_filter, &h_filter, sizeof(h_filter), cudaMemcpyHostToDevice);
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
 
@@ -45,22 +45,28 @@ void run_kernel(std::string filter_name, const Pixel<channels> *input,
   // apply filter first if filter is not NULL
   // then apply everything else in the kernel_args struct
   if(filter_name != "NULL") {
-    kernel<channels><<<gridSize, blockSize>>>(device_filter, device_input, device_output, width, height, OP_FILTER);
+    kernel<channels><<<gridSize, blockSize>>>(device_filter, device_input, device_output, width, height, OP_FILTER, extra);
     CUDA_CHECK_ERROR("launching filter kernel");
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("sync after filter kernel");
   }
-  if(extra_args.alpha_shift != 0 || extra_args.red_shift != 0 || extra_args.green_shift != 0 || extra_args.blue_shift != 0) {
-    kernel<channels><<<gridSize, blockSize>>>(NULL, 0, device_input, device_output, width, height, OP_SHIFT_COLOURS);
+  if(extra.alpha_shift != 0 || extra.red_shift != 0 || extra.green_shift != 0 || extra.blue_shift != 0) {
+    kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_SHIFT_COLOURS, extra);
     CUDA_CHECK_ERROR("launching shift colour kernel");
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("sync after shift colour kernel");
   } 
-  if(extra_args.brightness != 0) {
-    kernel<channels><<<gridSize, blockSize>>>(NULL, 0, device_input, device_output, width, height, OP_BRIGHTNESS);
+  if(extra.brightness != 0) {
+    kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_BRIGHTNESS, extra);
     CUDA_CHECK_ERROR("launching brightness kernel");
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("sync after brightness kernel");
+  }
+  if(extra.tint_alpha != 0 || extra.tint_red != 0 || extra.tint_green != 0 || extra.tint_blue != 0) {
+    kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_TINT, extra);
+    CUDA_CHECK_ERROR("launching tint kernel");
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("sync after tint kernel");
   }
 
   // parallel reduction to find largest and smallest pixel values
@@ -100,7 +106,7 @@ void run_kernel(std::string filter_name, const Pixel<channels> *input,
 }
 
 template<unsigned int channels>
-__global__  void kernel(const filter& filter, const Pixel<channels> *input, Pixel<channels> *output, 
+__global__  void kernel(const filter *filter, const Pixel<channels> *input, Pixel<channels> *output, 
                         int width, int height, unsigned char operation, struct kernel_args extra) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
@@ -133,31 +139,31 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
     if(normalize_or_clamp) {
       normalize_pixel<channels>(target, pixel_idx, smallest, largest);
     } else {
-      for(int ch = 0; ch < channels; ch++) {
-        target[pixel_idx].data[ch] = std::clamp(target[pixel_idx].data[ch], 0, 255);
-      }
+      clamp_pixels<channels>(target, pixel_idx);
     }
   }
 }
 
 // explicitly instantiate
-template void run_kernel<3u>(const filter& filter, int dimension, const Pixel<3u> *input,
-                 Pixel<3u> *output, int width, int height);
+template void run_kernel<3u>(std::string filter_name, const Pixel<3u> *input,
+                 Pixel<3u> *output, int width, int height, struct kernel_args extra);
 
-template void run_kernel<4u>(const filter& filter, int dimension, const Pixel<4u> *input,
-                  Pixel<4u> *output, int width, int height);
+template void run_kernel<4u>(std::string filter_name, const Pixel<4u> *input,
+                  Pixel<4u> *output, int width, int height, struct kernel_args extra);
 
-template __global__ void kernel<3u>(const filter &filter, int dimension,
-                        const Pixel<3u> *input, Pixel<3u> *output, int width, int height);
+template __global__ void kernel<3u>(const filter *filter, const Pixel<3u> *input, 
+                                  Pixel<3u> *output, int width, int height,
+                                  unsigned char operation, struct kernel_args extra);
 
-template __global__ void kernel<4u>(const filter &filter, int dimension,
-                        const Pixel<4u> *input, Pixel<4u> *output, int width, int height);
+template __global__ void kernel<4u>(const filter *filter, const Pixel<4u> *input, 
+                                  Pixel<4u> *output, int width, int height,
+                                  unsigned char operation, struct kernel_args extra);
 
 template __global__ void normalize<3u>(Pixel<3u> *target, int width, int height,
-                           const Pixel<3u> *smallest, const Pixel<3u> *largest);
+                           const Pixel<3u> *smallest, const Pixel<3u> *largest, bool normalize_or_clamp);
 
 template __global__ void normalize<4u>(Pixel<4u> *target, int width, int height,
-                            const Pixel<4u> *smallest, const Pixel<4u> *largest);
+                            const Pixel<4u> *smallest, const Pixel<4u> *largest, bool normalize_or_clamp);
 
 template void image_reduction<3u>(const Pixel<3u> *d_input, Pixel<3u>* d_result, unsigned int size, bool op);
 

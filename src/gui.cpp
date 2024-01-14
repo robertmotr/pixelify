@@ -74,8 +74,10 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
 
     ImVec2 main_panel_size = ImVec2(2 * ImGui::GetContentRegionAvail().x / 3,
                                      ImGui::GetContentRegionAvail().y - 75);
-    ImVec2 side_panel_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
-                                     (ImGui::GetContentRegionAvail().y - 80) / 2);
+    ImVec2 side_panel_1_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
+                                     (2 * ImGui::GetContentRegionAvail().y - 80) / 3);
+    ImVec2 side_panel_2_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
+                                     (ImGui::GetContentRegionAvail().y - 80) / 3);
 
     ImGui::SetWindowSize(main_panel_size);
     ImVec2 parent_cursor_start = ImGui::GetCursorPos();
@@ -170,7 +172,7 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
     }
     ImGui::EndChild();
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y));
-    ImGui::BeginChild("Side panel 1", side_panel_size, true);
+    ImGui::BeginChild("Side panel 1", side_panel_1_size, true);
     ImGui::InputTextWithHint("Input file path", "Absolute path of your input image", input, IM_ARRAYSIZE(input));
 
     ImGui::Spacing();
@@ -236,6 +238,9 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
     ImGui::Spacing();
     ImGui::Spacing();
 
+    static bool tint_color;
+    static bool border_color;
+
     ImGui::SliderInt("Filter strength (-100-100%)", &filter_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
     ImGui::Spacing();
     ImGui::SliderInt("Shift red values (-100-100%)", &red_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
@@ -248,6 +253,13 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
     ImGui::Spacing();
     ImGui::SliderInt("Shift brightness (-100-100%)", &brightness, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
     ImGui::Spacing();
+    ImGui::TextWrapped("Tint image:");
+    ImGui::Spacing();
+    ImGui::ColorEdit3("Tint color", (float*)&tint_color);
+    ImGui::Spacing();
+    ImGui::ColorEdit4("Border color", (float*)&border_color);
+
+
     ImGui::Checkbox("Normalize image", &normalize);
 
     ImGui::Spacing();
@@ -259,8 +271,8 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
 
     ImGui::EndChild();
 
-    ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_size.y + 5));
-    ImGui::BeginChild("Side panel 2", side_panel_size, true);
+    ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_2_size.y + 5));
+    ImGui::BeginChild("Side panel 2", side_panel_2_size, true);
     ImGui::Text("Side panel 2");
     ImGui::EndChild();
     

@@ -7,6 +7,10 @@
 #include <assert.h>
 #include <string.h>
 
+unsigned int max(unsigned int a, unsigned int b, unsigned int c) {
+    return std::max(std::max(a, b), c);
+}
+
 class filter {
     public:
         std::string filter_name;
@@ -15,6 +19,12 @@ class filter {
 
         filter() {
             filter_name = "";
+            filter_dimension = 0;
+            filter_data = NULL;
+        }
+
+        filter(std::string name) {
+            filter_name = name;
             filter_dimension = 0;
             filter_data = NULL;
         }
@@ -70,7 +80,7 @@ class filter {
             unsigned int max_height = image_height * percentage / 100;
 
             if(max_width < 9 || max_height < 9) {
-                max_width = std::max(max_width, max_height, 9);
+                max_width = max(max_width, max_height, 9);
                 max_height = max_width;
             }
             // assert max_width and max_height are divisible by 9
@@ -98,8 +108,7 @@ const int SHARPEN_FILTER_DATA[9] = {0, -1, 0, -1, 5, -1, 0, -1, 0};
 const int EDGE_DETECTION_FILTER_DATA[9] = {-1, -1, -1, -1, 8, -1, -1, -1, -1};
 const int EMBOSS_FILTER_DATA[9] = {-2, -1, 0, -1, 1, 1, 0, 1, 2};
 
-const filter NULL_FILTER();
-NULL_FILTER.filter_name = std::string("NULL");
+const filter NULL_FILTER("NULL_FILTER");
 const filter IDENTITY_FILTER("IDENTITY", (int *)IDENTITY_FILTER_DATA, 3);
 const filter BOX_BLUR_FILTER("BOX_BLUR", (int *)BOX_BLUR_FILTER_DATA, 3);
 const filter GAUSSIAN_BLUR_FILTER("GAUSSIAN_BLUR", (int *)GAUSSIAN_BLUR_FILTER_DATA, 3);
