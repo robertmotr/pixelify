@@ -50,114 +50,57 @@ bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned 
     return true;
 }
 
+inline void display_image(const GLuint& texture, const int& width, const int& height) {
+    ImGui::Text("size = %d x %d", width, height);
+    static bool use_text_color_for_tint = false;
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 
+    ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 
+    ImVec4 tint_col = use_text_color_for_tint ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+    ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
 
-void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
-    static int width, height, channels;
-    static char input[256] =                "";
-    static char output[256] =               "";
-    static char filter[256] =               "";
-    static bool show_original =             false;
-    static bool show_preview =              false;
-    static bool normalize =                 false;
-    static unsigned char *image_data =      NULL;
-    static GLuint texture_orig =            0;
-    static GLuint texture_preview =         0;
-    static int filter_strength =            50;
-    static int red_strength =               50;
-    static int green_strength =             50;
-    static int blue_strength =              50;
-    static int alpha_strength =             50;
-    static int brightness =                 50;
+    // Render the original image
+    ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
 
-    ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
-     | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    // Check if the mouse is within the bounds of the image
+    if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
+        if (ImGui::BeginTooltip()) {
+            float region_sz = 32.0f;
+            float region_x = ImGui::GetIO().MousePos.x - pos.x - region_sz * 0.5f;
+            float region_y = ImGui::GetIO().MousePos.y - pos.y - region_sz * 0.5f;
+            float zoom = 4.0f;
 
-    ImVec2 main_panel_size = ImVec2(2 * ImGui::GetContentRegionAvail().x / 3,
-                                     ImGui::GetContentRegionAvail().y - 75);
-    ImVec2 side_panel_1_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
-                                     (2 * ImGui::GetContentRegionAvail().y - 80) / 3);
-    ImVec2 side_panel_2_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
-                                     (ImGui::GetContentRegionAvail().y - 80) / 3);
+            // Clamp the region within the bounds of the image
+            region_x = std::clamp(region_x, 0.0f, static_cast<float>(width - region_sz));
+            region_y = std::clamp(region_y, 0.0f, static_cast<float>(height - region_sz));
 
-    ImGui::SetWindowSize(main_panel_size);
-    ImVec2 parent_cursor_start = ImGui::GetCursorPos();
-    ImGui::BeginChild("Main panel", main_panel_size, true);
-    ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
-    ImGui::SetNextItemWidth(200.0f);
-    
-    if (ImGui::BeginTabBar("tab_bar", tab_bar_flags)) {
+            ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
+            ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
+            ImVec2 uv0 = ImVec2((region_x) / width, (region_y) / height);
+            ImVec2 uv1 = ImVec2((region_x + region_sz) / width, (region_y + region_sz) / height);
+            ImGui::Image((void*)(intptr_t)texture, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
+            ImGui::EndTooltip();
+        }
+    }
+}
+
+inline void display_tab_bar(const bool& show_original, const bool& show_preview, const int& width, const int& height, 
+                            const GLuint& texture_orig, const GLuint& texture_preview) { 
+
+    if (ImGui::BeginTabBar("tab_bar", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Original image")) {
             if (show_original) {
-            ImGui::Text("size = %d x %d", width, height);
-            static bool use_text_color_for_tint = false;
-            ImVec2 pos = ImGui::GetCursorScreenPos();
-            ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 
-            ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 
-            ImVec4 tint_col = use_text_color_for_tint ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-            ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
-
-            // Render the original image
-            ImGui::Image((void*)(intptr_t)texture_orig, ImVec2(width, height));
-
-            // Check if the mouse is within the bounds of the image
-            if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
-                if (ImGui::BeginTooltip()) {
-                    float region_sz = 32.0f;
-                    float region_x = ImGui::GetIO().MousePos.x - pos.x - region_sz * 0.5f;
-                    float region_y = ImGui::GetIO().MousePos.y - pos.y - region_sz * 0.5f;
-                    float zoom = 4.0f;
-
-                    // Clamp the region within the bounds of the image
-                    region_x = std::clamp(region_x, 0.0f, static_cast<float>(width - region_sz));
-                    region_y = std::clamp(region_y, 0.0f, static_cast<float>(height - region_sz));
-
-                    ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
-                    ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
-                    ImVec2 uv0 = ImVec2((region_x) / width, (region_y) / height);
-                    ImVec2 uv1 = ImVec2((region_x + region_sz) / width, (region_y + region_sz) / height);
-                    ImGui::Image((void*)(intptr_t)texture_orig, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
-                    ImGui::EndTooltip();
-                }
+                display_image(texture_orig, width, height);
             }
-        } else {
-                    ImGui::Text("No image loaded. Please select an input file on the right side panel, and click Load Image.");
-                }
-        ImGui::EndTabItem();
+            else {
+                ImGui::Text("No image loaded. Please select an input file and a filter on the right side panel, and click Apply Changes.");
+            }
+            ImGui::EndTabItem();
         }
         ImGui::SetNextItemWidth(200.0f);
-        if (ImGui::BeginTabItem("Preview image"))
-        {
+        if (ImGui::BeginTabItem("Preview image")) {
             if(show_preview) {
-                ImGui::Text("size = %d x %d", width, height);
-                static bool use_text_color_for_tint = false;
-                ImVec2 pos = ImGui::GetCursorScreenPos();
-                ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 
-                ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 
-                ImVec4 tint_col = use_text_color_for_tint ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-                ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
-
-                // Render the original image
-                ImGui::Image((void*)(intptr_t)texture_preview, ImVec2(width, height));
-
-                // Check if the mouse is within the bounds of the image
-                if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
-                    if (ImGui::BeginTooltip()) {
-                        float region_sz = 32.0f;
-                        float region_x = ImGui::GetIO().MousePos.x - pos.x - region_sz * 0.5f;
-                        float region_y = ImGui::GetIO().MousePos.y - pos.y - region_sz * 0.5f;
-                        float zoom = 4.0f;
-
-                        // Clamp the region within the bounds of the image
-                        region_x = std::clamp(region_x, 0.0f, static_cast<float>(width - region_sz));
-                        region_y = std::clamp(region_y, 0.0f, static_cast<float>(height - region_sz));
-
-                        ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
-                        ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
-                        ImVec2 uv0 = ImVec2((region_x) / width, (region_y) / height);
-                        ImVec2 uv1 = ImVec2((region_x + region_sz) / width, (region_y + region_sz) / height);
-                        ImGui::Image((void*)(intptr_t)texture_preview, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
-                        ImGui::EndTooltip();
-                    }
+                display_image(texture_preview, width, height);
             } else {
                 ImGui::Text("No image loaded. Please select an input file and a filter on the right side panel, and click Apply Changes.");
             }
@@ -170,15 +113,51 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
         }
         ImGui::EndTabBar();
     }
+}
+
+
+void display_ui(ImGuiIO& io) {
+
+    static int width, height, channels;
+    static char input[256] =                "";
+    static char output[256] =               "";
+    static char filter[256] =               "";
+    static bool show_original =             false;
+    static bool show_preview =              false;
+    static bool normalize =                 false;
+    static unsigned char *image_data =      NULL;
+    static GLuint texture_orig =            0;
+    static GLuint texture_preview =         0;
+    static int filter_strength =            0;
+    static int red_strength =               0;
+    static int green_strength =             0;
+    static int blue_strength =              0;
+    static int alpha_strength =             0;
+    static int brightness =                 0;
+    static ImVec4 tint_colour =             ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+    ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
+     | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+    ImVec2 main_panel_size = ImVec2(2 * ImGui::GetContentRegionAvail().x / 3,
+                                     ImGui::GetContentRegionAvail().y - 75);
+    ImVec2 side_panel_1_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
+                                     (2 * ImGui::GetContentRegionAvail().y - 80) / 3);
+    ImVec2 side_panel_2_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
+                                     (ImGui::GetContentRegionAvail().y - 80) / 3 - 22);
+
+    ImGui::SetWindowSize(main_panel_size);
+    ImVec2 parent_cursor_start = ImGui::GetCursorPos();
+    ImGui::BeginChild("Main panel", main_panel_size, true);
+    ImGui::SetNextItemWidth(200.0f);
+    display_tab_bar(show_original, show_preview, width, height, texture_orig, texture_preview);
     ImGui::EndChild();
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y));
     ImGui::BeginChild("Side panel 1", side_panel_1_size, true);
     ImGui::InputTextWithHint("Input file path", "Absolute path of your input image", input, IM_ARRAYSIZE(input));
-
     ImGui::Spacing();
 
     if (ImGui::Button("Select input file")) {
-        
         IGFD::FileDialogConfig config;
         config.sidePaneWidth = 300.0f;
         config.path = ".";
@@ -238,9 +217,6 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
     ImGui::Spacing();
     ImGui::Spacing();
 
-    static bool tint_color;
-    static bool border_color;
-
     ImGui::SliderInt("Filter strength (-100-100%)", &filter_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
     ImGui::Spacing();
     ImGui::SliderInt("Shift red values (-100-100%)", &red_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
@@ -253,12 +229,9 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
     ImGui::Spacing();
     ImGui::SliderInt("Shift brightness (-100-100%)", &brightness, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
     ImGui::Spacing();
-    ImGui::TextWrapped("Tint image:");
-    ImGui::Spacing();
-    ImGui::ColorEdit3("Tint color", (float*)&tint_color);
-    ImGui::Spacing();
-    ImGui::ColorEdit4("Border color", (float*)&border_color);
 
+    ImGui::ColorEdit4("Tint colour", (float*)&tint_colour, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf | 
+                                                             ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_DisplayHex);
 
     ImGui::Checkbox("Normalize image", &normalize);
 
@@ -271,11 +244,9 @@ void display_ui(const GLFWvidmode *mode, ImGuiIO& io) {
 
     ImGui::EndChild();
 
-    ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_2_size.y + 5));
+    ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_1_size.y));
     ImGui::BeginChild("Side panel 2", side_panel_2_size, true);
     ImGui::Text("Side panel 2");
     ImGui::EndChild();
-    
     ImGui::End();
-    }
 }

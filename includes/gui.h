@@ -14,6 +14,6 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-void display_ui(const GLFWvidmode *mode, ImGuiIO& io);
+void display_ui(ImGuiIO& io);
 
 #endif // __UI__H__

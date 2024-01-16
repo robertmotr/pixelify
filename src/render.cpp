@@ -71,7 +71,7 @@ void render_gui() {
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(mode->width, mode->height));
 
-        display_ui(mode, io);
+        display_ui(io);
 
         // Rendering
         ImGui::Render();

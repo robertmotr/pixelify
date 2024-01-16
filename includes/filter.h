@@ -48,10 +48,6 @@ class filter {
             }
         }
 
-        ~filter() {
-            delete[] filter_data;
-        }
-
         bool operator==(const filter &other) const {
             if (filter_name != other.filter_name) {
                 return false;
@@ -93,7 +89,12 @@ class filter {
                 // memcpy our filter data into the new filter data
                 memcpy(new_filter_data + i, filter_data, filter_dimension * filter_dimension * sizeof(int));
             }
+
+            if(filter_dimension > 3) {
+                free(filter_data);
+            } 
             // ideally we'd delete old filter data here, but we assume that old filter data is always allocated on the stack
+            // (if its 3x3)
             filter_data = new_filter_data;
             filter_dimension = max_width;
             return true;
