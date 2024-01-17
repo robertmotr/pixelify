@@ -1,4 +1,4 @@
-#include "kernel.h"
+#include "kernel.cuh"
 #include "reduce.h"
 #include "pixel.h"
 #include "filter.h"
@@ -62,7 +62,7 @@ void run_kernel(std::string filter_name, const Pixel<channels> *input,
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("sync after brightness kernel");
   }
-  if(extra.tint_alpha != 0 || extra.tint_red != 0 || extra.tint_green != 0 || extra.tint_blue != 0) {
+  if(std::any_of(std::begin(extra.tint), std::end(extra.tint), [](char i){return i != 0;})) {
     kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_TINT, extra);
     CUDA_CHECK_ERROR("launching tint kernel");
     cudaDeviceSynchronize();
@@ -124,6 +124,10 @@ __global__  void kernel(const filter *filter, const Pixel<channels> *input, Pixe
         output[pixel_idx].data[channel] = shift_colours(input[pixel_idx].data[channel], extra, channel);
       } else if(operation == OP_BRIGHTNESS) {
         output[pixel_idx].data[channel] = input[pixel_idx].data[channel] * (100 + extra.brightness) / 100;
+      }
+      else if(operation == OP_TINT) {
+        output[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor / 100)) * extra.tint[channel] + 
+                                          (float)(extra.blend_factor / 100) * input[pixel_idx].data[channel];
       }
     }
   }

@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <string.h>
 
+// hack to make the compiler shut up
 unsigned int max(unsigned int a, unsigned int b, unsigned int c) {
     return std::max(std::max(a, b), c);
 }

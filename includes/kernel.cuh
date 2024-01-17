@@ -35,10 +35,8 @@ struct kernel_args {
     char                        alpha_shift; 
     char                        brightness;
     // chosen by colour picker
-    char                        tint_red;
-    char                        tint_green;
-    char                        tint_blue;
-    char                        tint_alpha; 
+    char tint[4] =              {0, 0, 0, 0}; // [red, green, blue, alpha]
+    char                        blend_factor;
 };
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds

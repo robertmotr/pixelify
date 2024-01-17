@@ -3,6 +3,11 @@
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
+#include <exiv2/exiv2.hpp>
+#include "kernel.cuh"
+#include "pixel.h"
+#include "reduce.h"
+#include <vector>
 
 #include "imgui_impl_opengl3.h"
 #include "ImGuiFileDialog.h"

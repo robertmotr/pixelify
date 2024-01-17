@@ -1,5 +1,5 @@
 #include "render.h"
-#include "gui.h"
+#include "gui.cuh"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);

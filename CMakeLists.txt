@@ -6,12 +6,13 @@ enable_language(CUDA CXX)
 include(GoogleTest REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(exiv2 REQUIRED)
 
 set(CMAKE_CUDA_ARCHITECTURES 61)
 
 set(SOURCES 
     src/main.cu
-    src/gui.cpp
+    src/gui.cu
     src/render.cpp
     src/kernel.cu
 )
@@ -54,7 +55,7 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/cub/cub   
 )
 add_executable(pixelify src/main.cu)
-target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL)
+target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2 cuda)
 
 # add_library(pixelify_tests STATIC ${SOURCES})
 # target_include_directories(pixelify_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
