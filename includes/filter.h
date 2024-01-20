@@ -8,7 +8,7 @@
 #include <string.h>
 
 // hack to make the compiler shut up
-unsigned int max(unsigned int a, unsigned int b, unsigned int c) {
+inline unsigned int max_hacky(unsigned int a, unsigned int b, unsigned int c) {
     return std::max(std::max(a, b), c);
 }
 
@@ -77,7 +77,7 @@ class filter {
             unsigned int max_height = image_height * percentage / 100;
 
             if(max_width < 9 || max_height < 9) {
-                max_width = max(max_width, max_height, 9);
+                max_width = max_hacky(max_width, max_height, 9);
                 max_height = max_width;
             }
             // assert max_width and max_height are divisible by 9
@@ -118,17 +118,9 @@ const filter SHARPEN_FILTER("SHARPEN", (int *)SHARPEN_FILTER_DATA, 3);
 const filter EDGE_DETECTION_FILTER("EDGE_DETECTION", (int *)EDGE_DETECTION_FILTER_DATA, 3);
 const filter EMBOSS_FILTER("EMBOSS", (int *)EMBOSS_FILTER_DATA, 3);
 
-std::vector<filter> filter_list = {
-    IDENTITY_FILTER,
-    BOX_BLUR_FILTER,
-    GAUSSIAN_BLUR_FILTER,
-    SHARPEN_FILTER,
-    EDGE_DETECTION_FILTER,
-    EMBOSS_FILTER,
-    NULL_FILTER
-};
+extern std::vector<filter> filter_list;
 
-filter create_filter_from_strength(std::string name, unsigned int image_width, unsigned int image_height, unsigned char percentage) {
+inline filter create_filter_from_strength(std::string name, unsigned int image_width, unsigned int image_height, unsigned char percentage) {
     filter f;
     for(auto filter : filter_list) {
         if(filter.filter_name == name) {

@@ -4,9 +4,9 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include <exiv2/exiv2.hpp>
-#include "kernel.cuh"
+#include "kernel.h"
 #include "pixel.h"
-#include "reduce.h"
+#include "filter.h"
 #include <vector>
 
 #include "imgui_impl_opengl3.h"

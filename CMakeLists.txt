@@ -13,20 +13,8 @@ set(CMAKE_CUDA_ARCHITECTURES 61)
 set(SOURCES 
     src/main.cu
     src/gui.cu
-    src/render.cpp
+    src/render.cu
     src/kernel.cu
-)
-
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/includes
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/thrust
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/libcudacxx/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/cub/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
 )
 
 set(IMGUI_SOURCES
@@ -41,7 +29,6 @@ set(IMGUI_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog/ImGuiFileDialog.cpp
 )
 
-
 add_library(imgui_lib STATIC ${IMGUI_SOURCES})
 target_include_directories(imgui_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 
@@ -49,13 +36,15 @@ add_library(pixelify_lib STATIC ${SOURCES})
 target_include_directories(pixelify_lib PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/includes
     ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cccl/cub/cub   
+    ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 )
 add_executable(pixelify src/main.cu)
-target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2 cuda)
+target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
 
 # add_library(pixelify_tests STATIC ${SOURCES})
 # target_include_directories(pixelify_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)

@@ -1,9 +1,19 @@
-#include "gui.cuh"
+#include "gui.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+std::vector<filter> filter_list = {
+    IDENTITY_FILTER,
+    BOX_BLUR_FILTER,
+    GAUSSIAN_BLUR_FILTER,
+    SHARPEN_FILTER,
+    EDGE_DETECTION_FILTER,
+    EMBOSS_FILTER,
+    NULL_FILTER
+};
 
 // Simple helper function to load an image into a OpenGL texture with common settings
 bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
@@ -107,6 +117,7 @@ inline void display_tab_bar(const bool& show_original, const bool& show_preview,
         ImGui::SetNextItemWidth(200.0f);
         if (ImGui::BeginTabItem("Settings")) {
             ImGui::Text("TODO: add settings");   // TODO
+            ImGui::Text("But, to be honest, theres not much to add here.");
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

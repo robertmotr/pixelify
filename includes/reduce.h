@@ -2,7 +2,7 @@
 #define __REDUCE__H
 
 #include "pixel.h"
-#include "cub.cuh"
+#include <cub/device/device_reduce.cuh>
 
 #define MAX_REDUCE true
 #define MIN_REDUCE false

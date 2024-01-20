@@ -1,4 +1,4 @@
-#include "kernel.cuh"
+#include "kernel.h"
 #include "reduce.h"
 #include "pixel.h"
 #include "filter.h"
