@@ -1,15 +1,4 @@
-#include "render.h"
 #include "gui.h"
-
-std::vector<filter> filter_list = {
-    IDENTITY_FILTER,
-    BOX_BLUR_FILTER,
-    GAUSSIAN_BLUR_FILTER,
-    SHARPEN_FILTER,
-    EDGE_DETECTION_FILTER,
-    EMBOSS_FILTER,
-    NULL_FILTER
-};
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);

@@ -34,7 +34,7 @@ target_include_directories(imgui_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external
 
 add_library(pixelify_lib STATIC ${SOURCES})
 target_include_directories(pixelify_lib PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/includes
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub

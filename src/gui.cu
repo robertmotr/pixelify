@@ -11,11 +11,10 @@ std::vector<filter> filter_list = {
     GAUSSIAN_BLUR_FILTER,
     SHARPEN_FILTER,
     EDGE_DETECTION_FILTER,
-    EMBOSS_FILTER,
-    NULL_FILTER
+    EMBOSS_FILTER
 };
 
-// Simple helper function to load an image into a OpenGL texture with common settings
+// helper function to load an image into a OpenGL texture with common settings
 bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
                             int* out_width, int* out_height, int* out_channels) {
     unsigned char* image_data = stbi_load(filename, out_width, out_height, out_channels, 4); 
@@ -150,7 +149,7 @@ std::string generate_exif_string(const Exiv2::ExifData& exifData) {
     return result.str();
 }
 
-std::string generateIptcDataString(const Exiv2::IptcData& iptcData) {
+std::string generate_iptc_string(const Exiv2::IptcData& iptcData) {
     if(iptcData.empty()) {
         return std::string("No IPTC data found in file\n");
     }
@@ -253,7 +252,7 @@ void display_ui(ImGuiIO& io) {
             exif_data_str = generate_exif_string(exifdata);
 
             Exiv2::IptcData& iptcdata = image->iptcData();
-            iptc_data_str = generateIptcDataString(iptcdata);
+            iptc_data_str = generate_iptc_string(iptcdata);
 
             show_original = true;
         }
@@ -285,8 +284,8 @@ void display_ui(ImGuiIO& io) {
 
     ImGui::Spacing();
     ImGui::Spacing();
-    ImGui::InputTextWithHint("Output file path", "Absolute path for your output image", output, IM_ARRAYSIZE(output));
-    ImGui::SameLine(); 
+    ImGui::InputTextWithHint("##output", "Absolute path for your output image", output, IM_ARRAYSIZE(output));
+    ImGui::SameLine();
     ImGui::Spacing();
     ImGui::Spacing();
     // Using the generic BeginCombo() API, you have full control over how to display the combo contents.
@@ -348,7 +347,21 @@ void display_ui(ImGuiIO& io) {
     ImGui::Spacing();
     if(ImGui::Button("Apply changes")) {
         if(show_original) {
-            // nothing for now
+            struct kernel_args args;
+            // go through each option and set the appropriate values
+            args.filter_strength = filter_strength;
+            args.red_shift = red_strength;
+            args.green_shift = green_strength;
+            args.blue_shift = blue_strength;
+            args.alpha_shift = alpha_strength;
+            args.brightness = brightness;
+            args.blend_factor = blend_factor;
+            args.normalize = normalize;
+
+            args.tint[0] = tint_colour.x;
+            args.tint[1] = tint_colour.y;
+            args.tint[2] = tint_colour.z;
+            args.tint[3] = tint_colour.w;
         }
     }
 
