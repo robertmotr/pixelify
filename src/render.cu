@@ -10,9 +10,9 @@
 // normally its kind of pointless to implement a function like this but
 // stb_image requires header defines to be in the same file as the implementation
 void free_image(unsigned char **image_data) {
-    if(image_data != nullptr && *image_data != nullptr) {
+    if(image_data != NULL && *image_data != NULL) {
         stbi_image_free(*image_data);
-        *image_data = nullptr;
+        *image_data = NULL;
     }
 }
 
@@ -61,6 +61,7 @@ bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned 
         printf("Failed to load image: %s\n", stbi_failure_reason());
         return false;
     }
+    *out_raw_image = image_data;
     return load_texture_from_data(out_channels, out_width, out_height, out_texture, image_data);
 }
 
@@ -168,29 +169,33 @@ void render_gui_loop() {
 
 bool render_applied_changes(std::string filter_name, struct kernel_args args, int *width, int *height, 
                 GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out) {
-    // check if image_data_in is non-null 
-    if(image_data_in == nullptr || *image_data_in == nullptr) {
-        return false;
-    }
-    if(image_data_out == nullptr) {
-        return false;
-    }
-    else {
-        // at this point we should free image_data out
-        stbi_image_free(*image_data_out);
-        *image_data_out = nullptr;
-    }
-    // check if image_data_out is non-null
-    if(image_data_out == nullptr) {
-        return false;
-    }
+    assert(image_data_in != NULL);
+    assert(*image_data_in != NULL);
+    assert(*width > 0);
+    assert(*height > 0);
+    assert(*channels == 3 || *channels == 4);
+    assert(texture_preview != NULL);
+    assert(image_data_out != NULL);
     
     if(*channels == 3) {
         Pixel<3> *pixels_in = raw_image_to_pixel<3>(*image_data_in, (*width) * (*height));
         Pixel<3> *pixels_out = new Pixel<3>[(*width) * (*height)];
         run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
 
-        *image_data_out = pixel_to_raw_image<3>(pixels_out, (*width) * (*height));
+        if(*image_data_out == NULL) {
+            *image_data_out = pixel_to_raw_image<3>(pixels_out, (*width) * (*height));
+        }
+        else {
+            for (unsigned int i = 0; i < (*width) * (*height); i++) {
+                for (unsigned int j = 0; j < 3; j++) {
+                    if(pixels_in[i].data[j] < 0 || pixels_in[i].data[j] > 255) {
+                        printf("Pixel value out of range: %d\n", pixels_in[i].data[j]);
+                    }
+                    *image_data_out[i * 3 + j] = (unsigned char) pixels_in[i].data[j];
+                }
+            }
+        } 
+        
         delete[] pixels_in;
         delete[] pixels_out;
         if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
@@ -202,7 +207,20 @@ bool render_applied_changes(std::string filter_name, struct kernel_args args, in
         Pixel<4> *pixels_out = new Pixel<4>[(*width) * (*height)];
         run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
 
-        *image_data_out = pixel_to_raw_image<4>(pixels_out, (*width) * (*height));
+        if(*image_data_out == NULL) {
+            *image_data_out = pixel_to_raw_image<4>(pixels_out, (*width) * (*height));
+        }
+        else {
+            for (unsigned int i = 0; i < (*width) * (*height); i++) {
+                for (unsigned int j = 0; j < 4; j++) {
+                    if(pixels_in[i].data[j] < 0 || pixels_in[i].data[j] > 255) {
+                        printf("Pixel value out of range: %d\n", pixels_in[i].data[j]);
+                    }
+                    *image_data_out[i * 4 + j] = (unsigned char) pixels_in[i].data[j];
+                }
+            }
+        }
+        
         delete[] pixels_in;
         delete[] pixels_out;
         if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {

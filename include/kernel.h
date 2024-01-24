@@ -35,7 +35,7 @@ struct kernel_args {
     char                        alpha_shift; 
     char                        brightness;
     // chosen by colour picker
-    char tint[4] =              {0, 0, 0, 0}; // [red, green, blue, alpha]
+    unsigned char tint[4] =     {0, 0, 0, 0}; // [red, green, blue, alpha]
     char                        blend_factor;
 };
 

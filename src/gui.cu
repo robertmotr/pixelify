@@ -128,6 +128,7 @@ void show_ui(ImGuiIO& io) {
     // to determine whether which tab is shown
     static bool show_original =             false;
     static bool show_preview =              false;
+    static bool show_tint =                 false;
 
     // filter options
     static bool normalize =                 false;
@@ -280,28 +281,31 @@ void show_ui(ImGuiIO& io) {
     ImGui::Spacing();
     ImGui::Spacing();
 
-    ImGui::Text("Tint colour of image");
-    ImGui::Spacing();
-    float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.y) * 0.40f;
-    ImGui::SetNextItemWidth(w);
-    ImGui::ColorPicker4("##tint1", (float*)&tint_colour, ImGuiColorEditFlags_AlphaBar |
-        ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_DisplayHex | ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_DisplayHSV);
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(w);
-    ImGui::ColorPicker3("##tint2", (float*)&tint_colour,  
-        ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview);
-    ImGui::Spacing();
-    ImGui::Spacing();
+    ImGui::Checkbox("Tint image", &show_tint);
+    if(show_tint) {
+        ImGui::Text("Tint colour of image");
+        ImGui::Spacing();
+        float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.y) * 0.40f;
+        ImGui::SetNextItemWidth(w);
+        ImGui::ColorPicker4("##tint1", (float*)&tint_colour, ImGuiColorEditFlags_AlphaBar |
+            ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_DisplayHex | ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_DisplayHSV);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(w);
+        ImGui::ColorPicker3("##tint2", (float*)&tint_colour,  
+            ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview);
+        ImGui::Spacing();
+        ImGui::Spacing();
 
-    ImGui::SliderFloat("Tint strength (0 to 100%)", &blend_factor, 0.0f, 1.0f, "blend factor = %.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("Tint strength (0 to 100%)", &blend_factor, 0.0f, 1.0f, "blend factor = %.3f", ImGuiSliderFlags_AlwaysClamp);
 
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
+    }
+
     if(ImGui::Button("Apply changes")) {
         if(show_original) {
             show_preview = true;
-            
             // pass kernel args to render function
             struct kernel_args extra_args;
             extra_args.red_shift = red_strength;
@@ -316,9 +320,15 @@ void show_ui(ImGuiIO& io) {
             extra_args.tint[1] = tint_colour.y;
             extra_args.tint[2] = tint_colour.z;
             extra_args.tint[3] = tint_colour.w;
-
-            render_applied_changes(std::string(combo_preview_value), extra_args, &width, &height,
+            std::cout << "we should have reached here" << "\n";
+            bool ret = render_applied_changes(std::string(combo_preview_value), extra_args, &width, &height,
                 &texture_preview, &channels, &image_data, &image_data_out);
+            if(ret) {
+                std::cout << "success" << "\n";
+            }
+            else {
+                std::cout << "error" << "\n";
+            }
         }
     }
     ImGui::SameLine();
@@ -331,6 +341,20 @@ void show_ui(ImGuiIO& io) {
         if(image_data_out != NULL) free_image(&image_data_out);
 
     }
+    ImGui::SameLine();
+    if(ImGui::Button("Restore defaults")) {
+        filter_strength = 0;
+        red_strength = 0;
+        green_strength = 0;
+        blue_strength = 0;
+        alpha_strength = 0;
+        brightness = 0;
+        normalize = false;
+        blend_factor = 0;
+        tint_colour = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        show_tint = false;
+    }
+
     ImGui::EndChild();
 
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_1_size.y));

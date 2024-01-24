@@ -56,20 +56,9 @@ Pixel<channels> *raw_image_to_pixel(const unsigned char *input, unsigned int siz
 
 template<unsigned int channels>
 void fill_pixels(Pixel<channels> *input, unsigned int size, int value) {
-    if(value == PIXEL_NULL_CHANNEL) 
-    // then we just randomize each channel
-    {
-        for (unsigned int i = 0; i < size; i++) {
-            for (unsigned int j = 0; j < channels; j++) {
-                input[i].data[j] = rand() % 255;
-            }
-        }
-    }
-    else {
-        for (unsigned int i = 0; i < size; i++) {
-            for (unsigned int j = 0; j < channels; j++) {
-                input[i].data[j] = value;
-            }
+    for (unsigned int i = 0; i < size; i++) {
+        for (unsigned int j = 0; j < channels; j++) {
+            input[i].data[j] = value;
         }
     }
 }
