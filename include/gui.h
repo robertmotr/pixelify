@@ -21,16 +21,25 @@
 #include <iostream>
 #include <exiv2/exiv2.hpp>
 
+void free_image(unsigned char **image_data);
+
+bool load_texture_from_data(int *out_channels, int *out_width, int *out_height, GLuint *out_texture, unsigned char *image_data);
+// Simple helper function to load an image into a OpenGL texture with common settings
+bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
+                            int* out_width, int* out_height, int* out_channels);
+
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-void render_gui();
+// main function for rendering the gui through imgui, little to no ui stuff here
+void render_gui_loop();
 
-// Simple helper function to load an image into a OpenGL texture with common settings
-bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
-                            int* out_width, int* out_height, int* out_channels);
+// returns true on success and false on failure
+// calls run_kernel to process the original image into preview image using the filter + other changes
+bool render_applied_changes(std::string filter_name, struct kernel_args args, int *width, int *height, 
+                GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out);
 
 // displays image in the GUI given a gluint texture
 inline void display_image(const GLuint& texture, const int& width, const int& height);
@@ -45,6 +54,8 @@ std::string generate_exif_string(const Exiv2::ExifData& exifData);
 // same thing but for IPTC
 std::string generate_iptc_string(const Exiv2::IptcData& iptcData);
 
-void display_ui(ImGuiIO& io);
+// main ui loop for the program
+// all ui elements/stuff is here
+void show_ui(ImGuiIO& io);
 
 #endif // __GUI__H

@@ -1,10 +1,74 @@
 #include "gui.h"
+#include "kernel.h"
+#include "pixel.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+// normally its kind of pointless to implement a function like this but
+// stb_image requires header defines to be in the same file as the implementation
+void free_image(unsigned char **image_data) {
+    if(image_data != nullptr && *image_data != nullptr) {
+        stbi_image_free(*image_data);
+        *image_data = nullptr;
+    }
+}
+
+bool load_texture_from_data(int *out_channels, int *out_width, int *out_height,
+                            GLuint *out_texture, unsigned char *image_data) {
+    // Create a OpenGL texture identifier
+    GLuint image_texture;
+    glGenTextures(1, &image_texture);
+    glBindTexture(GL_TEXTURE_2D, image_texture);
+
+    // Setup filtering parameters for display
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+        // Upload pixels into texture
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+    if(!(*out_channels == 3 || *out_channels == 4)) {
+        // Handle unsupported channel count
+        printf("Unsupported number of channels: %d\n", *out_channels);
+        stbi_image_free(image_data);
+        return false;
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, *out_width, *out_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR)
+    {
+        printf("OpenGL error after glTexImage2D: %x\n", error);
+        stbi_image_free(image_data);
+        return false;
+    }
+    *out_texture = image_texture;
+    assert(image_texture != 0 && *out_texture != 0);
+    return true;
+}
+
+// helper function to load an image into a OpenGL texture with common settings
+bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
+                            int* out_width, int* out_height, int* out_channels) {
+    unsigned char* image_data = stbi_load(filename, out_width, out_height, out_channels, 4); 
+    if (image_data == NULL) {
+        printf("Failed to load image: %s\n", stbi_failure_reason());
+        return false;
+    }
+    return load_texture_from_data(out_channels, out_width, out_height, out_texture, image_data);
+}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void render_gui() {
+void render_gui_loop() {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return;
@@ -70,7 +134,7 @@ void render_gui() {
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(mode->width, mode->height));
 
-        display_ui(io);
+        show_ui(io);
 
         // Rendering
         ImGui::Render();
@@ -100,4 +164,50 @@ void render_gui() {
     glfwDestroyWindow(window);
     glfwTerminate();
     return;
+}
+
+bool render_applied_changes(std::string filter_name, struct kernel_args args, int *width, int *height, 
+                GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out) {
+    // check if image_data_in is non-null 
+    if(image_data_in == nullptr || *image_data_in == nullptr) {
+        return false;
+    }
+    if(image_data_out == nullptr) {
+        return false;
+    }
+    else {
+        // at this point we should free image_data out
+        stbi_image_free(*image_data_out);
+        *image_data_out = nullptr;
+    }
+    // check if image_data_out is non-null
+    if(image_data_out == nullptr) {
+        return false;
+    }
+    
+    if(*channels == 3) {
+        Pixel<3> *pixels_in = raw_image_to_pixel<3>(*image_data_in, (*width) * (*height));
+        Pixel<3> *pixels_out = new Pixel<3>[(*width) * (*height)];
+        run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
+
+        *image_data_out = pixel_to_raw_image<3>(pixels_out, (*width) * (*height));
+        delete[] pixels_in;
+        delete[] pixels_out;
+        if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
+            return true;
+        }
+    }
+    else if(*channels == 4) {
+        Pixel<4> *pixels_in = raw_image_to_pixel<4>(*image_data_in, (*width) * (*height));
+        Pixel<4> *pixels_out = new Pixel<4>[(*width) * (*height)];
+        run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
+
+        *image_data_out = pixel_to_raw_image<4>(pixels_out, (*width) * (*height));
+        delete[] pixels_in;
+        delete[] pixels_out;
+        if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
+            return true;
+        }
+    }
+    return false;
 }

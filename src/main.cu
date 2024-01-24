@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   if(argc == 1) {
     // GUI mode
     // call render function
-    render_gui();
+    render_gui_loop();
     return 0;
   }
   else if(argc != 3) {

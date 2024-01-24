@@ -1,10 +1,5 @@
 #include "gui.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image_write.h"
-
 std::vector<filter> filter_list = {
     IDENTITY_FILTER,
     BOX_BLUR_FILTER,
@@ -13,51 +8,6 @@ std::vector<filter> filter_list = {
     EDGE_DETECTION_FILTER,
     EMBOSS_FILTER
 };
-
-// helper function to load an image into a OpenGL texture with common settings
-bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
-                            int* out_width, int* out_height, int* out_channels) {
-    unsigned char* image_data = stbi_load(filename, out_width, out_height, out_channels, 4); 
-    if (image_data == NULL) {
-        printf("Failed to load image: %s\n", stbi_failure_reason());
-        return false;
-    }
-    // Create a OpenGL texture identifier
-    GLuint image_texture;
-    glGenTextures(1, &image_texture);
-    glBindTexture(GL_TEXTURE_2D, image_texture);
-
-    // Setup filtering parameters for display
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
-
-        // Upload pixels into texture
-#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-#endif
-    if(!(*out_channels == 3 || *out_channels == 4)) {
-        // Handle unsupported channel count
-        printf("Unsupported number of channels: %d\n", *out_channels);
-        stbi_image_free(image_data);
-        return false;
-    }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, *out_width, *out_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
-
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR)
-    {
-        printf("OpenGL error after glTexImage2D: %x\n", error);
-        stbi_image_free(image_data);
-        return false;
-    }
-
-    *out_raw_image = image_data;
-    *out_texture = image_texture;
-    assert(image_texture != 0 && *out_texture != 0);
-    return true;
-}
 
 inline void display_image(const GLuint& texture, const int& width, const int& height) {
     ImGui::Text("size = %d x %d", width, height);
@@ -174,7 +124,7 @@ std::string generate_iptc_string(const Exiv2::IptcData& iptcData) {
     return result.str();
 }
 
-void display_ui(ImGuiIO& io) {
+void show_ui(ImGuiIO& io) {
     // to determine whether which tab is shown
     static bool show_original =             false;
     static bool show_preview =              false;
@@ -190,16 +140,20 @@ void display_ui(ImGuiIO& io) {
     static ImVec4 tint_colour =             ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
     static float blend_factor =             0;
 
-    // image details stuff/rendering stuff
+    // image details stuff
     static char input[256] =                "";
     static char output[256] =               "";
-    static int width, height, channels;
-    static unsigned char *image_data =      NULL;
-    static GLuint texture_orig =            0;
-    static GLuint texture_preview =         0;
     static Exiv2::Image::UniquePtr          image;
     static std::string                      exif_data_str;
     static std::string                      iptc_data_str;
+
+    // rendering stuff
+
+    static int width, height, channels;
+    static unsigned char *image_data =      NULL;
+    static unsigned char *image_data_out =  NULL;
+    static GLuint texture_orig =            0;
+    static GLuint texture_preview =         0;
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -261,8 +215,7 @@ void display_ui(ImGuiIO& io) {
     if(ImGui::Button("Clear original image")) {
         show_original = false;
         if(image_data != NULL) {
-            stbi_image_free(image_data);
-            image_data = NULL;
+            free_image(&image_data);
         }
         if(texture_orig != 0) {
             glDeleteTextures(1, &texture_orig);
@@ -347,24 +300,37 @@ void display_ui(ImGuiIO& io) {
     ImGui::Spacing();
     if(ImGui::Button("Apply changes")) {
         if(show_original) {
-            struct kernel_args args;
-            // go through each option and set the appropriate values
-            args.filter_strength = filter_strength;
-            args.red_shift = red_strength;
-            args.green_shift = green_strength;
-            args.blue_shift = blue_strength;
-            args.alpha_shift = alpha_strength;
-            args.brightness = brightness;
-            args.blend_factor = blend_factor;
-            args.normalize = normalize;
+            show_preview = true;
+            
+            // pass kernel args to render function
+            struct kernel_args extra_args;
+            extra_args.red_shift = red_strength;
+            extra_args.green_shift = green_strength;
+            extra_args.blue_shift = blue_strength;
+            extra_args.alpha_shift = alpha_strength;
+            extra_args.brightness = brightness;
+            extra_args.normalize = normalize;
 
-            args.tint[0] = tint_colour.x;
-            args.tint[1] = tint_colour.y;
-            args.tint[2] = tint_colour.z;
-            args.tint[3] = tint_colour.w;
+            extra_args.blend_factor = blend_factor;
+            extra_args.tint[0] = tint_colour.x;
+            extra_args.tint[1] = tint_colour.y;
+            extra_args.tint[2] = tint_colour.z;
+            extra_args.tint[3] = tint_colour.w;
+
+            render_applied_changes(std::string(combo_preview_value), extra_args, &width, &height,
+                &texture_preview, &channels, &image_data, &image_data_out);
         }
     }
+    ImGui::SameLine();
+    if(ImGui::Button("Clear all changes")) {
+        show_preview = false;
+        if(texture_preview != 0) {
+            glDeleteTextures(1, &texture_preview);
+            texture_preview = 0;
+        }
+        if(image_data_out != NULL) free_image(&image_data_out);
 
+    }
     ImGui::EndChild();
 
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y + side_panel_1_size.y));
