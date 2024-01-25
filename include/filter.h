@@ -63,41 +63,58 @@ class filter {
             }
             return true;
         }
+
         // filter strength on an image is a function of the filters size relative to the images size
         // expand_filter takes in percentage [0, 100], and expands the filter to the largest rectangle that can fit
         // within the image, as a percentage of the image size
         // i.e if percentage = 1, then the filter will be expanded to the largest rectangle that can fit within 1% of the image
         // returns true on success, false on failure
         bool expand_filter(unsigned char percentage, unsigned int image_width, unsigned int image_height) {
-            if(percentage > 100 || image_width < 1 || image_height < 1) {
+            if(percentage > 100) {
                 return false;
+                // since unsigned, percentage/width/height can't be negative
             }
 
-            unsigned int max_width = image_width * percentage / 100;
-            unsigned int max_height = image_height * percentage / 100;
+            double desired_area = (percentage / 100.0) * image_width * image_height;
 
-            if(max_width < 9 || max_height < 9) {
-                max_width = max_hacky(max_width, max_height, 9);
-                max_height = max_width;
+            // Initialize variables to store the best result
+            double best_diff = std::numeric_limits<double>::infinity();
+            unsigned int best_dimension = 0;
+
+            // Iterate over all possible rectangle sizes
+            for (unsigned int dim = 3; dim < std::max(image_width, image_height); dim += 3) {
+            
+                double current_area = dim * dim;
+
+                // difference between the current area and the desired area
+                double diff = std::abs(current_area - desired_area);
+
+                // update best result if the current is closer to desired
+                if (diff < best_diff) {
+                    best_diff = diff;
+                    best_dimension = dim;
+                }
             }
-            // assert max_width and max_height are divisible by 9
-            // also assert max_width == max_height
-            assert(max_width * max_height % 9 == 0);
-            assert(max_width == max_height);
 
-            int *new_filter_data = new int[max_width * max_height];
-            for(int i = 0; i < max_width * max_height; i += 9) {
-                // memcpy our filter data into the new filter data
+            // it could be possible best_dimension > image_width/image_height
+            // in that case scale it back a bit such that it still is within the image and
+            // is divisible by 3x3 squares
+            while((best_dimension > image_width ||
+                  best_dimension > image_height ||
+                  best_dimension % 9 != 0) && 
+                  best_dimension > 9) {
+                best_dimension -= 3;
+            }
+            assert(best_dimension % 9 == 0 && best_dimension > 0);
+            assert(best_dimension <= image_width && best_dimension <= image_height);
+
+            int *new_filter_data = new int[best_dimension * best_dimension];
+            for(int i = 0; i < best_dimension * best_dimension; i += 9) {
                 memcpy(new_filter_data + i, filter_data, filter_dimension * filter_dimension * sizeof(int));
             }
-
-            if(filter_dimension > 3) {
-                free(filter_data);
-            } 
-            // ideally we'd delete old filter data here, but we assume that old filter data is always allocated on the stack
-            // (if its 3x3)
+            filter_dimension = best_dimension;
             filter_data = new_filter_data;
-            filter_dimension = max_width;
+            
             return true;
         }
 };

@@ -320,7 +320,7 @@ void show_ui(ImGuiIO& io) {
             extra_args.tint[1] = tint_colour.y;
             extra_args.tint[2] = tint_colour.z;
             extra_args.tint[3] = tint_colour.w;
-            std::cout << "we should have reached here" << "\n";
+            
             bool ret = render_applied_changes(std::string(combo_preview_value), extra_args, &width, &height,
                 &texture_preview, &channels, &image_data, &image_data_out);
             if(ret) {
