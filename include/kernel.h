@@ -133,7 +133,7 @@ __device__ __forceinline__ int shift_colours(int channel_value, struct kernel_ar
 }
 
 template <unsigned int channels>
-void run_kernel(std::string filter_name, const Pixel<channels> *input,
+void run_kernel(const char* filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra);
 
 template <unsigned int channels>

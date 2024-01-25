@@ -167,7 +167,7 @@ void render_gui_loop() {
     return;
 }
 
-bool render_applied_changes(std::string filter_name, struct kernel_args args, int *width, int *height, 
+bool render_applied_changes(const char* filter_name, struct kernel_args args, int *width, int *height, 
                 GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out) {
     assert(image_data_in != NULL);
     assert(*image_data_in != NULL);

@@ -4,7 +4,7 @@
 #include "filter.h"
 
 template<unsigned int channels>
-void run_kernel(std::string filter_name, const Pixel<channels> *input,
+void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
 
   filter h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
@@ -182,10 +182,10 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
 }
 
 // explicitly instantiate
-template void run_kernel<3u>(std::string filter_name, const Pixel<3u> *input,
+template void run_kernel<3u>(const char* filter_name, const Pixel<3u> *input,
                  Pixel<3u> *output, int width, int height, struct kernel_args extra);
 
-template void run_kernel<4u>(std::string filter_name, const Pixel<4u> *input,
+template void run_kernel<4u>(const char* filter_name, const Pixel<4u> *input,
                   Pixel<4u> *output, int width, int height, struct kernel_args extra);
 
 template __global__ void kernel<3u>(const filter *filter, const Pixel<3u> *input, 

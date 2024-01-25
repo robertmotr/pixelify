@@ -146,7 +146,7 @@ void show_ui(ImGuiIO& io) {
     static unsigned char *image_data_out =      NULL;
     static GLuint texture_orig =                0;
     static GLuint texture_preview =             0;
-    static std::vector<filter> filter_list =    get_filter_list();
+    static std::vector<filter> filters =        get_filter_list();
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -239,11 +239,11 @@ void show_ui(ImGuiIO& io) {
     // stored in the object itself, etc.)
     static ImGuiComboFlags flags = 0;
     static int item_current_idx = 0; // Here we store our selection data as an index.
-    const char* combo_preview_value = filter_list[item_current_idx].filter_name;  // Pass in the preview value visible before opening the combo (it could be anything)
+    const char* combo_preview_value = filters[item_current_idx].filter_name;  // Pass in the preview value visible before opening the combo (it could be anything)
     if (ImGui::BeginCombo("Select filter", combo_preview_value, flags)) {
-        for (int n = 0; n < filter_list.size(); n++) {
+        for (int n = 0; n < filters.size(); n++) {
             const bool is_selected = (item_current_idx == n);
-            if (ImGui::Selectable(filter_list[n].filter_name, is_selected))
+            if (ImGui::Selectable(filters[n].filter_name, is_selected))
                 item_current_idx = n;
             // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
             if (is_selected)
@@ -324,7 +324,7 @@ void show_ui(ImGuiIO& io) {
             std::cout << "tint colour: " << static_cast<int>(tint_colour.x) << ", " << static_cast<int>(tint_colour.y) << ", " 
             << static_cast<int>(tint_colour.z) << ", " << static_cast<int>(tint_colour.w) << "\n";
 
-            bool ret = render_applied_changes(std::string(combo_preview_value), extra_args, &width, &height,
+            bool ret = render_applied_changes(combo_preview_value, extra_args, &width, &height,
                 &texture_preview, &channels, &image_data, &image_data_out);
             if(ret) {
                 std::cout << "success" << "\n";

@@ -43,28 +43,6 @@ private:
         }
     }
 
-    bool operator==(const filter &other) const {
-        if (filter_name != other.filter_name) {
-            return false;
-        }
-        if (filter_dimension != other.filter_dimension) {
-            return false;
-        }
-        for (unsigned int i = 0; i < filter_dimension * filter_dimension; i++) {
-            if (filter_data[i] != other.filter_data[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // delete overload
-    void operator delete(void *ptr) {
-        if(filter_data != nullptr)              delete filter_data;
-        if(filter_name != nullptr)              delete filter_name;
-        ::operator delete(ptr);
-    }
-
 public:
 
     char*                           filter_name;
@@ -107,6 +85,41 @@ public:
             delete filter_name;
             filter_name = nullptr;
         }
+    }
+
+    bool operator==(const filter &other) const {
+        if (filter_name != other.filter_name) {
+            return false;
+        }
+        if (filter_dimension != other.filter_dimension) {
+            return false;
+        }
+        for (unsigned int i = 0; i < filter_dimension * filter_dimension; i++) {
+            if (filter_data[i] != other.filter_data[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    filter& operator=(const filter &other) {
+        if (this == &other) {
+            return *this;
+        }
+        if (filter_name != nullptr) {
+            delete filter_name;
+            filter_name = nullptr;
+        }
+        if (filter_data != nullptr) {
+            delete filter_data;
+            filter_data = nullptr;
+        }
+        filter_name = new char[other.name_size];
+        strcpy(filter_name, other.filter_name);
+        filter_dimension = other.filter_dimension;
+        filter_data = new int[filter_dimension * filter_dimension];
+        memcpy(filter_data, other.filter_data, filter_dimension * filter_dimension * sizeof(int));
+        return *this;
     }
 
     // filter strength on an image is a function of the filters size relative to the images size
@@ -168,7 +181,7 @@ public:
     }
 };
 
-std::vector<filter> get_filter_list() {
+inline std::vector<filter> get_filter_list() {
 
     int *IDENTITY_FILTER_DATA = new int[9]{0, 0, 0, 0, 1, 0, 0, 0, 0};
     int *BOX_BLUR_FILTER_DATA = new int[9]{1, 1, 1, 1, 1, 1, 1, 1, 1};
@@ -185,7 +198,7 @@ std::vector<filter> get_filter_list() {
     filter edge_detection_filter("Edge Detection", EDGE_DETECTION_FILTER_DATA, 3);
     filter emboss_filter("Emboss", EMBOSS_FILTER_DATA, 3);
     filter sobel_filter("Sobel", SOBEL_FILTER_DATA, 3);
-    filter null_filter();
+    filter null = filter();
 
     std::vector<filter> filter_list = {
         identity_filter,
@@ -195,25 +208,26 @@ std::vector<filter> get_filter_list() {
         edge_detection_filter,
         emboss_filter,
         sobel_filter,
-        null_filter
+        null
     };
 
     return filter_list;
 }
 
-filter create_filter_from_strength(std::string name, unsigned int image_width,
- unsigned int image_height, unsigned char percentage, std::vector<filter> filter_list) {
+inline filter create_filter_from_strength(const char *name, unsigned int image_width,
+ unsigned int image_height, unsigned char percentage) {
 
-    filter f;
-    for(auto filter : filter_list) {
-        if(filter.filter_name == name) {
-            f = filter;
+    filter returnable;
+    std::vector<filter> filter_list = get_filter_list();
+    for (unsigned int i = 0; i < filter_list.size(); i++) {
+        if (strcmp(filter_list[i].filter_name, name) == 0) {
+            returnable = filter_list[i];
             break;
         }
     }
 
-    if(f.expand_filter(percentage, image_width, image_height)) {
-        return f;
+    if(returnable.expand_filter(percentage, image_width, image_height)) {
+        return returnable;
     } else {
         return filter(); // error
     }
