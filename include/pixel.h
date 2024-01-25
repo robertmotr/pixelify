@@ -1,8 +1,6 @@
 #ifndef __PIXEL__H
 #define __PIXEL__H
 
-#define PIXEL_NULL_CHANNEL INT_MIN
-
 template<unsigned int channels>
 struct Pixel {
     int data[channels];

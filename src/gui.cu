@@ -1,14 +1,5 @@
 #include "gui.h"
 
-std::vector<filter> filter_list = {
-    IDENTITY_FILTER,
-    BOX_BLUR_FILTER,
-    GAUSSIAN_BLUR_FILTER,
-    SHARPEN_FILTER,
-    EDGE_DETECTION_FILTER,
-    EMBOSS_FILTER
-};
-
 inline void display_image(const GLuint& texture, const int& width, const int& height) {
     ImGui::Text("size = %d x %d", width, height);
     static bool use_text_color_for_tint = false;
@@ -126,35 +117,36 @@ std::string generate_iptc_string(const Exiv2::IptcData& iptcData) {
 
 void show_ui(ImGuiIO& io) {
     // to determine whether which tab is shown
-    static bool show_original =             false;
-    static bool show_preview =              false;
-    static bool show_tint =                 false;
+    static bool show_original =                 false;
+    static bool show_preview =                  false;
+    static bool show_tint =                     false;
 
     // filter options
-    static bool normalize =                 false;
-    static int filter_strength =            0;
-    static int red_strength =               0;
-    static int green_strength =             0;
-    static int blue_strength =              0;
-    static int alpha_strength =             0;
-    static int brightness =                 0;
-    static ImVec4 tint_colour =             ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-    static float blend_factor =             0;
+    static bool normalize =                     false;
+    static int filter_strength =                0;
+    static int red_strength =                   0;
+    static int green_strength =                 0;
+    static int blue_strength =                  0;
+    static int alpha_strength =                 0;
+    static int brightness =                     0;
+    static ImVec4 tint_colour =                 ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    static float blend_factor =                 0;
 
     // image details stuff
-    static char input[256] =                "";
-    static char output[256] =               "";
-    static Exiv2::Image::UniquePtr          image;
-    static std::string                      exif_data_str;
-    static std::string                      iptc_data_str;
+    static char input[256] =                    "";
+    static char output[256] =                   "";
+    static Exiv2::Image::UniquePtr              image;
+    static std::string                          exif_data_str;
+    static std::string                          iptc_data_str;
 
     // rendering stuff
 
     static int width, height, channels;
-    static unsigned char *image_data =      NULL;
-    static unsigned char *image_data_out =  NULL;
-    static GLuint texture_orig =            0;
-    static GLuint texture_preview =         0;
+    static unsigned char *image_data =          NULL;
+    static unsigned char *image_data_out =      NULL;
+    static GLuint texture_orig =                0;
+    static GLuint texture_preview =             0;
+    static std::vector<filter> filter_list =    get_filter_list();
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -247,11 +239,11 @@ void show_ui(ImGuiIO& io) {
     // stored in the object itself, etc.)
     static ImGuiComboFlags flags = 0;
     static int item_current_idx = 0; // Here we store our selection data as an index.
-    const char* combo_preview_value = filter_list[item_current_idx].filter_name.c_str();  // Pass in the preview value visible before opening the combo (it could be anything)
+    const char* combo_preview_value = filter_list[item_current_idx].filter_name;  // Pass in the preview value visible before opening the combo (it could be anything)
     if (ImGui::BeginCombo("Select filter", combo_preview_value, flags)) {
         for (int n = 0; n < filter_list.size(); n++) {
             const bool is_selected = (item_current_idx == n);
-            if (ImGui::Selectable(filter_list[n].filter_name.c_str(), is_selected))
+            if (ImGui::Selectable(filter_list[n].filter_name, is_selected))
                 item_current_idx = n;
             // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
             if (is_selected)
@@ -308,19 +300,30 @@ void show_ui(ImGuiIO& io) {
             show_preview = true;
             // pass kernel args to render function
             struct kernel_args extra_args;
-            extra_args.red_shift = red_strength;
-            extra_args.green_shift = green_strength;
-            extra_args.blue_shift = blue_strength;
-            extra_args.alpha_shift = alpha_strength;
-            extra_args.brightness = brightness;
+            extra_args.red_shift = static_cast<char>(red_strength);
+            extra_args.green_shift = static_cast<char>(green_strength);
+            extra_args.blue_shift = static_cast<char>(blue_strength);
+            extra_args.alpha_shift = static_cast<char>(alpha_strength);
+            extra_args.brightness = static_cast<char>(brightness);
+        
             extra_args.normalize = normalize;
-
+            extra_args.filter_strength = static_cast<char>(filter_strength);
             extra_args.blend_factor = blend_factor;
-            extra_args.tint[0] = tint_colour.x;
-            extra_args.tint[1] = tint_colour.y;
-            extra_args.tint[2] = tint_colour.z;
-            extra_args.tint[3] = tint_colour.w;
-            
+
+            // print out the kernel args for debugging purposes
+            std::cout << "kernel args: " << "\n";
+            std::cout << "red shift: " << static_cast<int>(extra_args.red_shift) << "\n";
+            std::cout << "green shift: " << static_cast<int>(extra_args.green_shift) << "\n";
+            std::cout << "blue shift: " << static_cast<int>(extra_args.blue_shift) << "\n";
+            std::cout << "alpha shift: " << static_cast<int>(extra_args.alpha_shift) << "\n";
+            std::cout << "brightness: " << static_cast<int>(extra_args.brightness) << "\n";
+            std::cout << "normalize: " << extra_args.normalize << "\n";
+            std::cout << "filter strength: " << static_cast<int>(extra_args.filter_strength) << "\n";
+            std::cout << "blend factor: " << extra_args.blend_factor << "\n";
+
+            std::cout << "tint colour: " << static_cast<int>(tint_colour.x) << ", " << static_cast<int>(tint_colour.y) << ", " 
+            << static_cast<int>(tint_colour.z) << ", " << static_cast<int>(tint_colour.w) << "\n";
+
             bool ret = render_applied_changes(std::string(combo_preview_value), extra_args, &width, &height,
                 &texture_preview, &channels, &image_data, &image_data_out);
             if(ret) {

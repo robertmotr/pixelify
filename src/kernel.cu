@@ -30,12 +30,17 @@ void run_kernel(std::string filter_name, const Pixel<channels> *input,
 
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
-  if(filter_name != "NULL") cudaMalloc(&device_filter, sizeof(h_filter));
+  if(filter_name != "NULL") {
+    
+  }
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
 
   cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  if(filter_name != "NULL") cudaMemcpy(device_filter, &h_filter, sizeof(h_filter), cudaMemcpyHostToDevice);
+  if(filter_name != "NULL") {
+    cudaMalloc(&device_filter, sizeof(filter));
+    cudaMemcpy(&device_filter->filter_name, &h_filter.filter_name, sizeof(h_filter.filter_name), cudaMemcpyHostToDevice);
+  }
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
 
@@ -108,6 +113,34 @@ void run_kernel(std::string filter_name, const Pixel<channels> *input,
 template<unsigned int channels>
 __global__  void kernel(const filter *filter, const Pixel<channels> *input, Pixel<channels> *output, 
                         int width, int height, unsigned char operation, struct kernel_args extra) {
+    
+    printf("----DEBUGGING STUFF----\n");
+    printf("width: %d, height: %d\n", width, height);
+    printf("operation: %d\n", operation);
+    printf("STRUCT ARGS\n");
+    printf("alpha shift: %d\n", extra.alpha_shift);
+    printf("red shift: %d\n", extra.red_shift);
+    printf("green shift: %d\n", extra.green_shift);
+    printf("blue shift: %d\n", extra.blue_shift);
+    printf("brightness: %d\n", extra.brightness);
+    printf("blend factor: %f\n", extra.blend_factor);
+    printf("normalize: %d\n", extra.normalize);
+    printf("tint: %d, %d, %d, %d\n", extra.tint[0], extra.tint[1], extra.tint[2], extra.tint[3]);
+    printf("----END DEBUGGING STUFF----\n");
+
+    // print filter data
+    if(filter != NULL) {
+      printf("----FILTER DATA----\n");
+      printf("filter dim: %d\n", filter->filter_dimension);
+      printf("filter data: \n");
+      for(int i = 0; i < filter->filter_dimension; i++) {
+        for(int j = 0; j < filter->filter_dimension; j++) {
+          printf("%d ", filter->filter_data[i * filter->filter_dimension + j]);
+        }
+        printf("\n");
+      }
+      printf("----END FILTER DATA----\n");
+    }
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 

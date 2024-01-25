@@ -36,7 +36,7 @@ struct kernel_args {
     char                        brightness;
     // chosen by colour picker
     unsigned char tint[4] =     {0, 0, 0, 0}; // [red, green, blue, alpha]
-    char                        blend_factor;
+    float                       blend_factor;
 };
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
