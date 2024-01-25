@@ -1,9 +1,7 @@
 #ifndef __FILTER__H__
 #define __FILTER__H__
 
-#include <string>
 #include <vector>
-#include <algorithm>
 #include <assert.h>
 #include <string.h>
 #include <cstring>
@@ -78,11 +76,11 @@ public:
 
     ~filter() {
         if (filter_data != nullptr) {
-            delete filter_data;
+            delete[] filter_data;
             filter_data = nullptr;
         }
         if (filter_name != nullptr) {
-            delete filter_name;
+            delete[] filter_name;
             filter_name = nullptr;
         }
     }
@@ -107,11 +105,11 @@ public:
             return *this;
         }
         if (filter_name != nullptr) {
-            delete filter_name;
+            delete[] filter_name;
             filter_name = nullptr;
         }
         if (filter_data != nullptr) {
-            delete filter_data;
+            delete[] filter_data;
             filter_data = nullptr;
         }
         filter_name = new char[other.name_size];
@@ -167,12 +165,13 @@ public:
         assert(best_dimension <= image_width && best_dimension <= image_height);
 
         int *copy_data = find_basic_filter(filter_name);
-        delete filter_data;
 
         int *new_filter_data = new int[best_dimension * best_dimension];
         for(int i = 0; i < best_dimension * best_dimension; i += 9) {
             memcpy(new_filter_data + i, copy_data, basic_filters.dimension * basic_filters.dimension * sizeof(int));
         }
+
+        delete[] filter_data;
 
         filter_dimension = best_dimension;
         filter_data = new_filter_data;
