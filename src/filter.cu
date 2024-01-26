@@ -183,3 +183,7 @@ filter *create_filter_from_strength(const char *basic_filter_name, unsigned int 
     }
 
 }
+
+const std::vector<filter> get_filters() {
+    return basic_filters;
+} 

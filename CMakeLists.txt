@@ -15,6 +15,7 @@ set(SOURCES
     src/gui.cu
     src/render.cu
     src/kernel.cu
+    src/filter.cu
 )
 
 set(IMGUI_SOURCES

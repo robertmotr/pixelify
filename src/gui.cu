@@ -146,7 +146,7 @@ void show_ui(ImGuiIO& io) {
     static unsigned char *image_data_out =      NULL;
     static GLuint texture_orig =                0;
     static GLuint texture_preview =             0;
-    static std::vector<filter> filters =        get_filter_list();
+    static const std::vector<filter> filters =  get_filters();
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar

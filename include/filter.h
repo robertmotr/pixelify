@@ -8,32 +8,6 @@
 
 #define FILTER_DIMENSION 3
 
-extern const int* identity_filter_data;
-extern const int* edge_filter_data;
-extern const int* sharpen_filter_data;
-extern const int* box_blur_filter_data;
-extern const int* gaussian_blur_filter_data;
-extern const int* unsharp_mask_filter_data;
-extern const int* high_pass_filter_data;
-extern const int* emboss_filter_data;
-extern const int* sobel_filter_data;
-extern const int* laplacian_filter_data;
-extern const int* motion_blur_filter_data;
-
-extern const filter identity_filter;
-extern const filter edge_filter;
-extern const filter sharpen_filter;
-extern const filter box_blur_filter;
-extern const filter gaussian_blur_filter;
-extern const filter unsharp_mask_filter;
-extern const filter high_pass_filter;
-extern const filter emboss_filter;
-extern const filter sobel_filter;
-extern const filter laplacian_filter;
-extern const filter motion_blur_filter;
-
-extern const std::vector<const int*> basic_filter_data;
-
 class filter {
 public:
 
@@ -44,9 +18,9 @@ public:
 
     // default
     filter() : filter_dimension(0), filter_data(nullptr) {
-        size_t size = strlen("Null filter") + 1;
+        size_t size = strlen("NULL") + 1;
         filter_name = new char[size];
-        strcpy(filter_name, "Null filter");
+        strcpy(filter_name, "NULL");
         this->name_size = size;
     }
 
@@ -152,10 +126,38 @@ public:
     }
 };
 
+extern const int* identity_filter_data;
+extern const int* edge_filter_data;
+extern const int* sharpen_filter_data;
+extern const int* box_blur_filter_data;
+extern const int* gaussian_blur_filter_data;
+extern const int* unsharp_mask_filter_data;
+extern const int* high_pass_filter_data;
+extern const int* emboss_filter_data;
+extern const int* sobel_filter_data;
+extern const int* laplacian_filter_data;
+extern const int* motion_blur_filter_data;
+
+extern const filter identity_filter;
+extern const filter edge_filter;
+extern const filter sharpen_filter;
+extern const filter box_blur_filter;
+extern const filter gaussian_blur_filter;
+extern const filter unsharp_mask_filter;
+extern const filter high_pass_filter;
+extern const filter emboss_filter;
+extern const filter sobel_filter;
+extern const filter laplacian_filter;
+extern const filter motion_blur_filter;
+
+extern const std::vector<const int*> basic_filter_data;
+extern const std::vector<filter> basic_filters;
+
 const int* find_basic_filter_data(const char *name);
 const filter find_basic_filter(const char *name);
+const std::vector<filter> get_filters();
 
-filter *create_filter_from_strength(const char *name, unsigned int image_width,
+filter *create_filter_from_strength(const char *basic_filter_name, unsigned int image_width,
  unsigned int image_height, unsigned char percentage);
 
 // filter strength on an image is a function of the filters size relative to the images size

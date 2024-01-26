@@ -7,7 +7,7 @@ template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
 
-  filter h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
+  filter *h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
 
   int pixels = width * height;
   int blockSize;
@@ -28,18 +28,24 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   Pixel<channels> *d_largest, *d_smallest;
   filter *device_filter;
 
+  // MALLOCS ON DEVICE
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
   if(filter_name != "NULL") {
-    
+    cudaMalloc(&device_filter, sizeof(filter));
+    cudaMalloc(&device_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int));
+    cudaMalloc(&device_filter->filter_name, sizeof(char) * h_filter->name_size);
   }
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
 
+  // MEMCPYS FROM HOST TO DEVICE
   cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   if(filter_name != "NULL") {
-    cudaMalloc(&device_filter, sizeof(filter));
-    cudaMemcpy(&device_filter->filter_name, &h_filter.filter_name, sizeof(h_filter.filter_name), cudaMemcpyHostToDevice);
+    cudaMemcpy(&device_filter->filter_dimension, &device_filter->filter_dimension, sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(&device_filter->name_size, &h_filter->name_size, sizeof(size_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(&device_filter->filter_name, h_filter->filter_name, sizeof(char) * h_filter->name_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_filter->filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int), cudaMemcpyHostToDevice);
   }
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
@@ -104,7 +110,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   // cleanup
   cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
-  free(h_smallest); free(h_largest); 
+  free(h_smallest); free(h_largest); free(h_filter);
   cudaFree(device_filter);
   cudaFree(d_smallest); cudaFree(d_largest);
   cudaFree(device_input); cudaFree(device_output);
