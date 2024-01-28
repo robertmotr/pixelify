@@ -44,7 +44,7 @@ bool render_applied_changes(const char* filter_name, struct kernel_args args, in
 inline void display_image(const GLuint& texture, const int& width, const int& height);
 
 // self explanatory
-inline void display_tab_bar(const bool& show_original, const bool& show_preview, const int& width, const int& height, 
+inline void display_tab_bar(bool show_original, bool show_preview, const int& width, const int& height, 
                             const GLuint& texture_orig, const GLuint& texture_preview);
 
 // generates exif string given an exiv2 exifdata object

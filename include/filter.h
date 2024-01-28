@@ -13,7 +13,7 @@ public:
 
     char*                           filter_name;
     int*                            filter_data;
-    unsigned int                    filter_dimension;
+    unsigned int                    filter_dimension = 0;
     size_t                          name_size;
 
     // default
@@ -25,54 +25,29 @@ public:
     }
 
     // constructor with name/data/dimension
-    filter(const char* name, int *data, unsigned int dimension)
-        : filter_dimension(dimension), filter_data(data) {
-        size_t size = strlen(name) + 1;
+    filter(const char* name, int *data, unsigned int dimension) {
+        filter_dimension = dimension;
+        filter_data = data;
 
-        if(filter_name != nullptr) {
-            delete[] filter_name;
-            filter_name = nullptr;
-        }
-
-        filter_name = new char[size];
+        name_size = strlen(name) + 1;
+        filter_name = new char[name_size];
         strcpy(filter_name, name);
-        this->name_size = size;
+    }
+
+    // constructor with name/data/dimension but const
+    filter(const char* name, const int *data, unsigned int dimension) {
+        filter_dimension = dimension;
+        filter_data = const_cast<int*>(data);
+
+        name_size = strlen(name) + 1;
+        filter_name = new char[name_size];
+        strcpy(filter_name, name);
     }
 
     // constructor with just name
     filter(const char* name)
         : filter_dimension(0), filter_data(nullptr) {
         size_t size = strlen(name) + 1;
-
-        filter_name = new char[size];
-        strcpy(filter_name, name);
-        this->name_size = size;
-    }
-
-    // basic filter initializer
-    filter(const char* name, const int* data, unsigned int dimension)
-        : filter_dimension(dimension) {
-        size_t size = strlen(name) + 1;
-
-        if(filter_name != nullptr) {
-            delete[] filter_name;
-            filter_name = nullptr;
-        }
-
-        filter_name = new char[size];
-        strcpy(filter_name, name);
-        this->name_size = size;
-    }
-
-    // constructor with name/data specified
-    filter(const char* name, unsigned int dimension)
-        : filter_dimension(dimension), filter_data(new int[dimension * dimension]) {
-        size_t size = strlen(name) + 1;
-
-        if(filter_name != nullptr) {
-            delete[] filter_name;
-            filter_name = nullptr;
-        }
 
         filter_name = new char[size];
         strcpy(filter_name, name);
@@ -104,26 +79,6 @@ public:
         }
         return true;
     }
-
-    filter& operator=(const filter &other) {
-        if (this == &other) {
-            return *this;
-        }
-        if (filter_name != nullptr) {
-            delete[] filter_name;
-            filter_name = nullptr;
-        }
-        if (filter_data != other.filter_data) {
-            if(filter_data != nullptr) {
-                delete[] filter_data;
-                filter_data = nullptr;
-            }
-            filter_data = new int[other.filter_dimension * other.filter_dimension]; 
-            memcpy(filter_data, other.filter_data, other.filter_dimension * other.filter_dimension * sizeof(int));
-        }
-        
-        return *this;
-    }
 };
 
 extern const int* identity_filter_data;
@@ -138,23 +93,25 @@ extern const int* sobel_filter_data;
 extern const int* laplacian_filter_data;
 extern const int* motion_blur_filter_data;
 
-extern const filter identity_filter;
-extern const filter edge_filter;
-extern const filter sharpen_filter;
-extern const filter box_blur_filter;
-extern const filter gaussian_blur_filter;
-extern const filter unsharp_mask_filter;
-extern const filter high_pass_filter;
-extern const filter emboss_filter;
-extern const filter sobel_filter;
-extern const filter laplacian_filter;
-extern const filter motion_blur_filter;
+extern filter *identity_filter;
+extern filter *edge_filter;
+extern filter *sharpen_filter;
+extern filter *box_blur_filter;
+extern filter *gaussian_blur_filter;
+extern filter *unsharp_mask_filter;
+extern filter *high_pass_filter;
+extern filter *emboss_filter;
+extern filter *sobel_filter;
+extern filter *laplacian_filter;
+extern filter *motion_blur_filter;
 
-extern const std::vector<const int*> basic_filter_data;
-extern const std::vector<filter> basic_filters;
+extern std::vector<const int*> basic_filter_data;
+extern std::vector<filter*> basic_filters;
+
+void force_initialize_filters() __attribute__((constructor));
 
 const int* find_basic_filter_data(const char *name);
-const filter find_basic_filter(const char *name);
+const filter* find_basic_filter(const char *name);
 const std::vector<filter> get_filters();
 
 filter *create_filter_from_strength(const char *basic_filter_name, unsigned int image_width,

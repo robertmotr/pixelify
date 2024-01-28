@@ -6,8 +6,14 @@
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
-
-  filter *h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
+  filter *h_filter = nullptr;
+  if(strcmp(filter_name, "NULL") != 0) {         
+    h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
+    if(h_filter == nullptr) {
+      printf("Error: filter is null\n");
+      exit(1);
+    }
+  } 
 
   int pixels = width * height;
   int blockSize;
@@ -26,27 +32,34 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   Pixel<channels> *device_input, *device_output;
   Pixel<channels> *d_largest, *d_smallest;
-  filter *device_filter;
 
   // MALLOCS ON DEVICE
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
-  if(filter_name != "NULL") {
-    cudaMalloc(&device_filter, sizeof(filter));
-    cudaMalloc(&device_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int));
-    cudaMalloc(&device_filter->filter_name, sizeof(char) * h_filter->name_size);
-  }
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
 
+  filter*   device_filter;
+  int*      device_filter_data;
+  char*     device_filter_name;
+
+  // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
+  if(h_filter != nullptr && strcmp(filter_name, "NULL") != 0) {
+    cudaMalloc(&device_filter, sizeof(filter));
+    cudaMemcpy(&(device_filter->filter_dimension), &(h_filter->filter_dimension), sizeof(unsigned int), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(device_filter->name_size), &(h_filter->name_size), sizeof(size_t), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&device_filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int));
+    cudaMemcpy(device_filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(device_filter->filter_data), &device_filter_data, sizeof(int*), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&device_filter_name, h_filter->name_size * sizeof(char));
+    cudaMemcpy(device_filter_name, h_filter->filter_name, h_filter->name_size * sizeof(char), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(device_filter->filter_name), &device_filter_name, sizeof(char*), cudaMemcpyHostToDevice);
+  }
+
   // MEMCPYS FROM HOST TO DEVICE
   cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  if(filter_name != "NULL") {
-    cudaMemcpy(&device_filter->filter_dimension, &device_filter->filter_dimension, sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(&device_filter->name_size, &h_filter->name_size, sizeof(size_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(&device_filter->filter_name, h_filter->filter_name, sizeof(char) * h_filter->name_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(device_filter->filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int), cudaMemcpyHostToDevice);
-  }
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
 
@@ -119,34 +132,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 template<unsigned int channels>
 __global__  void kernel(const filter *filter, const Pixel<channels> *input, Pixel<channels> *output, 
                         int width, int height, unsigned char operation, struct kernel_args extra) {
-    
-    printf("----DEBUGGING STUFF----\n");
-    printf("width: %d, height: %d\n", width, height);
-    printf("operation: %d\n", operation);
-    printf("STRUCT ARGS\n");
-    printf("alpha shift: %d\n", extra.alpha_shift);
-    printf("red shift: %d\n", extra.red_shift);
-    printf("green shift: %d\n", extra.green_shift);
-    printf("blue shift: %d\n", extra.blue_shift);
-    printf("brightness: %d\n", extra.brightness);
-    printf("blend factor: %f\n", extra.blend_factor);
-    printf("normalize: %d\n", extra.normalize);
-    printf("tint: %d, %d, %d, %d\n", extra.tint[0], extra.tint[1], extra.tint[2], extra.tint[3]);
-    printf("----END DEBUGGING STUFF----\n");
 
-    // print filter data
-    if(filter != NULL) {
-      printf("----FILTER DATA----\n");
-      printf("filter dim: %d\n", filter->filter_dimension);
-      printf("filter data: \n");
-      for(int i = 0; i < filter->filter_dimension; i++) {
-        for(int j = 0; j < filter->filter_dimension; j++) {
-          printf("%d ", filter->filter_data[i * filter->filter_dimension + j]);
-        }
-        printf("\n");
-      }
-      printf("----END FILTER DATA----\n");
-    }
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 

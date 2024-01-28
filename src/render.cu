@@ -169,6 +169,7 @@ void render_gui_loop() {
 
 bool render_applied_changes(const char* filter_name, struct kernel_args args, int *width, int *height, 
                 GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out) {
+    
     assert(image_data_in != NULL);
     assert(*image_data_in != NULL);
     assert(*width > 0);
@@ -176,21 +177,22 @@ bool render_applied_changes(const char* filter_name, struct kernel_args args, in
     assert(*channels == 3 || *channels == 4);
     assert(texture_preview != NULL);
     assert(image_data_out != NULL);
-    
+
+
     if(*channels == 3) {
         Pixel<3> *pixels_in = raw_image_to_pixel<3>(*image_data_in, (*width) * (*height));
         Pixel<3> *pixels_out = new Pixel<3>[(*width) * (*height)];
-        run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
 
+        run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
+        
         if(*image_data_out == NULL) {
             *image_data_out = pixel_to_raw_image<3>(pixels_out, (*width) * (*height));
         }
         else {
+            delete[] *image_data_out;
+            *image_data_out = new unsigned char[(*width) * (*height) * 3];
             for (unsigned int i = 0; i < (*width) * (*height); i++) {
                 for (unsigned int j = 0; j < 3; j++) {
-                    if(pixels_in[i].data[j] < 0 || pixels_in[i].data[j] > 255) {
-                        printf("Pixel value out of range: %d\n", pixels_in[i].data[j]);
-                    }
                     *image_data_out[i * 3 + j] = (unsigned char) pixels_in[i].data[j];
                 }
             }
