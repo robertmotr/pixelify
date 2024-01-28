@@ -150,9 +150,10 @@ const filter* find_basic_filter(const char *name) {
 }
 
 // filter strength on an image is a function of the filters size relative to the images size
-// expand_filter takes in percentage [0, 100], and expands the filter to the largest rectangle that can fit
+// expand_filter takes in percentage [0, 100], and expands the filter to the largest square that can fit
+// if its 0 then its just default basic filter
 // within the image, as a percentage of the image size
-// i.e if percentage = 1, then the filter will be expanded to the largest rectangle that can fit within 1% of the image
+// i.e if percentage = 1, then the filter will be expanded to the largest square that can fit within 1% of the image
 // returns true on success, false on failure
 bool expand_filter(unsigned char percentage, unsigned int image_width, unsigned int image_height, 
     const char *basic_filter_name, filter *destination) {

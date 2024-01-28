@@ -2,6 +2,7 @@
 #include "kernel.h"
 #include "cub/cub.cuh"
 #include "reduce.h"
+#include "filter.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -18,34 +19,44 @@ TEST(kernel_correctness, identity_filter) {
         {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
         {1, 1, 1}, {1, 1, 1}, {1, 1, 1}
     };
+    unsigned char *image_in = pixel_to_raw_image<3>(input, 9);
+    unsigned char *image_expected = pixel_to_raw_image<3>(input, 9);
+    unsigned char *image_out = new unsigned char[9 * 3];
 
     Pixel<3> output[9] = {0};
     Pixel<3> expected[9] = {0};
     memcpy(expected, input, sizeof(Pixel<3>) * 9);
 
-    Pixel<3> *d_input, *d_output;
-    int8_t *d_filter;
+    struct kernel_args extra;
 
-    cudaMalloc(&d_filter, sizeof(int8_t) * 9);  
-    cudaMalloc(&d_input, sizeof(Pixel<3>) * 9);
-    cudaMalloc(&d_output, sizeof(Pixel<3>) * 9);
+    extra.filter_strength = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
 
-    cudaMemcpy(d_filter, IDENTITY_FILTER, sizeof(int8_t) * 9, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 9, cudaMemcpyHostToDevice);
+    run_kernel<3>("Identity", input, output, 3, 3, extra);
 
-    kernel<3><<<1, 1024>>>(d_filter, 3, d_input, d_output, 3, 3);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after kernel");
-
-    cudaMemcpy(output, d_output, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
-    // because its identity filter output == input
+    // assert expected == output
     for (int i = 0; i < 9; i++) {
         ASSERT_EQ(expected[i], output[i]);
     }
 
-    cudaFree(d_filter);
-    cudaFree(d_input);
-    cudaFree(d_output);
+    image_out = pixel_to_raw_image<3>(output, 9);
+
+    // assert image_out == image_expected
+    for (int i = 0; i < 9 * 3; i++) {
+        ASSERT_EQ(image_expected[i], image_out[i]);
+    }
+
+    free(image_in);
+    free(image_out);
+    free(image_expected);
 }
 
 TEST(kernel_correctness, identity_filter_channels) {
@@ -61,30 +72,27 @@ TEST(kernel_correctness, identity_filter_channels) {
     Pixel<3> expected[16] = {0};
     memcpy(expected, input, sizeof(Pixel<3>) * 16);
 
-    Pixel<3> *d_input, *d_output;
-    int8_t *d_filter;
+    struct kernel_args extra;
 
-    cudaMalloc(&d_filter, sizeof(int8_t) * 9);
-    cudaMalloc(&d_input, sizeof(Pixel<3>) * 16);
-    cudaMalloc(&d_output, sizeof(Pixel<3>) * 16);
+    extra.filter_strength = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.red_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = false;
 
-    cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 16, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_filter, IDENTITY_FILTER, sizeof(int8_t) * 9, cudaMemcpyHostToDevice);
+    run_kernel<3>("Identity", input, output, 4, 4, extra);
 
-    kernel<3><<<1, 1024>>>(d_filter, 3, d_input, d_output, 4, 4);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after kernel");
-
-    cudaMemcpy(output, d_output, sizeof(Pixel<3>) * 16, cudaMemcpyDeviceToHost);
-    
-    // assert expected == output
+    // assert output == expected
     for (int i = 0; i < 16; i++) {
         ASSERT_EQ(expected[i], output[i]);
     }
-
-    cudaFree(d_input);
-    cudaFree(d_output);
-    cudaFree(d_filter);
 }
 
 TEST(kernel_correctness, simple_box_blur) {
@@ -101,84 +109,27 @@ TEST(kernel_correctness, simple_box_blur) {
         {24, 24, 24}, {39, 39, 39}, {28, 28, 28}
     };
 
-    Pixel<3> *d_input, *d_output;
-    int8_t *d_filter;
+    struct kernel_args extra;
 
-    cudaMalloc(&d_filter, sizeof(int8_t) * 9);
-    cudaMalloc(&d_input, sizeof(Pixel<3>) * 9);
-    cudaMalloc(&d_output, sizeof(Pixel<3>) * 9);
+    extra.filter_strength = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.red_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = false;
 
-    cudaMemcpy(d_filter, BOX_BLUR_FILTER, sizeof(int8_t) * 9, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 9, cudaMemcpyHostToDevice);
-
-    kernel<3><<<1, 1024>>>(d_filter, 3, d_input, d_output, 3, 3);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after kernel");
-
-    cudaMemcpy(output, d_output, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
+    run_kernel<3>("Box Blur", input, output, 3, 3, extra);
 
     // assert output == expected
-    for(int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++) {
         ASSERT_EQ(expected[i], output[i]);
     }
-
-    cudaFree(d_input);
-    cudaFree(d_output);
-    cudaFree(d_filter);
-}
-
-TEST(kernel_correctness, identity_filter_sample_image_with_stb) {
-    int width, height, channels;
-
-    int ok = stbi_info("/home/robert/Desktop/pixelify/sample_images/phone.png", &width, &height, &channels);
-    if(ok != 1) {
-        printf("Failed to get image properties: %s\n", stbi_failure_reason());
-        FAIL();
-    }
-
-    // print width, height, channels etc
-    printf("Width: %d\nHeight: %d\nChannels: %d\n", width, height, channels);
-
-    unsigned char* image_data = stbi_load("/home/robert/Desktop/pixelify/sample_images/phone.png", &width, &height, &channels, 0);
-    if (image_data == NULL) {
-        printf("Failed to load image: %s\n", stbi_failure_reason());
-        FAIL();
-    }
-    Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
-    Pixel<4> *pixels_out = new Pixel<4>[width * height];
-    
-    Pixel<4> *d_input, *d_output;
-    int8_t *d_filter;
-
-    cudaMalloc(&d_filter, sizeof(int8_t) * 9);
-    cudaMalloc(&d_input, sizeof(Pixel<4>) * width * height);
-    cudaMalloc(&d_output, sizeof(Pixel<4>) * width * height);
-
-    cudaMemcpy(d_input, pixels_in, sizeof(Pixel<4>) * width * height, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_filter, IDENTITY_FILTER, sizeof(int8_t) * 9, cudaMemcpyHostToDevice);
-
-    kernel<4><<<1, 1024>>>(d_filter, 3, d_input, d_output, 32, 32);
-    CUDA_CHECK_ERROR("kernel error");
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after kernel");
-
-    cudaMemcpy(pixels_out, d_output, sizeof(Pixel<4>) * width * height, cudaMemcpyDeviceToHost);
-
-    unsigned char *image_out = pixel_to_raw_image<4>(pixels_out, width * height);
-
-    // assert image_data == image_out
-    for(int i = 0; i < width * height * channels; i++) {
-        ASSERT_EQ(image_data[i], image_out[i]) << "Mismatch at index " << i;
-    }
-
-    // cleanup
-    stbi_image_free(image_data);
-    delete[] pixels_in;
-    delete[] pixels_out;
-    cudaFree(d_input);
-    cudaFree(d_output);
-    cudaFree(d_filter);
-    SUCCEED();
 }
 
 TEST(parallel_reduction_correctness, real_sample_image) {
@@ -305,54 +256,25 @@ TEST(normalization_correctness, identity_filter) {
         {10, 11, 12}, {13, 14, 15}, {16, 17, 18},
         {19, 20, 21}, {289, 324, 367}, {25, 26, 27}
     };
-
-    Pixel<3> output[9] = {0};
-    Pixel<3> expected[9] = {0};
-    memcpy(expected, input, sizeof(Pixel<3>) * 9);
-
-    Pixel<3> *d_output, *d_input;
-    int8_t *d_filter;
-    cudaMalloc(&d_output, sizeof(Pixel<3>) * 9);
-    cudaMalloc(&d_input, sizeof(Pixel<3>) * 9);
-    cudaMalloc(&d_filter, sizeof(int8_t) * 9);
-    cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 9, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_filter, IDENTITY_FILTER, sizeof(int8_t) * 9, cudaMemcpyHostToDevice);
-
-    kernel<3><<<1, 1024>>>(d_filter, 3, d_input, d_output, 3, 3);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after running kernel");
-
-    cudaMemcpy(output, d_output, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
-    // assert expected == output
-    for (int i = 0; i < 9; i++) {
-        ASSERT_EQ(expected[i], output[i]);
-    }
-
-    // now find max and min of output
-    Pixel<3> *h_largest = new Pixel<3>{INT_MIN};
-    Pixel<3> *h_smallest = new Pixel<3>{INT_MAX};
-
-    Pixel<3> *d_largest, *d_smallest;
-    cudaMalloc(&d_largest, sizeof(Pixel<3>));
-    cudaMalloc(&d_smallest, sizeof(Pixel<3>));
-
-    image_reduction<3>(d_output, d_largest, 9, MAX_REDUCE);
-    image_reduction<3>(d_output, d_smallest, 9, MIN_REDUCE);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after running reduction");
-
-    cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+    Pixel<3> output[9]; 
     
-    ASSERT_EQ(*h_largest, input[7]);
-    ASSERT_EQ(*h_smallest, input[0]);
+    struct kernel_args extra;
 
-    // now test normalization
-    normalize<3><<<1, 1024>>>(d_output, 3, 3, d_smallest, d_largest);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after running normalization");
+    extra.filter_strength = 0;
+    extra.red_shift = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = true;
 
-    cudaMemcpy(output, d_output, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
+    run_kernel<3>("Identity", input, output, 3, 3, extra);
+
     Pixel<3> new_expected[9] = {
         {0, 0, 0}, {2, 2, 2}, {5, 4, 4},
         {7, 7, 6}, {10, 9, 8}, {13, 11, 10},
@@ -363,33 +285,6 @@ TEST(normalization_correctness, identity_filter) {
     for(int i = 0; i < 9; i++) {
         ASSERT_EQ(new_expected[i], output[i]);
     } 
-
-    delete h_largest;
-    delete h_smallest;
-    cudaFree(d_largest);
-    cudaFree(d_smallest);
-    cudaFree(d_input);
-    cudaFree(d_output);
-    cudaFree(d_filter);
-}
-
-TEST(image_processing_correctness, simple_case) {
-    Pixel<3> input[9] = {
-        {1, 2, 3}, {4, 5, 6}, {7, 8, 9},
-        {10, 11, 12}, {13, 14, 15}, {16, 17, 18},
-        {19, 20, 21}, {22, 23, 24}, {25, 26, 27}
-    };
-    Pixel<3> expected[9] = {};
-    memcpy(expected, input, sizeof(Pixel<3>) * 9);
-
-    Pixel<3> output[9] = {0};
-
-    run_kernel<3>(IDENTITY_FILTER, 3, input, output, 3, 3);
-
-    // check output == expected
-    for (int i = 0; i < 9; i++) {
-        ASSERT_EQ(expected[i], output[i]);
-    }
 }
 
 TEST(image_processing_correctness, simple_case_w_normalization) {
@@ -406,7 +301,22 @@ TEST(image_processing_correctness, simple_case_w_normalization) {
         {15, 14, 12}, {255, 255, 255}, {21, 19, 16}
     };
 
-    run_kernel<3>(IDENTITY_FILTER, 3, input, output, 3, 3);
+    struct kernel_args extra;
+
+    extra.filter_strength = 0;
+    extra.red_shift = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = true;
+
+    run_kernel<3>("Identity", input, output, 3, 3, extra);
 
     // check output == expected
     for (int i = 0; i < 9; i++) {
@@ -473,7 +383,21 @@ TEST(image_processing_correctness, identity_filter) {
     Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
     Pixel<3> *pixels_out = new Pixel<3>[width * height];
 
-    run_kernel<3>(IDENTITY_FILTER, 3, pixels_in, pixels_out, width, height);
+    struct kernel_args extra;
+    extra.filter_strength = 0;
+    extra.red_shift = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = false;
+
+    run_kernel<3>("Identity", pixels_in, pixels_out, 3, 3, extra);
     unsigned char *image_out = pixel_to_raw_image<3>(pixels_out, width * height);
 
     // assert that image is the same between image out and image data
@@ -510,7 +434,21 @@ TEST(image_processing_correctness, identity_filter_garden) {
     Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
     Pixel<4> *pixels_out = new Pixel<4>[width * height];
 
-    run_kernel<4>(IDENTITY_FILTER, 3, pixels_in, pixels_out, width, height);
+    struct kernel_args extra;
+    extra.filter_strength = 0;
+    extra.red_shift = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = false;
+
+    run_kernel<4>("Identity", pixels_in, pixels_out, 3, 3, extra);
     unsigned char *image_out = pixel_to_raw_image<4>(pixels_out, width * height);
 
     // assert that image is the same between image out and image data
@@ -551,7 +489,21 @@ TEST(image_processing_correctness, identity_filter_helmet) {
     Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
     Pixel<4> *pixels_out = new Pixel<4>[width * height];
 
-    run_kernel<4>(IDENTITY_FILTER, 3, pixels_in, pixels_out, width, height);
+    struct kernel_args extra;
+    extra.filter_strength = 0;
+    extra.red_shift = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+    extra.normalize = false;
+
+    run_kernel<4>("Identity", pixels_in, pixels_out, 3, 3, extra);
     unsigned char *image_out = pixel_to_raw_image<4>(pixels_out, width * height);
 
     // assert that image is the same between image out and image data

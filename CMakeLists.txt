@@ -47,15 +47,27 @@ target_include_directories(pixelify_lib PUBLIC
 add_executable(pixelify src/main.cu)
 target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
 
-# add_library(pixelify_tests STATIC ${SOURCES})
-# target_include_directories(pixelify_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
-# add_executable(tests tests/tests.cu)
-# target_link_libraries(tests pixelify_tests gtest pixelify_lib)
+
+set(HEADERS 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
+)
+add_library(pixelify_tests STATIC ${SOURCES})
+target_include_directories(pixelify_tests PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
+)
+target_include_directories(pixelify_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_executable(tests tests/tests.cu)
+target_link_libraries(tests pixelify_tests gtest)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -G")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -ggdb3 -diag-suppress=326")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
