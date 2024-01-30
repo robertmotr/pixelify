@@ -446,7 +446,7 @@ TEST(image_processing_correctness, identity_filter) {
     extra.tint[3] = 0;
     extra.normalize = false;
 
-    run_kernel<3>("Identity", pixels_in, pixels_out, 3, 3, extra);
+    run_kernel<3>("Identity", pixels_in, pixels_out, width, height, extra);
     unsigned char *image_out = pixel_to_raw_image<3>(pixels_out, width * height);
 
     // assert that image is the same between image out and image data
@@ -511,7 +511,7 @@ TEST(image_processing_correctness, identity_filter_garden) {
     extra.tint[3] = 0;
     extra.normalize = false;
 
-    run_kernel<4>("Identity", pixels_in, pixels_out, 3, 3, extra);
+    run_kernel<4>("Identity", pixels_in, pixels_out, width, height, extra);
     unsigned char *image_out = pixel_to_raw_image<4>(pixels_out, width * height);
 
     // assert that image is the same between image out and image data
@@ -579,8 +579,13 @@ TEST(image_processing_correctness, identity_filter_helmet) {
     extra.tint[3] = 0;
     extra.normalize = false;
 
-    run_kernel<4>("Identity", pixels_in, pixels_out, 3, 3, extra);
+    run_kernel<4>("Identity", pixels_in, pixels_out, width, height, extra);
     unsigned char *image_out = pixel_to_raw_image<4>(pixels_out, width * height);
+
+    // assert that the pixels are the same
+    for(int i = 0; i < width * height * channels; i++) {
+        ASSERT_EQ(image_data[i], image_out[i]) << "Mismatch at index " << i;
+    } 
 
     // assert that image is the same between image out and image data
     for (int i = 0; i < width * height * channels; i++) {
