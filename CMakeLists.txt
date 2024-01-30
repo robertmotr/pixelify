@@ -18,6 +18,18 @@ set(SOURCES
     src/filter.cu
 )
 
+set(SOURCES_TEST 
+    src/kernel.cu 
+    src/filter.cu
+)
+
+set(HEADERS_TEST 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
+)
+
 set(IMGUI_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/imgui.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/imgui_demo.cpp
@@ -47,20 +59,13 @@ target_include_directories(pixelify_lib PUBLIC
 add_executable(pixelify src/main.cu)
 target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
 
-
-set(HEADERS 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
-)
-add_library(pixelify_tests STATIC ${SOURCES})
+add_library(pixelify_tests STATIC ${SOURCES_TEST})
 target_include_directories(pixelify_tests PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
 )
-target_include_directories(pixelify_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(pixelify_tests PUBLIC ${HEADERS_TEST})
 add_executable(tests tests/tests.cu)
 target_link_libraries(tests pixelify_tests gtest)
 
