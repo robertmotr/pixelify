@@ -30,6 +30,8 @@ TEST(kernel_correctness, identity_filter) {
     struct kernel_args extra;
 
     extra.filter_strength = 0;
+    extra.normalize = false;
+    extra.red_shift = 0;
     extra.green_shift = 0;
     extra.blue_shift = 0;
     extra.alpha_shift = 0;
@@ -44,14 +46,16 @@ TEST(kernel_correctness, identity_filter) {
 
     // assert expected == output
     for (int i = 0; i < 9; i++) {
-        ASSERT_EQ(expected[i], output[i]);
+        EXPECT_EQ(expected[i], output[i]) << "Mismatch at index " << i
+            << "\nExpected: " << expected[i] << "\nActual: " << output[i];
     }
 
     image_out = pixel_to_raw_image<3>(output, 9);
 
     // assert image_out == image_expected
     for (int i = 0; i < 9 * 3; i++) {
-        ASSERT_EQ(image_expected[i], image_out[i]);
+        EXPECT_EQ(image_expected[i], image_out[i]) << "Pixel mismatch at index " << i
+            << "\nExpected: " << static_cast<int>(image_expected[i]) << "\nActual: " << static_cast<int>(image_out[i]);
     }
 
     free(image_in);
@@ -124,7 +128,7 @@ TEST(kernel_correctness, simple_box_blur) {
     extra.tint[3] = 0;
     extra.normalize = false;
 
-    run_kernel<3>("Box Blur", input, output, 3, 3, extra);
+    run_kernel<3>("Box blur", input, output, 3, 3, extra);
 
     // assert output == expected
     for (int i = 0; i < 9; i++) {
@@ -134,14 +138,27 @@ TEST(kernel_correctness, simple_box_blur) {
 
 TEST(parallel_reduction_correctness, real_sample_image) {
     int width, height, channels;
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
+        printf("Current dir: %s\nRunning parallel_reduction_correctness\n", env_var);
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/Puzzle_Mountain.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
 
-    int ok = stbi_info("/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png", &width, &height, &channels);
+    int ok = stbi_info(full_path, &width, &height, &channels);
     if(ok != 1) {
         printf("Failed to get image properties: %s\n", stbi_failure_reason());
         FAIL();
     }
 
-    unsigned char* image_data = stbi_load("/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png", &width, &height, &channels, 0);
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
     if (image_data == NULL) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
@@ -174,8 +191,12 @@ TEST(parallel_reduction_correctness, real_sample_image) {
     sprintf(buf, "Global max values: [%d, %d, %d]\nGlobal min values: [%d, %d, %d]\n", 
             h_largest->data[0], h_largest->data[1], h_largest->data[2],
             h_smallest->data[0], h_smallest->data[1], h_smallest->data[2]);
-    
-    system("python3 /home/robert/Desktop/pixelify/test_reduction.py > output.txt");
+
+    char cmd[512];
+    sprintf(cmd, "python ");
+    strcat(cmd, getenv("current_dir"));
+    strcat(cmd, "/tests/test_reduction.py > output.txt");
+    system(cmd);
 
     FILE *f = fopen("output.txt", "r");
     if (f == NULL) {
@@ -327,13 +348,27 @@ TEST(image_processing_correctness, simple_case_w_normalization) {
 TEST(image_processing_correctness, stb_conversion) {
     int width, height, channels;
 
-    int ok = stbi_info("/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png", &width, &height, &channels);
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
+        printf("Current dir: %s\nImage_processing_correctness running for stb_conversion\n", env_var);
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/Puzzle_Mountain.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
+
+    int ok = stbi_info(full_path, &width, &height, &channels);
     if(ok != 1) {
         printf("Failed to get image properties: %s\n", stbi_failure_reason());
         FAIL();
     }
 
-    unsigned char* image_data = stbi_load("/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png", &width, &height, &channels, 0);
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
     if (image_data == NULL) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
@@ -365,8 +400,22 @@ TEST(image_processing_correctness, stb_conversion) {
 }
 
 TEST(image_processing_correctness, identity_filter) {
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
+        printf("Current dir: %s\nRunning identity_filter image processing correctness\n", env_var);
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/Puzzle_Mountain.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
+
     int width, height, channels;
-    int ok = stbi_info("/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png", &width, &height, &channels);
+    int ok = stbi_info(full_path, &width, &height, &channels);
     if(ok != 1) {
         printf("Failed to get image properties: %s\n", stbi_failure_reason());
         FAIL();
@@ -374,7 +423,7 @@ TEST(image_processing_correctness, identity_filter) {
     // print image properties
     printf("Image width: %d\nImage height: %d\nImage channels: %d\n", width, height, channels);
 
-    unsigned char* image_data = stbi_load("/home/robert/Desktop/pixelify/sample_images/Puzzle_Mountain.png", &width, &height, &channels, 0);
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
     if (image_data == NULL) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
@@ -416,7 +465,21 @@ TEST(image_processing_correctness, identity_filter) {
 TEST(image_processing_correctness, identity_filter_garden) {
     int width, height, channels;
 
-    int ok = stbi_info("/home/robert/Desktop/pixelify/sample_images/garden.png", &width, &height, &channels);
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/garden.png") + 1];
+        printf("Current dir: %s\nRunning identity_filter_garden\n", env_var);
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/garden.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
+
+    int ok = stbi_info(full_path, &width, &height, &channels);
     if(ok != 1) {
         printf("Failed to get image properties: %s\n", stbi_failure_reason());
         FAIL();
@@ -425,7 +488,7 @@ TEST(image_processing_correctness, identity_filter_garden) {
     // print width, height, channels etc
     printf("Width: %d\nHeight: %d\nChannels: %d\n", width, height, channels);
 
-    unsigned char* image_data = stbi_load("/home/robert/Desktop/pixelify/sample_images/garden.png", &width, &height, &channels, 0);
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
     if (image_data == NULL) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
@@ -471,7 +534,20 @@ TEST(image_processing_correctness, identity_filter_helmet) {
     int width, height, channels;
     int old_w, old_h, old_c;
 
-    int ok = stbi_info("/home/robert/Desktop/pixelify/sample_images/helmet.png", &old_w, &old_h, &old_c);
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/helmet.png") + 1];
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/helmet.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
+
+    int ok = stbi_info(full_path, &old_w, &old_h, &old_c);
     if(ok != 1) {
         printf("Failed to get image properties: %s\n", stbi_failure_reason());
         FAIL();
@@ -480,7 +556,7 @@ TEST(image_processing_correctness, identity_filter_helmet) {
     // print width, height, channels etc
     printf("Width: %d\nHeight: %d\nChannels: %d\n", old_w, old_h, old_c);
 
-    unsigned char* image_data = stbi_load("/home/robert/Desktop/pixelify/sample_images/helmet.png", &width, &height, &channels, 0);
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
     if (image_data == NULL) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
@@ -523,6 +599,16 @@ TEST(image_processing_correctness, identity_filter_helmet) {
 }
 
 int main(int argc, char **argv) {
+    setenv("current_dir", getenv("PWD"), 1);
+    const char* current_dir = getenv("current_dir");
+    if(current_dir != NULL) {
+        // set it one layer outside i.e ../
+        char *parent_dir = new char[strlen(current_dir) + 3];
+        strcpy(parent_dir, current_dir);
+        strcat(parent_dir, "/..");
+        // now set this to current_dir
+        setenv("current_dir", parent_dir, 1);
+    }
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
