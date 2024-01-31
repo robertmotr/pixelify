@@ -722,6 +722,50 @@ TEST(expand_filter_correctness, gaussian_blur_undivisible) {
     SUCCEED();
 }
 
+TEST(time_taken, image_500) {
+    filter *f = create_filter_from_strength("Box blur", 500, 500, 30);
+
+    // check that original filter is alive and unchanged
+    if(find_basic_filter("Box blur") == NULL) {
+        FAIL();
+    }
+
+    Pixel<3> *input = new Pixel<3>[500 * 500];
+    Pixel<3> *output = new Pixel<3>[500 * 500];
+
+    for(int i = 0; i < 500 * 500; i++) {
+        input[i].data[0] = 0;
+        input[i].data[1] = 0;
+        input[i].data[2] = 0;
+    }
+
+    struct kernel_args extra;
+    extra.filter_strength = 30;
+    extra.red_shift = 0;
+    extra.green_shift = 0;
+    extra.blue_shift = 0;
+    extra.alpha_shift = 0;
+    extra.brightness = 0;
+    extra.blend_factor = 0.0f;
+    extra.tint[0] = 0;
+    extra.tint[1] = 0;
+    extra.tint[2] = 0;
+    extra.tint[3] = 0;
+
+
+    // start measuring time from here
+    auto start = std::chrono::high_resolution_clock::now();
+    run_kernel<3>("Box blur", input, output, 500, 500, extra);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+
+    if(duration.count() > 3.0) {
+        FAIL();
+    }
+    SUCCEED();
+}
+
 int main(int argc, char **argv) {
     setenv("current_dir", getenv("PWD"), 1);
     const char* current_dir = getenv("current_dir");
