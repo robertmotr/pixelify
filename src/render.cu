@@ -201,11 +201,26 @@ bool render_applied_changes(const char* filter_name, struct kernel_args args, in
     assert(w == width && h == height && c == channels);
 
     Pixel<3> *pixels_in = new Pixel<3>[width * height];
+    if(pixels_in == nullptr) {
+        std::cout << "Failed to allocate memory for input pixels" << std::endl;
+        return false;
+    }
     Pixel<3> *pixels_out = new Pixel<3>[width * height];
+    if(pixels_out == nullptr) {
+        std::cout << "Failed to allocate memory for output pixels" << std::endl;
+        return false;
+    }
     
-    raw_image_to_pixel<3>(*image_data_in, pixels_in, width * height);
+    // convert image data to pixel array
+    imgui_get_pixels(*image_data_in, pixels_in, width * height);
+
     run_kernel<3>(filter_name, pixels_in, pixels_out, width, height, args);
-    pixel_to_raw_image<3>(pixels_out, *image_data_out, width * height);
+
+    // convert pixel array to image data
+    imgui_get_raw_image(pixels_out, *image_data_out, width * height);
+
+    delete[] pixels_in;
+    delete[] pixels_out;
 
     if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
         return true;

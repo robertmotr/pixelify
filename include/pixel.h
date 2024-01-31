@@ -57,7 +57,7 @@ unsigned char* pixel_to_raw_image(const Pixel<channels> *input, unsigned int siz
 
 // dont use this doesnt work with imgui, kept this so tests are stable
 template<unsigned int channels>
-Pixel<channels>* raw_image_to_pixel(const unsigned char *input, Pixel<channels> *output, unsigned int size) {
+Pixel<channels>* raw_image_to_pixel(const unsigned char *input, unsigned int size) {
     Pixel<channels> *output = new Pixel<channels>[size];
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {

@@ -150,6 +150,13 @@ const filter* find_basic_filter(const char *name) {
     return nullptr;
 }
 
+int find_largest_square(int m, int n, unsigned char percentage) {
+    int area = m * n;
+    int square_dimension = static_cast<int>(sqrt(percentage / 100.0 * area / 9));
+    square_dimension -= square_dimension % 3;
+    return square_dimension;
+}
+
 // filter strength on an image is a function of the filters size relative to the images size
 // expand_filter takes in percentage [0, 100], and expands the filter to the largest square that can fit
 // if its 0 then its just default basic filter
@@ -168,36 +175,8 @@ bool expand_filter(unsigned char percentage, unsigned int image_width, unsigned 
         return true;
     }
 
-    double desired_area = (percentage / 100.0) * image_width * image_height;
+    int best_dimension = find_largest_square(image_width, image_height, percentage);
 
-    // Initialize variables to store the best result
-    double best_diff = std::numeric_limits<double>::infinity();
-    unsigned int best_dimension = 0;
-
-    // Iterate over all possible rectangle sizes
-    for (unsigned int dim = 3; dim < std::min(image_width, image_height); dim += 3) {
-    
-        double current_area = dim * dim;
-
-        // difference between the current area and the desired area
-        double diff = std::abs(current_area - desired_area);
-
-        // update best result if the current is closer to desired
-        if (diff < best_diff) {
-            best_diff = diff;
-            best_dimension = dim;
-        }
-    }
-
-    // it could be possible best_dimension > image_width/image_height
-    // in that case scale it back a bit such that it still is within the image and
-    // is divisible by 3x3 squares
-    while((best_dimension > image_width ||
-            best_dimension > image_height ||
-            best_dimension % 3 != 0) && 
-            best_dimension > 3) {
-        best_dimension -= 3;
-    }
     assert(best_dimension % 3 == 0 && best_dimension > 0);
     assert(best_dimension <= image_width && best_dimension <= image_height);
 

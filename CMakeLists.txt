@@ -65,15 +65,20 @@ target_include_directories(pixelify_tests PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
 )
-target_include_directories(pixelify_tests PUBLIC ${HEADERS_TEST})
+target_include_directories(pixelify_tests PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
+    ${CMAKE_CURRENT_SOURCE_DIR}/include # Add this line
+)
 add_executable(tests tests/tests.cu)
 target_link_libraries(tests pixelify_tests gtest)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
-set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -ggdb3 -diag-suppress=326")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -O3 -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security -Wshadow ")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -O3 -ggdb3 -diag-suppress=326")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -DNDEBUG")

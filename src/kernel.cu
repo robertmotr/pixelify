@@ -20,7 +20,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   int blockSize;
   cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
   assert(blockSize != 0);
-  int gridSize = (4 * height + blockSize - 1) / blockSize;
+  int gridSize = (8 * height + blockSize - 1) / blockSize;
 
   Pixel<channels> *h_pinned_input, *h_pinned_output;
   Pixel<channels> *h_smallest, *h_largest;
@@ -157,7 +157,6 @@ __global__  void kernel(const filter *filter, const Pixel<channels> *input, Pixe
     int row = pixel_idx / width;
     int col = pixel_idx % width;
 
-    #pragma unroll // unroll loop for performance
     for(int channel = 0; channel < channels; channel++) {
       if(operation == OP_FILTER) {
         int sum = apply_filter<channels>(input, filter, channel, width, height, row, col);
