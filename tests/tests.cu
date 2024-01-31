@@ -58,9 +58,9 @@ TEST(kernel_correctness, identity_filter) {
             << "\nExpected: " << static_cast<int>(image_expected[i]) << "\nActual: " << static_cast<int>(image_out[i]);
     }
 
-    free(image_in);
-    free(image_out);
-    free(image_expected);
+    delete[] image_in;
+    delete[] image_out;
+    delete[] image_expected;
 }
 
 TEST(kernel_correctness, identity_filter_channels) {
@@ -600,6 +600,125 @@ TEST(image_processing_correctness, identity_filter_helmet) {
     delete[] pixels_in;
     delete[] image_out;
     delete[] pixels_out;
+    SUCCEED();
+}
+
+TEST(expand_filter_correctness, box_blur_divisible) {
+    filter *f = create_filter_from_strength("Box blur", 30, 30, 30);
+
+    // check that original filter is alive and unchanged
+    if(find_basic_filter("Box blur") == NULL) {
+        FAIL();
+    }
+
+    const int* filter_data = find_basic_filter_data("Box blur");
+
+    // assert 3x3 squares can fit exactly into f
+    ASSERT_EQ(f->filter_dimension % 3, 0);
+
+    // check to make sure box blur is replicated exactly n times
+    for(int i = 0; i < f->filter_dimension * f->filter_dimension; i++) {
+        ASSERT_EQ(f->filter_data[i], 1);
+    }
+
+    delete f;
+
+    if(find_basic_filter("Box blur") == NULL) {
+        FAIL();
+    }
+    if(find_basic_filter_data("Box blur") == NULL) {
+        FAIL();
+    }
+
+    SUCCEED();
+}
+
+TEST(expand_filter_correctness, box_blur_undivisible) {
+    filter *f = create_filter_from_strength("Box blur", 21342, 23123, 30);
+
+    // check that original filter is alive and unchanged
+    if(find_basic_filter("Box blur") == NULL) {
+        FAIL();
+    }
+
+    // assert 3x3 squares can fit exactly into f
+    ASSERT_EQ(f->filter_dimension % 3, 0);
+
+    // check to make sure box blur is replicated exactly n times
+    for(int i = 0; i < f->filter_dimension * f->filter_dimension; i++) {
+        ASSERT_EQ(f->filter_data[i], 1);
+    }
+
+    delete f;
+    
+    if(find_basic_filter("Box blur") == NULL) {
+        FAIL();
+    }
+    if(find_basic_filter_data("Box blur") == NULL) {
+        FAIL();
+    }
+    SUCCEED();
+}
+
+TEST(expand_filter_correctness, gaussian_blur_divisible) {
+    filter *f = create_filter_from_strength("Gaussian blur", 30, 30, 30);
+
+    // check that original filter is alive and unchanged
+    if(find_basic_filter("Gaussian blur") == NULL) {
+        FAIL();
+    }
+    if(f->filter_dimension > 30) {
+        FAIL();
+    }
+
+    // assert 3x3 squares can fit exactly into f
+    ASSERT_EQ(f->filter_dimension % 3, 0);
+
+    // check to make sure gaussian blur is replicated exactly n times
+    for(int i = 0; i < f->filter_dimension * f->filter_dimension / 9; i += 9) {
+        for(int j = 0; j < 9; j++) {
+            ASSERT_EQ(f->filter_data[i * 9 + j], gaussian_blur_filter_data[j]);
+        }
+    }
+    delete f;
+    // check to make sure originals are untouched
+    if(find_basic_filter("Gaussian blur") == NULL) {
+        FAIL();
+    }
+    if(find_basic_filter_data("Gaussian blur") == NULL) {
+        FAIL();
+    }
+    SUCCEED();
+}
+
+TEST(expand_filter_correctness, gaussian_blur_undivisible) {
+    filter *f = create_filter_from_strength("Gaussian blur", 21342, 23123, 30);
+
+    // check that original filter is alive and unchanged
+    if(find_basic_filter("Gaussian blur") == NULL) {
+        FAIL();
+    }
+    if(f->filter_dimension > 21342) {
+        FAIL();
+    }
+
+    // assert 3x3 squares can fit exactly into f
+    ASSERT_EQ(f->filter_dimension % 3, 0);
+
+    // check to make sure gaussian blur is replicated exactly n times
+    for(int i = 0; i < f->filter_dimension * f->filter_dimension / 9; i += 9) {
+        for(int j = 0; j < 9; j++) {
+            ASSERT_EQ(f->filter_data[i * 9 + j], gaussian_blur_filter_data[j]);
+        }
+    }
+    delete f;
+    // check to make sure originals are untouched
+    if(find_basic_filter("Gaussian blur") == NULL) {
+        FAIL();
+    }
+    if(find_basic_filter_data("Gaussian blur") == NULL) {
+        FAIL();
+    }
     SUCCEED();
 }
 
