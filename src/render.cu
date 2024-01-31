@@ -4,7 +4,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 // normally its kind of pointless to implement a function like this but
@@ -12,44 +12,43 @@
 void free_image(unsigned char **image_data) {
     if(image_data != NULL && *image_data != NULL) {
         stbi_image_free(*image_data);
-        *image_data = NULL;
+        *image_data = nullptr;
     }
 }
 
-bool load_texture_from_data(int *out_channels, int *out_width, int *out_height,
-                            GLuint *out_texture, unsigned char *image_data) {
-    // Create a OpenGL texture identifier
-    GLuint image_texture;
-    glGenTextures(1, &image_texture);
-    glBindTexture(GL_TEXTURE_2D, image_texture);
+bool load_texture_from_data(int channels, int width, int height,
+                            GLuint *out_texture, const unsigned char *image_data) {
+    if(channels != 3 && channels != 4) {
+        return false;
+    }
+    if(width <= 0 || height <= 0 || image_data == nullptr || out_texture == nullptr) {
+        return false;
+    }
+
+    glGenTextures(1, out_texture);
+    glBindTexture(GL_TEXTURE_2D, *out_texture);
 
     // Setup filtering parameters for display
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
-
-        // Upload pixels into texture
+    
+    // Upload pixels into texture
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 #endif
-    if(!(*out_channels == 3 || *out_channels == 4)) {
-        // Handle unsupported channel count
-        printf("Unsupported number of channels: %d\n", *out_channels);
-        stbi_image_free(image_data);
-        return false;
-    }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, *out_width, *out_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
 
     GLenum error = glGetError();
-    if (error != GL_NO_ERROR)
-    {
-        printf("OpenGL error after glTexImage2D: %x\n", error);
-        stbi_image_free(image_data);
+    if(error != GL_NO_ERROR) {
+        std::cout << "Failed to load texture: " << error << std::endl;
+        glDeleteTextures(1, out_texture);
+        *out_texture = 0;
         return false;
     }
-    *out_texture = image_texture;
-    assert(image_texture != 0 && *out_texture != 0);
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
     return true;
 }
 
@@ -57,12 +56,12 @@ bool load_texture_from_data(int *out_channels, int *out_width, int *out_height,
 bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
                             int* out_width, int* out_height, int* out_channels) {
     unsigned char* image_data = stbi_load(filename, out_width, out_height, out_channels, 4); 
-    if (image_data == NULL) {
+    if (image_data == nullptr) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         return false;
     }
     *out_raw_image = image_data;
-    return load_texture_from_data(out_channels, out_width, out_height, out_texture, image_data);
+    return load_texture_from_data(*out_channels, *out_width, *out_height, out_texture, image_data);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -167,67 +166,49 @@ void render_gui_loop() {
     return;
 }
 
-bool render_applied_changes(const char* filter_name, struct kernel_args args, int *width, int *height, 
-                GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out) {
+bool render_applied_changes(const char* filter_name, struct kernel_args args, int width, int height, 
+                GLuint *texture_preview, int channels, unsigned char **image_data_in, unsigned char **image_data_out, 
+                const char *image_filename) {
     
-    assert(image_data_in != NULL);
-    assert(*image_data_in != NULL);
-    assert(*width > 0);
-    assert(*height > 0);
-    assert(*channels == 3 || *channels == 4);
-    assert(texture_preview != NULL);
-    assert(image_data_out != NULL);
-
-
-    if(*channels == 3) {
-        Pixel<3> *pixels_in = raw_image_to_pixel<3>(*image_data_in, (*width) * (*height));
-        Pixel<3> *pixels_out = new Pixel<3>[(*width) * (*height)];
-
-        run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
-        
-        if(*image_data_out == NULL) {
-            *image_data_out = pixel_to_raw_image<3>(pixels_out, (*width) * (*height));
-        }
-        else {
-            delete[] *image_data_out;
-            *image_data_out = new unsigned char[(*width) * (*height) * 3];
-            for (unsigned int i = 0; i < (*width) * (*height); i++) {
-                for (unsigned int j = 0; j < 3; j++) {
-                    *image_data_out[i * 3 + j] = (unsigned char) pixels_in[i].data[j];
-                }
-            }
-        } 
-        
-        delete[] pixels_in;
-        delete[] pixels_out;
-        if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
-            return true;
-        }
+    if(image_data_in == nullptr || *image_data_in == nullptr) {
+        std::cout << "No image data to apply changes to" << std::endl;
+        return false;
     }
-    else if(*channels == 4) {
-        Pixel<4> *pixels_in = raw_image_to_pixel<4>(*image_data_in, (*width) * (*height));
-        Pixel<4> *pixels_out = new Pixel<4>[(*width) * (*height)];
-        run_kernel(filter_name, pixels_in, pixels_out, *width, *height, args);
+    if(image_data_out == nullptr) {
+        std::cout << "No image data to write to" << std::endl;
+        return false;
+    }
+    if(texture_preview == nullptr) {
+        std::cout << "No texture to write to" << std::endl;
+        return false;
+    }
+    if(width <= 0 || height <= 0) {
+        std::cout << "Invalid image dimensions" << std::endl;
+        return false;
+    }
+    if(channels != 3 && channels != 4) {
+        std::cout << "Unsupported number of channels: " << channels << std::endl;
+        return false;
+    }
 
-        if(*image_data_out == NULL) {
-            *image_data_out = pixel_to_raw_image<4>(pixels_out, (*width) * (*height));
-        }
-        else {
-            for (unsigned int i = 0; i < (*width) * (*height); i++) {
-                for (unsigned int j = 0; j < 4; j++) {
-                    if(pixels_in[i].data[j] < 0 || pixels_in[i].data[j] > 255) {
-                        printf("Pixel value out of range: %d\n", pixels_in[i].data[j]);
-                    }
-                    *image_data_out[i * 4 + j] = (unsigned char) pixels_in[i].data[j];
-                }
-            }
-        }
-        
-        delete[] pixels_in;
-        delete[] pixels_out;
-        if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
-            return true;
-        }
+    if(*image_data_out != nullptr) {
+        stbi_image_free(*image_data_out);
+        image_data_out = nullptr;
+    }
+    // we didnt apply a transformation so allocate new memory
+    int w, h, c;
+    *image_data_out = stbi_load(image_filename, &w, &h, &c, 0);
+    assert(w == width && h == height && c == channels);
+
+    Pixel<3> *pixels_in = new Pixel<3>[width * height];
+    Pixel<3> *pixels_out = new Pixel<3>[width * height];
+    
+    raw_image_to_pixel<3>(*image_data_in, pixels_in, width * height);
+    run_kernel<3>(filter_name, pixels_in, pixels_out, width, height, args);
+    pixel_to_raw_image<3>(pixels_out, *image_data_out, width * height);
+
+    if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
+        return true;
     }
     return false;
 }

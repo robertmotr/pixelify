@@ -13,19 +13,20 @@ const int* emboss_filter_data;
 const int* laplacian_filter_data;
 const int* motion_blur_filter_data;
 
-filter *identity_filter;
-filter *edge_filter;
-filter *sharpen_filter;
-filter *box_blur_filter;
-filter *gaussian_blur_filter;
-filter *unsharp_masking_filter;
-filter *high_pass_filter;
-filter *emboss_filter;
-filter *laplacian_filter;
-filter *motion_blur_filter;
+const filter *identity_filter;
+const filter *edge_filter;
+const filter *sharpen_filter;
+const filter *box_blur_filter;
+const filter *gaussian_blur_filter;
+const filter *unsharp_masking_filter;
+const filter *high_pass_filter;
+const filter *emboss_filter;
+const filter *laplacian_filter;
+const filter *motion_blur_filter;
 
-std::vector<const int*> basic_filter_data;
-std::vector<filter*> basic_filters;
+const int** basic_filter_data_array;
+const filter** basic_filters_array;
+const int filter_array_size = 10;
 
 void force_initialize_filters() {
     identity_filter_data = new int[9]{
@@ -79,7 +80,7 @@ void force_initialize_filters() {
         0, 0, 1
     };
 
-    std::vector<const int*> filter_data = {
+    basic_filter_data_array = new const int*[10] {
         identity_filter_data,
         edge_filter_data,
         sharpen_filter_data,
@@ -103,19 +104,6 @@ void force_initialize_filters() {
     filter *laplacian = new filter("Laplacian", laplacian_filter_data, 3);
     filter *motion_blur = new filter("Motion blur", motion_blur_filter_data, 3);
 
-    std::vector<filter*> filters = {
-        identity,
-        edge,
-        sharpen,
-        box_blur,
-        gaussian_blur,
-        unsharp_masking,
-        high_pass,
-        emboss,
-        laplacian,
-        motion_blur
-    };
-
     identity_filter = identity;
     edge_filter = edge;
     sharpen_filter = sharpen;
@@ -127,21 +115,34 @@ void force_initialize_filters() {
     laplacian_filter = laplacian;
     motion_blur_filter = motion_blur;
 
-    basic_filter_data = filter_data;
-    basic_filters = filters;
+    basic_filters_array = new const filter*[10] {
+        identity_filter,
+        edge_filter,
+        sharpen_filter,
+        box_blur_filter,
+        gaussian_blur_filter,
+        unsharp_masking_filter,
+        high_pass_filter,
+        emboss_filter,
+        laplacian_filter,
+        motion_blur_filter
+    };
+
 }
 
 const int* find_basic_filter_data(const char *name) {
-    for(auto f : basic_filters) {
+    for(int i = 0; i < filter_array_size; i++) {
+        const filter *f = basic_filters_array[i];
         if(strcmp(f->filter_name, name) == 0) {
-            return f->filter_data;
+            return basic_filter_data_array[i];
         }
     }
     return nullptr;
 }
 
 const filter* find_basic_filter(const char *name) {
-    for(auto f : basic_filters) {
+    for(int i = 0; i < filter_array_size; i++) {
+        const filter *f = basic_filters_array[i];
         if(strcmp(f->filter_name, name) == 0) {
             return f;
         }
@@ -221,8 +222,16 @@ filter *create_filter_from_strength(const char *basic_filter_name, unsigned int 
     }
     else if(percentage == 0) {
         // just return the basic filter
-        *expanded_filter = *(find_basic_filter(basic_filter_name));
-        return expanded_filter;
+        const filter *basic_filter = find_basic_filter(basic_filter_name);
+        if(basic_filter == nullptr) {
+            delete expanded_filter;
+            printf("Error: basic filter not found\n");
+            return nullptr;
+        }
+        else {
+            *expanded_filter = *basic_filter;
+            return expanded_filter;
+        }
     }
 
     if(expand_filter(percentage, image_width, image_height, basic_filter_name, expanded_filter)) {

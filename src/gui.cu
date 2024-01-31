@@ -1,4 +1,6 @@
 #include "gui.h"
+#include "stb_image.h"
+#include "stb_image_write.h"
 
 inline void display_image(const GLuint& texture, const int& width, const int& height) {
     ImGui::Text("size = %d x %d", width, height);
@@ -32,16 +34,12 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
     }
 }
 
-inline void display_tab_bar(bool show_original, bool show_preview, const int& width, const int& height, 
+inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const int& width, const int& height, 
                             const GLuint& texture_orig, const GLuint& texture_preview) { 
 
     if (ImGui::BeginTabBar("tab_bar", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Original image")) {
-            if(show_preview && show_original) {
-                show_preview = false;
-                show_original = true;
-            }
-            if (show_original) {
+            if(original_loaded) {
                 display_image(texture_orig, width, height);
             }
             else {
@@ -51,14 +49,10 @@ inline void display_tab_bar(bool show_original, bool show_preview, const int& wi
         }
         ImGui::SetNextItemWidth(200.0f);
         if (ImGui::BeginTabItem("Preview transformations")) {
-            if(show_original && show_preview) {
-                show_original = false;
-                show_preview = true;
-            }
-
-            if(show_preview) {
+            if(preview_loaded) {
                 display_image(texture_preview, width, height);
-            } else {
+            }
+            else {
                 ImGui::Text("No image loaded. Please select an input file and a filter on the right side panel, and click Apply Changes.");
             }
             ImGui::EndTabItem();
@@ -129,10 +123,13 @@ void show_ui(ImGuiIO& io) {
     static bool show_original =                 false;
     static bool show_preview =                  false;
     static bool show_tint =                     false;
-    static bool initialized =                   false;
-    if(!initialized) {
-        force_initialize_filters();
-    }
+
+    // in theory because of the attribute tag on the function it runs before main anyways no need to do this
+    // static bool initialized_filters =           false;
+    // if(!initialized_filters) {
+    //     force_initialize_filters();
+    //     initialized_filters = true;
+    // }
 
     // filter options
     static bool normalize =                     false;
@@ -159,7 +156,10 @@ void show_ui(ImGuiIO& io) {
     static unsigned char *image_data_out =      NULL;
     static GLuint texture_orig =                0;
     static GLuint texture_preview =             0;
-    static const std::vector<filter*> filters = basic_filters;
+    static const filter** filters =             basic_filters_array;
+    static int current_filter_dropdown_idx =    0;
+    static ImGuiComboFlags flags =              0;
+    static filter selected_filter =             *filters[current_filter_dropdown_idx];   
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -227,10 +227,6 @@ void show_ui(ImGuiIO& io) {
             glDeleteTextures(1, &texture_orig);
             texture_orig = 0;
         }
-        if(texture_preview != 0) {
-            glDeleteTextures(1, &texture_preview);
-            texture_preview = 0;
-        }
     }
 
     if(ImGui::BeginPopup("Error loading image")) {
@@ -250,14 +246,13 @@ void show_ui(ImGuiIO& io) {
     // Using the generic BeginCombo() API, you have full control over how to display the combo contents.
     // (your selection data could be an index, a pointer to the object, an id for the object, a flag intrusively
     // stored in the object itself, etc.)
-    static ImGuiComboFlags flags = 0;
-    static int item_current_idx = 0; // Here we store our selection data as an index.
-    const char* combo_preview_value = filters[item_current_idx]->filter_name;  // Pass in the preview value visible before opening the combo (it could be anything)
+    const char* combo_preview_value = filters[current_filter_dropdown_idx]->filter_name;  // Pass in the preview value visible before opening the combo (it could be anything)
     if (ImGui::BeginCombo("Select filter", combo_preview_value, flags)) {
-        for (int n = 0; n < filters.size(); n++) {
-            const bool is_selected = (item_current_idx == n);
+        for (int n = 0; n < filter_array_size; n++) {
+            const bool is_selected = (current_filter_dropdown_idx == n);
             if (ImGui::Selectable(filters[n]->filter_name, is_selected))
-                item_current_idx = n;
+                current_filter_dropdown_idx = n;
+                selected_filter = *filters[current_filter_dropdown_idx];
             // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
             if (is_selected)
                 ImGui::SetItemDefaultFocus();
@@ -322,9 +317,14 @@ void show_ui(ImGuiIO& io) {
             extra_args.normalize = normalize;
             extra_args.filter_strength = static_cast<char>(filter_strength);
             extra_args.blend_factor = blend_factor;
+            extra_args.tint[0] = static_cast<unsigned char>(tint_colour.x);
+            extra_args.tint[1] = static_cast<unsigned char>(tint_colour.y);
+            extra_args.tint[2] = static_cast<unsigned char>(tint_colour.z);
+            extra_args.tint[3] = static_cast<unsigned char>(tint_colour.w);
 
-            bool ret = render_applied_changes(combo_preview_value, extra_args, &width, &height,
-                &texture_preview, &channels, &image_data, &image_data_out);
+            render_applied_changes(selected_filter.filter_name, extra_args, width, height, &texture_preview, channels,
+                                    &image_data, &image_data_out, input);
+
         }
     }
     ImGui::SameLine();
@@ -335,6 +335,7 @@ void show_ui(ImGuiIO& io) {
             texture_preview = 0;
         }
         if(image_data_out != NULL) free_image(&image_data_out);
+        if(image_data != NULL) free_image(&image_data);
 
     }
     ImGui::SameLine();

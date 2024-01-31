@@ -22,7 +22,7 @@
 
 void free_image(unsigned char **image_data);
 
-bool load_texture_from_data(int *out_channels, int *out_width, int *out_height, GLuint *out_texture, unsigned char *image_data);
+bool load_texture_from_data(int out_channels, int out_width, int out_height, GLuint *out_texture, const unsigned char *image_data);
 // Simple helper function to load an image into a OpenGL texture with common settings
 bool load_texture_from_file(const char* filename, GLuint* out_texture, unsigned char **out_raw_image, 
                             int* out_width, int* out_height, int* out_channels);
@@ -37,14 +37,15 @@ void render_gui_loop();
 
 // returns true on success and false on failure
 // calls run_kernel to process the original image into preview image using the filter + other changes
-bool render_applied_changes(const char* filter_name, struct kernel_args args, int *width, int *height, 
-                GLuint *texture_preview, int *channels, unsigned char **image_data_in, unsigned char **image_data_out);
+bool render_applied_changes(const char* filter_name, struct kernel_args args, int width, int height, 
+                GLuint *texture_preview, int channels, unsigned char **image_data_in, unsigned char **image_data_out, 
+                const char *image_filename);
 
 // displays image in the GUI given a gluint texture
 inline void display_image(const GLuint& texture, const int& width, const int& height);
 
 // self explanatory
-inline void display_tab_bar(bool show_original, bool show_preview, const int& width, const int& height, 
+inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const int& width, const int& height, 
                             const GLuint& texture_orig, const GLuint& texture_preview);
 
 // generates exif string given an exiv2 exifdata object

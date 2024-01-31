@@ -79,6 +79,39 @@ public:
         }
         return true;
     }
+
+    filter& operator=(const filter &other) {
+        if (this == &other) {
+            return *this;
+        }
+
+        if(filter_data != nullptr) {
+            delete[] filter_data;
+            filter_data = nullptr;
+        }
+        if(filter_name != nullptr) {
+            delete[] filter_name;
+            filter_name = nullptr;
+        }
+
+        filter_dimension = other.filter_dimension;
+        filter_data = new int[filter_dimension * filter_dimension];
+        memcpy(filter_data, other.filter_data, filter_dimension * filter_dimension * sizeof(int));
+        name_size = strlen(other.filter_name) + 1;
+        filter_name = new char[name_size];
+        strcpy(filter_name, other.filter_name);
+
+        return *this;
+    }
+
+    filter(const filter& other) {
+        filter_data = new int[other.filter_dimension * other.filter_dimension];
+        memcpy(filter_data, other.filter_data, other.filter_dimension * other.filter_dimension * sizeof(int));
+        filter_dimension = other.filter_dimension;
+        name_size = strlen(other.filter_name) + 1;
+        filter_name = new char[name_size];
+        strcpy(filter_name, other.filter_name);
+    }
 };
 
 extern const int* identity_filter_data;
@@ -93,21 +126,23 @@ extern const int* sobel_filter_data;
 extern const int* laplacian_filter_data;
 extern const int* motion_blur_filter_data;
 
-extern filter *identity_filter;
-extern filter *edge_filter;
-extern filter *sharpen_filter;
-extern filter *box_blur_filter;
-extern filter *gaussian_blur_filter;
-extern filter *unsharp_mask_filter;
-extern filter *high_pass_filter;
-extern filter *emboss_filter;
-extern filter *sobel_filter;
-extern filter *laplacian_filter;
-extern filter *motion_blur_filter;
+extern const filter *identity_filter;
+extern const filter *edge_filter;
+extern const filter *sharpen_filter;
+extern const filter *box_blur_filter;
+extern const filter *gaussian_blur_filter;
+extern const filter *unsharp_mask_filter;
+extern const filter *high_pass_filter;
+extern const filter *emboss_filter;
+extern const filter *sobel_filter;
+extern const filter *laplacian_filter;
+extern const filter *motion_blur_filter;
 
-extern std::vector<const int*> basic_filter_data;
-extern std::vector<filter*> basic_filters;
+extern const int** basic_filter_data_array;
+extern const filter** basic_filters_array;
+extern const int filter_array_size;
 
+// allegedly this attribute forces the function to be called before main
 void force_initialize_filters() __attribute__((constructor));
 
 const int* find_basic_filter_data(const char *name);
@@ -124,4 +159,8 @@ filter *create_filter_from_strength(const char *basic_filter_name, unsigned int 
 // returns true on success, false on failure
 bool expand_filter(unsigned char percentage, unsigned int image_width, unsigned int image_height, 
     const char *basic_filter_name, filter *destination);
+
+filter** get_all_filters();
+
+int** get_all_filter_data();
 #endif // __FILTER__H__
