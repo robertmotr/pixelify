@@ -8,13 +8,24 @@
 
 #define FILTER_DIMENSION 3
 
+struct filter_properties {
+    bool expandable_size;
+    bool adjustable_strength;
+    unsigned char* sizes;
+    int num_sizes;
+    int lower_bound_strength;
+    int upper_bound_strength;
+}
+
 class filter {
 public:
 
-    char*                           filter_name;
-    int*                            filter_data;
-    unsigned int                    filter_dimension = 0;
+    char*                           filter_name = nullptr;
+    int*                            filter_data = nullptr;
+    unsigned char*                  sizes = nullptr; // array of sizes for expandable filters. i.e identity can only be 3x3, but gaussian blur can be 3x3, 5x5, 7x7, etc
+    unsigned char                   filter_dimension = 0;
     size_t                          name_size;
+    bool                            adjustable_strength;
 
     // default
     filter() : filter_dimension(0), filter_data(nullptr) {
@@ -52,6 +63,16 @@ public:
         filter_name = new char[size];
         strcpy(filter_name, name);
         this->name_size = size;
+
+        // set expandable based on which filter name it is
+        if(strcmp(filter_name, "Identity") == 0) {
+            expandable = false;
+            custom_weights = false;
+        } 
+        else if(strcmp(filter_name, "Box blur") == 0) {
+            expandable = false;
+            custom_weights = false;
+        }
     }
 
     ~filter() {
@@ -121,10 +142,16 @@ extern const int* box_blur_filter_data;
 extern const int* gaussian_blur_filter_data;
 extern const int* unsharp_mask_filter_data;
 extern const int* high_pass_filter_data;
+extern const int* low_pass_filter_data;
 extern const int* emboss_filter_data;
-extern const int* sobel_filter_data;
 extern const int* laplacian_filter_data;
 extern const int* motion_blur_filter_data;
+extern const int* horizontal_shear_filter_data;
+extern const int* vertical_shear_filter_data;
+extern const int* sobel_x_filter_data;
+extern const int* sobel_y_filter_data;
+extern const int* prewitt_x_filter_data;
+extern const int* prewitt_y_filter_data;
 
 extern const filter *identity_filter;
 extern const filter *edge_filter;
@@ -133,10 +160,16 @@ extern const filter *box_blur_filter;
 extern const filter *gaussian_blur_filter;
 extern const filter *unsharp_mask_filter;
 extern const filter *high_pass_filter;
+extern const filter *low_pass_filter;
 extern const filter *emboss_filter;
-extern const filter *sobel_filter;
 extern const filter *laplacian_filter;
 extern const filter *motion_blur_filter;
+extern const filter *horizontal_shear_filter;
+extern const filter *vertical_shear_filter;
+extern const filter *sobel_x_filter;
+extern const filter *sobel_y_filter;
+extern const filter *prewitt_x_filter;
+extern const filter *prewitt_y_filter;
 
 extern const int** basic_filter_data_array;
 extern const filter** basic_filters_array;
@@ -162,5 +195,6 @@ bool expand_filter(unsigned char percentage, unsigned int image_width, unsigned 
 
 filter** get_all_filters();
 
-int** get_all_filter_data();
+struct filter_properties get_filter_properties(const char *filter_name);
+
 #endif // __FILTER__H__

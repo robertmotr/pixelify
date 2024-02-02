@@ -12,6 +12,8 @@ const int* high_pass_filter_data;
 const int* emboss_filter_data;
 const int* laplacian_filter_data;
 const int* motion_blur_filter_data;
+const int* sobel_x_filter_data;
+const int* sobel_y_filter_data;
 
 const filter *identity_filter;
 const filter *edge_filter;
@@ -98,7 +100,7 @@ void force_initialize_filters() {
     filter *sharpen = new filter("Sharpen", sharpen_filter_data, 3);
     filter *box_blur = new filter("Box blur", box_blur_filter_data, 3);
     filter *gaussian_blur = new filter("Gaussian blur", gaussian_blur_filter_data, 3);
-    filter *unsharp_masking = new filter("Unsharp masking", unsharp_masking_filter_data, 3);
+    filter *unsharp_masking = new filter("Unsharp mask", unsharp_masking_filter_data, 3);
     filter *high_pass = new filter("High pass", high_pass_filter_data, 3);
     filter *emboss = new filter("Emboss", emboss_filter_data, 3);
     filter *laplacian = new filter("Laplacian", laplacian_filter_data, 3);
@@ -150,56 +152,14 @@ const filter* find_basic_filter(const char *name) {
     return nullptr;
 }
 
-int find_largest_square(int m, int n, unsigned char percentage) {
-    int area = m * n;
-    int square_dimension = static_cast<int>(sqrt(percentage / 100.0 * area / 9));
-    square_dimension -= square_dimension % 3;
-    return square_dimension;
-}
-
-// filter strength on an image is a function of the filters size relative to the images size
-// expand_filter takes in percentage [0, 100], and expands the filter to the largest square that can fit
-// if its 0 then its just default basic filter
-// within the image, as a percentage of the image size
-// i.e if percentage = 1, then the filter will be expanded to the largest square that can fit within 1% of the image
-// returns true on success, false on failure
-bool expand_filter(unsigned char percentage, unsigned int image_width, unsigned int image_height, 
-    const char *basic_filter_name, filter *destination) {
-    if(percentage > 100) {
-        return false;
-        // since unsigned, percentage/width/height can't be negative
-    }
-    if(percentage == 0) {
-        // set destination to the basic filter
-        *destination = *find_basic_filter(basic_filter_name); 
-        return true;
-    }
-
-    int best_dimension = find_largest_square(image_width, image_height, percentage);
-
-    assert(best_dimension % 3 == 0 && best_dimension > 0);
-    assert(best_dimension <= image_width && best_dimension <= image_height);
-
-    const int *copy_data = find_basic_filter_data(basic_filter_name);
-
-    int *new_filter_data = new int[best_dimension * best_dimension];
-    for(int i = 0; i < best_dimension * best_dimension; i += 9) {
-        memcpy(new_filter_data + i, copy_data, FILTER_DIMENSION * FILTER_DIMENSION * sizeof(int));
-    }
-
-    *destination = filter(basic_filter_name, new_filter_data, best_dimension);
-
-    return true;
-}
-
 filter *create_filter_from_strength(const char *basic_filter_name, unsigned int image_width,
-    unsigned int image_height, unsigned char percentage) {
+    unsigned int image_height, unsigned char strength) {
     filter *expanded_filter = new filter();
-    if(percentage > 100) {
+    if(strength > 100) {
         delete expanded_filter;
         return nullptr;
     }
-    else if(percentage == 0) {
+    else if(strength == 0) {
         // just return the basic filter
         const filter *basic_filter = find_basic_filter(basic_filter_name);
         if(basic_filter == nullptr) {
@@ -212,12 +172,79 @@ filter *create_filter_from_strength(const char *basic_filter_name, unsigned int 
             return expanded_filter;
         }
     }
+    else {
+        // valid strength size
 
-    if(expand_filter(percentage, image_width, image_height, basic_filter_name, expanded_filter)) {
-        return expanded_filter;
+    }
+}
+
+struct filter_properties get_filter_properties(const char *filter_name) {
+    struct filter_properties properties;
+    memset(&properties, 0, sizeof(struct filter_properties));
+    
+    if(strcmp(filter_name, "NULL") == 0) {
+        printf("Error: filter not found, is NULL\n");
+    }
+    else if(strcmp(filter_name, "Identity") == 0) {
+        // already memset to be 0 
+    }
+    else if(strcmp(filter_name, "Edge") == 0) {
+        // already memset to be 0
+    }
+    else if(strcmp(filter_name, "Sharpen") == 0) {
+        properties.adjustable_strength = true;
+        properties.expandable_size = false;
+        properties.lower_bound_strength = 0;
+        properties.upper_bound_strength = 100;
+    }
+    else if(strcmp(filter_name, "Box blur") == 0) {
+        properties.adjustable_strength = false;
+        properties.expandable_size = true;
+        properties.num_sizes = 10;
+        properties.sizes = new unsigned char[properties.num_sizes]{
+            2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+        };
+    }
+    else if(strcmp(filter_name, "Gaussian blur") == 0) {
+        properties.adjustable_strength = true;
+        properties.expandable_size = true;
+        properties.num_sizes = 5;
+        properties.sizes = new unsigned char[properties.num_sizes]{
+            3, 5, 7, 9, 11
+        };
+    }
+    else if(strcmp(filter_name, "Unsharp mask") == 0) {
+        
+    }
+    else if(strcmp(filter_name, "High pass") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Low pass") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Emboss") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Laplacian") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Motion blur") == 0) {
+        
+    }
+    else if(strcmp(filter_name, "Horizontal shear") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Vertical shear") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Sobel") == 0) {
+
+    }
+    else if(strcmp(filter_name, "Prewitt") == 0) {
+
     }
     else {
-        return nullptr;
+        printf("Error: filter not found\n");
     }
-
+    return properties;
 }
