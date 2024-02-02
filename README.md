@@ -2,7 +2,6 @@
 Image processor that applies filters to images using CUDA. 
 
 # TODO:
-- basically just rewrite kernel from scratch, not sustainable
 - add multiple filter passes option
 - add pixel inspector
 - keyboard shortcuts for tabbing between original/preview
@@ -20,6 +19,7 @@ Image processor that applies filters to images using CUDA.
 # in progress:
 - rewrite kernel to be speedy using shared memory + double parallelizing filter/image iteration
 - rewrite kernel to comply to real world kernel conventions and use floats
+- basically just rewrite kernel from scratch, not sustainable
 
 # done:
 - imgui implementation 

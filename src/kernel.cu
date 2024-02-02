@@ -3,11 +3,25 @@
 #include "pixel.h"
 #include "filter.h"
 
+// explicit instantiations
+#include "instantiations.cuh"
+
 template<unsigned int channels>
-__attribute__((no_sanitize_address))
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
-  filter *h_filter = nullptr;
+
+  filter *h_filter =            nullptr;
+  filter*                       device_filter;
+  int*                          device_filter_data;
+  char*                         device_filter_name;
+  int                           pixels = width * height;
+  Pixel<channels>               *device_input, *device_output;
+  Pixel<channels>               *d_largest, *d_smallest;
+  Pixel<channels>               *h_pinned_input, *h_pinned_output;
+  Pixel<channels>               *h_smallest, *h_largest;          
+  int blockSize;
+  int gridSize;
+
   if(strcmp(filter_name, "NULL") != 0) {         
     h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
     if(h_filter == nullptr) {
@@ -16,26 +30,19 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     }
   } 
 
-  int pixels = width * height;
-  int blockSize;
+
   cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
   assert(blockSize != 0);
-  int gridSize = (8 * height + blockSize - 1) / blockSize;
-
-  Pixel<channels> *h_pinned_input, *h_pinned_output;
-  Pixel<channels> *h_smallest, *h_largest;
+  gridSize = (16 * height + blockSize - 1) / blockSize; 
 
   h_smallest = new Pixel<channels>(INT_MAX);
   h_largest = new Pixel<channels>(INT_MIN);
   // create copy of input, output on pinned memory on host
-  cudaMallocHost(&h_pinned_input, pixels * sizeof(Pixel<channels>));
-  cudaMallocHost(&h_pinned_output, pixels * sizeof(Pixel<channels>));
+  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
+  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); // possible bug
   cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying input to pinned input");
-
-  Pixel<channels> *device_input, *device_output;
-  Pixel<channels> *d_largest, *d_smallest;
 
   // MALLOCS ON DEVICE
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
@@ -44,10 +51,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("cuda mallocs for input, output, largest, smallest");
-
-  filter*   device_filter;
-  int*      device_filter_data;
-  char*     device_filter_name;
 
   // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
   if(h_filter != nullptr && strcmp(filter_name, "NULL") != 0) {
@@ -77,30 +80,11 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   // apply filter first if filter is not NULL
   // then apply everything else in the kernel_args struct
-  if(filter_name != "NULL") {
-    kernel<channels><<<gridSize, blockSize>>>(device_filter, device_input, device_output, width, height, OP_FILTER, extra);
-    CUDA_CHECK_ERROR("launching filter kernel");
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("sync after filter kernel");
+  // but first apply it filter_passes times
+  for(int pass = 0; pass < extra.passes; pass++) {
+    // run kernel pass times
   }
-  if(extra.alpha_shift != 0 || extra.red_shift != 0 || extra.green_shift != 0 || extra.blue_shift != 0) {
-    kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_SHIFT_COLOURS, extra);
-    CUDA_CHECK_ERROR("launching shift colour kernel");
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("sync after shift colour kernel");
-  } 
-  if(extra.brightness != 0) {
-    kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_BRIGHTNESS, extra);
-    CUDA_CHECK_ERROR("launching brightness kernel");
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("sync after brightness kernel");
-  }
-  if(std::any_of(std::begin(extra.tint), std::end(extra.tint), [](char i){return i != 0;})) {
-    kernel<channels><<<gridSize, blockSize>>>(NULL, device_input, device_output, width, height, OP_TINT, extra);
-    CUDA_CHECK_ERROR("launching tint kernel");
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("sync after tint kernel");
-  }
+  // then apply everything else in the kernel_args struct
 
   // parallel reduction to find largest and smallest pixel values
   // for each channel respectively
@@ -147,28 +131,57 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 }
 
 template<unsigned int channels>
-__global__  void kernel(const filter *filter, const Pixel<channels> *input, Pixel<channels> *output, 
-                        int width, int height, unsigned char operation, struct kernel_args extra) {
+__global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
+                              const filter *filter, const struct kernel_args args) {
+
+  extern __shared__ Pixel<channels> filter_smem[];
 
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
+  // load data and apply filter at same time
+  #pragma unroll
+  for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
+
+    int row = pixel_idx / width;
+    int col = pixel_idx % width;
+
+    #pragma unroll
+    for(int channel = 0; channel < channels; channel++) {
+      filter_smem[pixel_idx].data[channel] = in[pixel_idx].data[channel];
+      out[pixel_idx].data[channel] = apply_filter<channels>(filter_smem, filter, channel, width, height, row, col);
+    }
+  }
+  __syncthreads();
+}
+
+template<unsigned int channels>
+__global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
+                              unsigned char operation, struct kernel_args extra) {
+
+  extern __shared__ Pixel<channels> smem[];
+
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  int total_threads = blockDim.x * gridDim.x;
+
+  // load data and apply operation at same time
+  #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     int row = pixel_idx / width;
     int col = pixel_idx % width;
 
+    #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      if(operation == OP_FILTER) {
-        int sum = apply_filter<channels>(input, filter, channel, width, height, row, col);
-        output[pixel_idx].data[channel] = sum;
-      } else if(operation == OP_SHIFT_COLOURS) {
-        output[pixel_idx].data[channel] = shift_colours(input[pixel_idx].data[channel], extra, channel);
+      smem[pixel_idx].data[channel] = in[pixel_idx].data[channel];
+
+      if(operation == OP_SHIFT_COLOURS) {
+        out[pixel_idx].data[channel] = shift_colours(smem[pixel_idx].data[channel], extra, channel);
       } else if(operation == OP_BRIGHTNESS) {
-        output[pixel_idx].data[channel] = input[pixel_idx].data[channel] * (100 + extra.brightness) / 100;
+        out[pixel_idx].data[channel] = smem[pixel_idx].data[channel] * (100 + extra.brightness) / 100;
       }
       else if(operation == OP_TINT) {
-        output[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor / 100)) * extra.tint[channel] + 
-                                          (float)(extra.blend_factor / 100) * input[pixel_idx].data[channel];
+        out[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor / 100)) * extra.tint[channel] + 
+                                          (float)(extra.blend_factor / 100) * smem[pixel_idx].data[channel];
       }
     }
   }
@@ -179,7 +192,8 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *largest, bool normalize_or_clamp) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
-
+  
+  #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     if(normalize_or_clamp) {
       normalize_pixel<channels>(target, pixel_idx, smallest, largest);
@@ -188,28 +202,3 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
     }
   }
 }
-
-// explicitly instantiate
-template void run_kernel<3u>(const char* filter_name, const Pixel<3u> *input,
-                 Pixel<3u> *output, int width, int height, struct kernel_args extra);
-
-template void run_kernel<4u>(const char* filter_name, const Pixel<4u> *input,
-                  Pixel<4u> *output, int width, int height, struct kernel_args extra);
-
-template __global__ void kernel<3u>(const filter *filter, const Pixel<3u> *input, 
-                                  Pixel<3u> *output, int width, int height,
-                                  unsigned char operation, struct kernel_args extra);
-
-template __global__ void kernel<4u>(const filter *filter, const Pixel<4u> *input, 
-                                  Pixel<4u> *output, int width, int height,
-                                  unsigned char operation, struct kernel_args extra);
-
-template __global__ void normalize<3u>(Pixel<3u> *target, int width, int height,
-                           const Pixel<3u> *smallest, const Pixel<3u> *largest, bool normalize_or_clamp);
-
-template __global__ void normalize<4u>(Pixel<4u> *target, int width, int height,
-                            const Pixel<4u> *smallest, const Pixel<4u> *largest, bool normalize_or_clamp);
-
-template void image_reduction<3u>(const Pixel<3u> *d_input, Pixel<3u>* d_result, unsigned int size, bool op);
-
-template void image_reduction<4u>(const Pixel<4u> *d_input, Pixel<4u>* d_result, unsigned int size, bool op);

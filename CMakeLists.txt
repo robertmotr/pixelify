@@ -18,18 +18,6 @@ set(SOURCES
     src/filter.cu
 )
 
-set(SOURCES_TEST 
-    src/kernel.cu 
-    src/filter.cu
-)
-
-set(HEADERS_TEST 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
-)
-
 set(IMGUI_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/imgui.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/imgui_demo.cpp
@@ -47,6 +35,7 @@ target_include_directories(imgui_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external
 
 add_library(pixelify_lib STATIC ${SOURCES})
 target_include_directories(pixelify_lib PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/templates
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
@@ -59,17 +48,27 @@ target_include_directories(pixelify_lib PUBLIC
 add_executable(pixelify src/main.cu)
 target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
 
+# ------ TESTS ------
+
+set(SOURCES_TEST 
+    src/kernel.cu 
+    src/filter.cu
+)
+
+set(HEADERS_TEST 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
+)
+
 add_library(pixelify_tests STATIC ${SOURCES_TEST})
 target_include_directories(pixelify_tests PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
-)
-target_include_directories(pixelify_tests PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/include # Add this line
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/templates
 )
 add_executable(tests tests/tests.cu)
 target_link_libraries(tests pixelify_tests gtest)
@@ -77,11 +76,11 @@ target_link_libraries(tests pixelify_tests gtest)
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -O3 -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security -Wshadow ")
-set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -O3 -ggdb3 -diag-suppress=326")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -O0 -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security -Wshadow")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -O0 -ggdb3 -diag-suppress=326")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -DNDEBUG")
+set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -O3 --use-fast-math -DNDEBUG")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(SUFFIX "_debug")

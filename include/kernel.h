@@ -37,6 +37,7 @@ struct kernel_args {
     // chosen by colour picker
     unsigned char tint[4] =     {0, 0, 0, 0}; // [red, green, blue, alpha]
     float                       blend_factor;
+    unsigned char               passes;
 };
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
@@ -132,30 +133,21 @@ __device__ __forceinline__ int shift_colours(int channel_value, struct kernel_ar
     }
 }
 
-template <unsigned int channels>
-void run_kernel(const char* filter_name, const Pixel<channels> *input,
-                 Pixel<channels> *output, int width, int height, struct kernel_args extra);
+template<unsigned int channels>
+void run_kernel(const char *filter_name, const Pixel<channels> *input,
+                   Pixel<channels>* output, int width, int height, struct kernel_args extra);
 
-template <unsigned int channels>
-__global__ void kernel(const filter *filter, const Pixel<channels> *input,
-                         Pixel<channels> *output, int width, int height,
-                        unsigned char operation, struct kernel_args extra);
+template<unsigned int channels>
+__global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
+                              const filter *filter, const struct kernel_args args);
+
+template<unsigned int channels>
+__global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
+                              unsigned char operation, struct kernel_args extra);
 
 template<unsigned int channels>
 __global__ void normalize(Pixel<channels> *image, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *biggest,
                            bool normalize_or_clamp);
-
-// explicit instantiations
-template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
-                                                    const Pixel<3u> *smallest, const Pixel<3u> *largest);
-template __device__ __forceinline__ void normalize_pixel<4u>(Pixel<4u> *target, int pixel_idx,
-                                                    const Pixel<4u> *smallest, const Pixel<4u> *largest);
-
-template __device__ __forceinline__ int apply_filter<3u>(const Pixel<3u> *input, const filter *filter, unsigned int mask,
-    int width, int height, int row, int col);
-
-template __device__ __forceinline__ int apply_filter<4u>(const Pixel<4u> *input, const filter *filter, unsigned int mask,
-    int width, int height, int row, int col);
 
 #endif

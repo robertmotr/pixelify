@@ -2,6 +2,8 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "instantiations.cuh"
+
 inline void display_image(const GLuint& texture, const int& width, const int& height) {
     ImGui::Text("size = %d x %d", width, height);
     static bool use_text_color_for_tint = false;
