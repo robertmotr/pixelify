@@ -3,9 +3,6 @@
 #include "pixel.h"
 #include "filter.h"
 
-// explicit instantiations
-#include "instantiations.cuh"
-
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
@@ -202,3 +199,11 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
     }
   }
 }
+
+// EXPLICIT INSTANTIATIONS:
+template void run_kernel(const char *filter_name, const Pixel<3u> *input,
+                 Pixel<3u> *output, int width, int height, struct kernel_args extra);
+
+template void run_kernel(const char *filter_name, const Pixel<4u> *input, 
+                 Pixel<4u> *output, int width, int height, struct kernel_args extra);
+

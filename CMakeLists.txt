@@ -35,7 +35,7 @@ target_include_directories(imgui_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external
 
 add_library(pixelify_lib STATIC ${SOURCES})
 target_include_directories(pixelify_lib PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/templates
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
@@ -68,7 +68,6 @@ target_include_directories(pixelify_tests PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/templates
 )
 add_executable(tests tests/tests.cu)
 target_link_libraries(tests pixelify_tests gtest)

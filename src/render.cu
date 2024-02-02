@@ -7,8 +7,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include "instantiations.cuh"
-
 // normally its kind of pointless to implement a function like this but
 // stb_image requires header defines to be in the same file as the implementation
 void free_image(unsigned char **image_data) {

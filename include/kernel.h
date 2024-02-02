@@ -150,4 +150,26 @@ __global__ void normalize(Pixel<channels> *image, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *biggest,
                            bool normalize_or_clamp);
 
+
+
+// EXPLICIT INSTANTIATIONS
+
+template __device__ __forceinline__ int apply_filter<3u>(const Pixel<3u> *input, const filter *filter, unsigned int mask,
+    int width, int height, int row, int col);
+
+template __device__ __forceinline__ int apply_filter<4u>(const Pixel<4u> *input, const filter *filter, unsigned int mask,
+    int width, int height, int row, int col);
+
+template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
+                                                    const Pixel<3u> *smallest, const Pixel<3u> *largest);
+template __device__ __forceinline__ void normalize_pixel<4u>(Pixel<4u> *target, int pixel_idx,
+                                                    const Pixel<4u> *smallest, const Pixel<4u> *largest);
+
+template __device__ __forceinline__ void clamp_pixels<3u>(Pixel<3u> *target, int pixel_idx);
+
+template __device__ __forceinline__ void clamp_pixels<4u>(Pixel<4u> *target, int pixel_idx);
+
+
+
+
 #endif
