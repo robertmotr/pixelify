@@ -3,13 +3,14 @@
 #include "pixel.h"
 #include "filter_impl.h"
 #include "filters.h"
+#include "sharedmem.cuh"
 #include "cuda_runtime.h"
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
 
-  filter *h_filter =            nullptr;
+  const filter *h_filter =      nullptr;
   filter*                       device_filter;
   int*                          device_filter_data;
   char*                         device_filter_name;
@@ -22,13 +23,12 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   int gridSize;
 
   if(strcmp(filter_name, "NULL") != 0) {         
-    h_filter = create_filter_from_strength(filter_name, width, height, extra.filter_strength);
+    h_filter = create_filter(filter_name, extra.dimension, extra.filter_strength);
     if(h_filter == nullptr) {
       printf("Error: filter is null\n");
       exit(1);
     }
   } 
-
 
   cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
   assert(blockSize != 0);
@@ -81,9 +81,19 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // then apply everything else in the kernel_args struct
   // but first apply it filter_passes times
   for(int pass = 0; pass < extra.passes; pass++) {
-    // run kernel pass times
+    filter_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_input, device_output,
+                                                                                      width, height, device_filter, extra);
   }
   // then apply everything else in the kernel_args struct
+  if(extra.alpha_shift != 0 || extra.red_shift != 0 || extra.green_shift != 0 || extra.blue_shift != 0) {
+    other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_SHIFT_COLOURS, extra);
+  }
+  if(extra.tint[0] != 0 || extra.tint[1] != 0 || extra.tint[2] != 0 || extra.tint[3] != 0) {
+    other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_TINT, extra);
+  }
+  if(extra.brightness != 0) {
+    other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_BRIGHTNESS, extra);
+  }
 
   // parallel reduction to find largest and smallest pixel values
   // for each channel respectively
@@ -133,7 +143,8 @@ template<unsigned int channels>
 __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
                               const filter *filter, const struct kernel_args args) {
 
-  extern __shared__ Pixel<channels> filter_smem[];
+  SharedMemory<Pixel<channels>> smem;
+  Pixel<channels> *filter_smem = smem.getPointer();
 
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
@@ -157,8 +168,9 @@ __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
 template<unsigned int channels>
 __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
                               unsigned char operation, struct kernel_args extra) {
-
-  extern __shared__ Pixel<channels> smem[];
+  
+  SharedMemory<Pixel<channels>> smem;
+  Pixel<channels> *smem_other = smem.getPointer();
 
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
@@ -166,21 +178,19 @@ __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
   // load data and apply operation at same time
   #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
-    int row = pixel_idx / width;
-    int col = pixel_idx % width;
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      smem[pixel_idx].data[channel] = in[pixel_idx].data[channel];
+      smem_other[pixel_idx].data[channel] = in[pixel_idx].data[channel];
 
       if(operation == OP_SHIFT_COLOURS) {
-        out[pixel_idx].data[channel] = shift_colours(smem[pixel_idx].data[channel], extra, channel);
+        out[pixel_idx].data[channel] = shift_colours(smem_other[pixel_idx].data[channel], extra, channel);
       } else if(operation == OP_BRIGHTNESS) {
-        out[pixel_idx].data[channel] = smem[pixel_idx].data[channel] * (100 + extra.brightness) / 100;
+        out[pixel_idx].data[channel] = smem_other[pixel_idx].data[channel] * (100 + extra.brightness) / 100;
       }
       else if(operation == OP_TINT) {
         out[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor / 100)) * extra.tint[channel] + 
-                                          (float)(extra.blend_factor / 100) * smem[pixel_idx].data[channel];
+                                          (float)(extra.blend_factor / 100) * smem_other[pixel_idx].data[channel];
       }
     }
   }

@@ -2,6 +2,63 @@
 #include "filter_impl.h"
 #include "kernel_formulas.h"
 
+// arrays that hold actual filter values
+const float* identity_filter_data;
+const float* edge_filter_data;
+const float* sharpen_filter_data;
+const float* box_blur_filter_data;
+const float* gaussian_blur_filter_data;
+const float* unsharp_mask_filter_data;
+const float* high_pass_filter_data;
+const float* emboss_filter_data;
+const float* laplacian_filter_data;
+const float* motion_blur_filter_data;
+const float* horizontal_shear_filter_data;
+const float* vertical_shear_filter_data;
+const float* sobel_x_filter_data;
+const float* sobel_y_filter_data;
+const float* prewitt_x_filter_data;
+const float* prewitt_y_filter_data;
+
+// filter objects
+const filter *identity_filter;
+const filter *edge_filter;
+const filter *sharpen_filter;
+const filter *box_blur_filter;
+const filter *gaussian_blur_filter;
+const filter *unsharp_mask_filter;
+const filter *high_pass_filter;
+const filter *emboss_filter;
+const filter *laplacian_filter;
+const filter *motion_blur_filter;
+const filter *horizontal_shear_filter;
+const filter *vertical_shear_filter;
+const filter *sobel_x_filter;
+const filter *sobel_y_filter;
+const filter *prewitt_x_filter;
+const filter *prewitt_y_filter;
+
+// filter properties
+struct filter_properties* identity_properties;
+struct filter_properties* edge_properties;
+struct filter_properties* sharpen_properties;
+struct filter_properties* box_blur_properties;
+struct filter_properties* gaussian_blur_properties;
+struct filter_properties* unsharp_mask_properties;
+struct filter_properties* high_pass_properties;
+struct filter_properties* emboss_properties;
+struct filter_properties* laplacian_properties;
+struct filter_properties* motion_blur_properties;
+struct filter_properties* horizontal_shear_properties;
+struct filter_properties* vertical_shear_properties;
+struct filter_properties* sobel_x_properties;
+struct filter_properties* sobel_y_properties;
+struct filter_properties* prewitt_x_properties;
+struct filter_properties* prewitt_y_properties;
+
+const float** basic_filter_data_array;
+const filter** basic_filters_array;
+
 void initialize_properties() {
     // Define filter kernels with corresponding properties
     identity_properties = new filter_properties {false, false, nullptr, 0, 0, 0};
@@ -125,7 +182,6 @@ void initialize_filter_objects() {
     prewitt_y_filter = new filter("Prewitt Y", prewitt_y_filter_data, 3);
 }
 
-__attribute__((constructor))
 const filter** init_filters() {
     // init basic filter data
     initialize_filter_data();

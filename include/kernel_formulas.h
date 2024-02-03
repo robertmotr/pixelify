@@ -7,7 +7,7 @@
 using kernel_formula_fn = float(*)(int i, int j, char strength, unsigned char dimension);
 using kernel_formula_map = std::unordered_map<std::string, kernel_formula_fn>;
 
-extern kernel_formula_map kernel_formulas;
+extern kernel_formula_map *kernel_formulas;
 
 float edge(int i, int j, char strength, unsigned char dimension);
 float sharpen(int i, int j, char strength, unsigned char dimension);
@@ -24,8 +24,6 @@ int kronecker_delta(int i, int j);
 
 float kronecker_delta_f(int i, int j);
 
-__attribute__((constructor))
 void init_kernel_formulas();
-
 
 #endif

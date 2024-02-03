@@ -1,6 +1,6 @@
 #include "kernel_formulas.h"
 
-kernel_formula_map formulas;
+kernel_formula_map *kernel_formulas;
 
 int kronecker_delta(int i, int j) {
     return (i == j) ? 1 : 0;
@@ -53,19 +53,18 @@ float vertical_shear(int i, int j, char strength, unsigned char dimension) {
     return kronecker_delta_f(i, floor(strength * j)) * kronecker_delta_f(j, 0);
 }
 
-__attribute__((constructor))
 void init_kernel_formulas() {
 
-    formulas = kernel_formula_map();
-    formulas["Edge"] = edge;
-    formulas["Sharpen"] = sharpen;
-    formulas["Box Blur"] = box_blur;
-    formulas["Gaussian Blur"] = gaussian_blur;
-    formulas["Unsharp Mask"] = unsharp_mask;
-    formulas["High Pass"] = high_pass;
-    formulas["Emboss"] = emboss;
-    formulas["Laplacian"] = laplacian;
-    formulas["Horizontal Shear"] = horizontal_shear;
-    formulas["Vertical Shear"] = vertical_shear;
-    
+    kernel_formulas = new kernel_formula_map();
+
+    (*kernel_formulas)["Edge"] = edge;
+    (*kernel_formulas)["Sharpen"] = sharpen;
+    (*kernel_formulas)["Box Blur"] = box_blur;
+    (*kernel_formulas)["Gaussian Blur"] = gaussian_blur;
+    (*kernel_formulas)["Unsharp Mask"] = unsharp_mask;
+    (*kernel_formulas)["High Pass"] = high_pass;
+    (*kernel_formulas)["Emboss"] = emboss;
+    (*kernel_formulas)["Laplacian"] = laplacian;
+    (*kernel_formulas)["Horizontal Shear"] = horizontal_shear;
+    (*kernel_formulas)["Vertical Shear"] = vertical_shear; 
 }

@@ -2,6 +2,8 @@
 #define FILTERS_H
 
 #include "filter_impl.h"
+#include "kernel_formulas.h"
+
 #define BASIC_FILTER_SIZE 16
 
 // arrays that hold actual filter values
@@ -62,7 +64,6 @@ extern const float** basic_filter_data_array;
 extern const filter** basic_filters_array;
 
 // returns ptr to array of filter (object) ptrs
-__attribute__((constructor)) 
 const filter** init_filters();
 
 #endif

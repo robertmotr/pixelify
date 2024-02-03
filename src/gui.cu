@@ -2,6 +2,10 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "filters.h"
+#include "filter_impl.h"
+#include "kernel_formulas.h"
+
 inline void display_image(const GLuint& texture, const int& width, const int& height) {
     ImGui::Text("size = %d x %d", width, height);
     static bool use_text_color_for_tint = false;
@@ -124,13 +128,6 @@ void show_ui(ImGuiIO& io) {
     static bool show_preview =                  false;
     static bool show_tint =                     false;
 
-    // in theory because of the attribute tag on the function it runs before main anyways no need to do this
-    // static bool initialized_filters =           false;
-    // if(!initialized_filters) {
-    //     force_initialize_filters();
-    //     initialized_filters = true;
-    // }
-
     // filter options
     static bool normalize =                     false;
     static int filter_strength =                0;
@@ -156,7 +153,7 @@ void show_ui(ImGuiIO& io) {
     static unsigned char *image_data_out =      NULL;
     static GLuint texture_orig =                0;
     static GLuint texture_preview =             0;
-    static const filter** filters =             basic_filters_array;
+    static const filter** filters =             init_filters();
     static int current_filter_dropdown_idx =    0;
     static ImGuiComboFlags flags =              0;
     static filter selected_filter =             *filters[current_filter_dropdown_idx];   
@@ -248,7 +245,7 @@ void show_ui(ImGuiIO& io) {
     // stored in the object itself, etc.)
     const char* combo_preview_value = filters[current_filter_dropdown_idx]->filter_name;  // Pass in the preview value visible before opening the combo (it could be anything)
     if (ImGui::BeginCombo("Select filter", combo_preview_value, flags)) {
-        for (int n = 0; n < filter_array_size; n++) {
+        for (int n = 0; n < BASIC_FILTER_SIZE; n++) {
             const bool is_selected = (current_filter_dropdown_idx == n);
             if (ImGui::Selectable(filters[n]->filter_name, is_selected))
                 current_filter_dropdown_idx = n;
