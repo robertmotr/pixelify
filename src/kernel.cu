@@ -37,8 +37,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   h_smallest = new Pixel<channels>(INT_MAX);
   h_largest = new Pixel<channels>(INT_MIN);
   // create copy of input, output on pinned memory on host
-  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
-  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); // possible bug
+  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault);
+  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault); // possible bug
   cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying input to pinned input");
@@ -57,9 +57,9 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     cudaMemcpy(&(device_filter->filter_dimension), &(h_filter->filter_dimension), sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaMemcpy(&(device_filter->name_size), &(h_filter->name_size), sizeof(size_t), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&device_filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int));
-    cudaMemcpy(device_filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(device_filter->filter_data), &device_filter_data, sizeof(int*), cudaMemcpyHostToDevice);
+    cudaMalloc(&device_filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(unsigned int));
+    cudaMemcpy(device_filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(device_filter->filter_data), &device_filter_data, sizeof(float*), cudaMemcpyHostToDevice);
 
     cudaMalloc(&device_filter_name, h_filter->name_size * sizeof(char));
     cudaMemcpy(device_filter_name, h_filter->filter_name, h_filter->name_size * sizeof(char), cudaMemcpyHostToDevice);
@@ -83,16 +83,32 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   for(int pass = 0; pass < extra.passes; pass++) {
     filter_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_input, device_output,
                                                                                       width, height, device_filter, extra);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("filter kernel");
+    cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
+    cudaDeviceSynchronize();
   }
   // then apply everything else in the kernel_args struct
   if(extra.alpha_shift != 0 || extra.red_shift != 0 || extra.green_shift != 0 || extra.blue_shift != 0) {
     other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_SHIFT_COLOURS, extra);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("shift colours");
+    cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
+    cudaDeviceSynchronize();
   }
   if(extra.tint[0] != 0 || extra.tint[1] != 0 || extra.tint[2] != 0 || extra.tint[3] != 0) {
     other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_TINT, extra);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("tint");
+    cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
+    cudaDeviceSynchronize();
   }
   if(extra.brightness != 0) {
     other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_BRIGHTNESS, extra);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("brightness");
+    cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
+    cudaDeviceSynchronize();
   }
 
   // parallel reduction to find largest and smallest pixel values
@@ -130,10 +146,14 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
   delete h_smallest;
   delete h_largest;
-  delete h_filter;
   cudaFree(device_filter);
   cudaFree(d_smallest); cudaFree(d_largest);
   cudaFree(device_input); cudaFree(device_output);
+
+  if(!(h_filter->properties->basic_filter)) {
+    delete h_filter; // only delete if its NOT a basic filter
+    // basic filters get reused
+  }
 
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("freeing memory");
@@ -158,6 +178,7 @@ __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
+      __syncthreads();
       filter_smem[pixel_idx].data[channel] = in[pixel_idx].data[channel];
       out[pixel_idx].data[channel] = apply_filter<channels>(filter_smem, filter, channel, width, height, row, col);
     }
@@ -181,6 +202,7 @@ __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
+      __syncthreads();
       smem_other[pixel_idx].data[channel] = in[pixel_idx].data[channel];
 
       if(operation == OP_SHIFT_COLOURS) {
@@ -194,6 +216,7 @@ __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
       }
     }
   }
+  __syncthreads();
 }
 
 template<unsigned int channels>

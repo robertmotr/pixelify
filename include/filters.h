@@ -25,22 +25,22 @@ extern const float* prewitt_x_filter_data;
 extern const float* prewitt_y_filter_data;
 
 // filter objects
-extern const filter *identity_filter;
-extern const filter *edge_filter;
-extern const filter *sharpen_filter;
-extern const filter *box_blur_filter;
-extern const filter *gaussian_blur_filter;
-extern const filter *unsharp_mask_filter;
-extern const filter *high_pass_filter;
-extern const filter *emboss_filter;
-extern const filter *laplacian_filter;
-extern const filter *motion_blur_filter;
-extern const filter *horizontal_shear_filter;
-extern const filter *vertical_shear_filter;
-extern const filter *sobel_x_filter;
-extern const filter *sobel_y_filter;
-extern const filter *prewitt_x_filter;
-extern const filter *prewitt_y_filter;
+extern filter *identity_filter;
+extern filter *edge_filter;
+extern filter *sharpen_filter;
+extern filter *box_blur_filter;
+extern filter *gaussian_blur_filter;
+extern filter *unsharp_mask_filter;
+extern filter *high_pass_filter;
+extern filter *emboss_filter;
+extern filter *laplacian_filter;
+extern filter *motion_blur_filter;
+extern filter *horizontal_shear_filter;
+extern filter *vertical_shear_filter;
+extern filter *sobel_x_filter;
+extern filter *sobel_y_filter;
+extern filter *prewitt_x_filter;
+extern filter *prewitt_y_filter;
 
 // filter properties
 extern struct filter_properties* identity_properties;

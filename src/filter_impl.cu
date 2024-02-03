@@ -33,18 +33,19 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
         return nullptr;
     }
     else if(strcmp(filter_name, "Identity") == 0) {
-        const filter *identity = find_basic_filter("Identity");
-        filter *f = new filter("Identity");
-        f->filter_data = new float[filter_dimension * filter_dimension];
-        for(int i = 0; i < filter_dimension; i++) {
-            for(int j = 0; j < filter_dimension; j++) {
-                f->filter_data[i * filter_dimension + j] = identity->filter_data[i * filter_dimension + j];
-            }
-        }
-        f->filter_dimension = identity->filter_dimension;
-        return f; 
+        return find_basic_filter("Identity");
     }
     else {
+        // if we can match a basic filter to strength + dimension
+        // return it, otherwise we create our own
+        const filter *basic_filter = find_basic_filter(filter_name);
+        if(basic_filter != nullptr) {
+            if(basic_filter->filter_dimension == filter_dimension &&
+               (!basic_filter->properties->adjustable_strength && filter_strength != 0)) {
+                return basic_filter;
+            }
+        }
+
         kernel_formula_fn fn_ptr = kernel_formulas->at(filter_name);
         float *filter_data = new float[filter_dimension * filter_dimension];
         for (int i = 0; i < filter_dimension; i++) {
@@ -54,6 +55,9 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
         }
 
         filter *f = new filter(filter_name, filter_data, filter_dimension);
+        filter_properties *props = new filter_properties();
+        props->basic_filter = false;
+        f->properties = props;
         return f;
     }
 }

@@ -9,7 +9,7 @@
 struct filter_properties {
     bool                            expandable_size;
     bool                            adjustable_strength;
-    unsigned char*                  sizes_avail;
+    unsigned char*                  sizes_avail; // array of sizes for expandable filters. i.e identity can only be 3x3, but gaussian blur can be 3x3, 5x5, 7x7, etc
     int                             num_sizes_avail;
     int                             lower_bound_strength;
     int                             upper_bound_strength;
@@ -20,10 +20,9 @@ class filter {
 public:
     char*                           filter_name = nullptr;
     float*                          filter_data = nullptr;
-    unsigned char*                  sizes = nullptr; // array of sizes for expandable filters. i.e identity can only be 3x3, but gaussian blur can be 3x3, 5x5, 7x7, etc
     unsigned char                   filter_dimension = 0;
     size_t                          name_size;
-    struct filter_properties        properties;
+    struct filter_properties*       properties = nullptr;
 
     // default
     filter() : filter_dimension(0), filter_data(nullptr) {
@@ -72,6 +71,10 @@ public:
             delete[] filter_name;
             filter_name = nullptr;
         }
+        if(properties != nullptr) {
+            delete properties;
+            properties = nullptr;
+        }
     }
 
     bool operator==(const filter &other) const {
@@ -86,6 +89,10 @@ public:
                 return false;
             }
         }
+        if (properties != other.properties) {
+            return false;
+        }
+
         return true;
     }
 
@@ -102,6 +109,10 @@ public:
             delete[] filter_name;
             filter_name = nullptr;
         }
+        if(properties != nullptr) {
+            delete properties;
+            properties = nullptr;
+        }
 
         filter_dimension = other.filter_dimension;
         filter_data = new float[filter_dimension * filter_dimension];
@@ -109,6 +120,10 @@ public:
         name_size = strlen(other.filter_name) + 1;
         filter_name = new char[name_size];
         strcpy(filter_name, other.filter_name);
+        properties = new filter_properties;
+        if(other.properties != nullptr) {
+            memcpy(properties, other.properties, sizeof(filter_properties));
+        }
 
         return *this;
     }
@@ -120,6 +135,14 @@ public:
         name_size = strlen(other.filter_name) + 1;
         filter_name = new char[name_size];
         strcpy(filter_name, other.filter_name);
+    }
+
+    void set_properties(filter_properties* prop) {
+        properties = prop;
+    }
+
+    void set_properties(const filter_properties* prop) {
+        properties = const_cast<filter_properties*>(prop);
     }
 };
 
