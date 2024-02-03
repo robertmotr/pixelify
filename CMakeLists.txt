@@ -15,7 +15,8 @@ set(SOURCES
     src/gui.cu
     src/render.cu
     src/kernel.cu
-    src/filter.cu
+    src/filters.cu
+    src/filter_impl.cu
 )
 
 set(IMGUI_SOURCES
@@ -52,7 +53,8 @@ target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exi
 
 set(SOURCES_TEST 
     src/kernel.cu 
-    src/filter.cu
+    src/filters.cu
+    src/filter_impl.cu
 )
 
 set(HEADERS_TEST 

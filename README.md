@@ -21,6 +21,7 @@ Image processor that applies filters to images using CUDA.
 - add shear option + kernel
 - add flip option
 - set filter size slider to be dependent on filter selected, i.e identity can only have 3x3 
+
 # done:
 - imgui implementation 
 - test cases for all cases 

@@ -14,7 +14,8 @@
 
 #include "kernel.h"
 #include "pixel.h"
-#include "filter.h"
+#include "filters.h"
+#include "filter_impl.h"
 
 #include <vector>
 #include <iostream>

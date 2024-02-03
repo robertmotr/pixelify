@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include "filter.h"
+#include "filters.h"
+#include "filter_impl.h"
 #include "pixel.h"
 
 #define OUT_OF_BOUNDS       -1

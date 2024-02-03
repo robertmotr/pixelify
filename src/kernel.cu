@@ -1,7 +1,9 @@
 #include "kernel.h"
 #include "reduce.h"
 #include "pixel.h"
-#include "filter.h"
+#include "filter_impl.h"
+#include "filters.h"
+#include "cuda_runtime.h"
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
