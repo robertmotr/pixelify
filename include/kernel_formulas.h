@@ -22,5 +22,10 @@ float vertical_shear(int i, int j, char strength, unsigned char dimension);
 
 int kronecker_delta(int i, int j);
 
+float kronecker_delta_f(int i, int j);
+
+__attribute__((constructor))
+void init_kernel_formulas();
+
 
 #endif

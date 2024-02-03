@@ -1,4 +1,6 @@
 #include "filters.h"
+#include "filter_impl.h"
+#include "kernel_formulas.h"
 
 void initialize_properties() {
     // Define filter kernels with corresponding properties
@@ -133,6 +135,8 @@ const filter** init_filters() {
 
     // create filters
     initialize_filter_objects();
+
+    init_kernel_formulas();
 
     basic_filter_data_array = new const float* [BASIC_FILTER_SIZE] {
         identity_filter_data,

@@ -1,5 +1,6 @@
 #include "filter_impl.h"
 #include "filters.h"
+#include "kernel_formulas.h"
 
 #include <stdio.h>
 
@@ -28,6 +29,9 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
     if(strcmp(filter_name, "NULL") == 0) {
         return nullptr;
     }
+    else if(find_basic_filter(filter_name) == nullptr) {
+        return nullptr;
+    }
     else if(strcmp(filter_name, "Identity") == 0) {
         const filter *identity = find_basic_filter("Identity");
         filter *f = new filter("Identity");
@@ -41,11 +45,16 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
         return f; 
     }
     else {
-        // function pointer = formula_dictionary[filter_name]
-        // float *filter_data = new float[filter_dimension * filter_dimension];
-        // for (int i = 0; i < filter_dimension; i++) {
-        //     for (int j = 0; j < filter_dimension; j++) {
-        //     filter_data[i * filter_dimension + j] = function_pointer(i, j, filter_strength, dimension);
+        kernel_formula_fn fn_ptr = kernel_formulas[filter_name];
+        float *filter_data = new float[filter_dimension * filter_dimension];
+        for (int i = 0; i < filter_dimension; i++) {
+            for(int j = 0; j < filter_dimension; j++) {
+                filter_data[i * filter_dimension + j] = fn_ptr(i, j, filter_strength, filter_dimension);
+            }
+        }
+
+        filter *f = new filter(filter_name, filter_data, filter_dimension);
+        return f;
     }
 }
 

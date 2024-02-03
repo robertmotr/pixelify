@@ -17,6 +17,7 @@ set(SOURCES
     src/kernel.cu
     src/filters.cu
     src/filter_impl.cu
+    src/kernel_formulas.cu
 )
 
 set(IMGUI_SOURCES
