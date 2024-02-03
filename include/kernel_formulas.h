@@ -1,13 +1,15 @@
 #ifndef KERNEL_FORMULAS_H
 #define KERNEL_FORMULAS_H
 
+#include "filters.h"
+#include "filter_impl.h"
 #include <unordered_map>
 #include <string>
 
 using kernel_formula_fn = float(*)(int i, int j, char strength, unsigned char dimension);
 using kernel_formula_map = std::unordered_map<std::string, kernel_formula_fn>;
 
-extern kernel_formula_map *kernel_formulas;
+extern kernel_formula_map* kernel_formulas;
 
 float edge(int i, int j, char strength, unsigned char dimension);
 float sharpen(int i, int j, char strength, unsigned char dimension);

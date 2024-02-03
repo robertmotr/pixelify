@@ -45,7 +45,7 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
         return f; 
     }
     else {
-        kernel_formula_fn fn_ptr = (*kernel_formulas)[filter_name];
+        kernel_formula_fn fn_ptr = kernel_formulas->at(filter_name);
         float *filter_data = new float[filter_dimension * filter_dimension];
         for (int i = 0; i < filter_dimension; i++) {
             for(int j = 0; j < filter_dimension; j++) {

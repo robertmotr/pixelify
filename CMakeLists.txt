@@ -56,11 +56,14 @@ set(SOURCES_TEST
     src/kernel.cu 
     src/filters.cu
     src/filter_impl.cu
+    src/kernel_formulas.cu
 )
 
 set(HEADERS_TEST 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
 )

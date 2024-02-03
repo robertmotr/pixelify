@@ -57,14 +57,14 @@ void init_kernel_formulas() {
 
     kernel_formulas = new kernel_formula_map();
 
-    (*kernel_formulas)["Edge"] = edge;
-    (*kernel_formulas)["Sharpen"] = sharpen;
-    (*kernel_formulas)["Box Blur"] = box_blur;
-    (*kernel_formulas)["Gaussian Blur"] = gaussian_blur;
-    (*kernel_formulas)["Unsharp Mask"] = unsharp_mask;
-    (*kernel_formulas)["High Pass"] = high_pass;
-    (*kernel_formulas)["Emboss"] = emboss;
-    (*kernel_formulas)["Laplacian"] = laplacian;
-    (*kernel_formulas)["Horizontal Shear"] = horizontal_shear;
-    (*kernel_formulas)["Vertical Shear"] = vertical_shear; 
+    kernel_formulas->emplace("Edge", edge);
+    kernel_formulas->emplace("Sharpen", sharpen);
+    kernel_formulas->emplace("Box Blur", box_blur);
+    kernel_formulas->emplace("Gaussian Blur", gaussian_blur);
+    kernel_formulas->emplace("Unsharp Mask", unsharp_mask);
+    kernel_formulas->emplace("High Pass", high_pass);
+    kernel_formulas->emplace("Emboss", emboss);
+    kernel_formulas->emplace("Laplacian", laplacian);
+    kernel_formulas->emplace("Horizontal Shear", horizontal_shear);
+    kernel_formulas->emplace("Vertical Shear", vertical_shear);
 }
