@@ -3,10 +3,6 @@
 
 #include <stdio.h>
 
-int kronecker_delta(int i, int j) {
-    return i == j ? 1 : 0;
-}
-
 const float* find_basic_filter_data(const char *name) {
     for(int i = 0; i < BASIC_FILTER_SIZE; i++) {
         const filter *f = basic_filters_array[i];
@@ -47,7 +43,9 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
     else {
         // function pointer = formula_dictionary[filter_name]
         // float *filter_data = new float[filter_dimension * filter_dimension];
-        // function_pointer(filter_data, filter_dimension, filter_strength);
+        // for (int i = 0; i < filter_dimension; i++) {
+        //     for (int j = 0; j < filter_dimension; j++) {
+        //     filter_data[i * filter_dimension + j] = function_pointer(i, j, filter_strength, dimension);
     }
 }
 

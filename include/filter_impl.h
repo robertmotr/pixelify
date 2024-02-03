@@ -123,8 +123,6 @@ public:
     }
 };
 
-int kronecker_delta(int i, int j);
-
 const float* find_basic_filter_data(const char *name);
 
 const filter* find_basic_filter(const char *name);
