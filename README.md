@@ -15,7 +15,8 @@ Image processor that applies filters to images using CUDA.
 - add filter size slider, i.e 2x2 -> 9x9
 
 # in progress:
-- rewrite kernel to be speedy using shared memory
+- rewrite filter to use shared memory
+- make pixels use texture memory for faster reads
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
