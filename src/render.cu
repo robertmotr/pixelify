@@ -1,5 +1,5 @@
 #include "gui.h"
-#include "kernel.h"
+#include "kernel.cuh"
 #include "pixel.h"
 
 #define STB_IMAGE_IMPLEMENTATION

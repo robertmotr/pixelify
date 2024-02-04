@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "pixel.h"
-#include "kernel.h"
+#include "kernel.cuh"
 #include "gui.h"
 
 int main(int argc, char **argv) {

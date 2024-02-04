@@ -1,24 +1,25 @@
-#include "kernel.h"
+#include "kernel.cuh"
 #include "reduce.h"
 #include "pixel.h"
 #include "filter_impl.h"
 #include "filters.h"
 #include "sharedmem.cuh"
-#include "cuda_runtime.h"
+#include <cuda_runtime.h>
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                  Pixel<channels> *output, int width, int height, struct kernel_args extra) {
 
-  const filter *h_filter =      nullptr;
-  filter*                       device_filter;
-  int*                          device_filter_data;
-  char*                         device_filter_name;
-  int                           pixels = width * height;
-  Pixel<channels>               *device_input, *device_output;
-  Pixel<channels>               *d_largest, *d_smallest;
-  Pixel<channels>               *h_pinned_input, *h_pinned_output;
-  Pixel<channels>               *h_smallest, *h_largest;          
+  const filter *h_filter =                               nullptr;
+  filter*                                                device_filter;
+  int*                                                   device_filter_data;
+  char*                                                  device_filter_name;
+  int                                                    pixels = width * height;
+  cudaTextureObject_t                                    tex_obj;
+  Pixel<channels>                                        *device_output;
+  Pixel<channels>                                        *d_largest, *d_smallest;
+  Pixel<channels>                                        *h_pinned_input, *h_pinned_output;
+  Pixel<channels>                                        *h_smallest, *h_largest;          
   int blockSize;
   int gridSize;
 
@@ -37,19 +38,54 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   h_smallest = new Pixel<channels>(INT_MAX);
   h_largest = new Pixel<channels>(INT_MIN);
   // create copy of input, output on pinned memory on host
-  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault);
-  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault); // possible bug
+  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
+  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); // possible bug
   cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying input to pinned input");
 
   // MALLOCS ON DEVICE
-  cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("cuda mallocs for input, output, largest, smallest");
+
+  // bind tex_obj to device_input
+  cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<Pixel<channels>>();
+  cudaArray_t cu_array;
+  cudaMallocArray(&cu_array, &channel_desc, width, height);
+
+  const size_t src_pitch = width * sizeof(Pixel<channels>);
+  cudaMemcpy2DToArray(cu_array, 0, 0, h_pinned_input, src_pitch, width * sizeof(Pixel<channels>), height, cudaMemcpyHostToDevice);
+
+  // Specify texture
+  struct cudaResourceDesc res_desc;
+  memset(&res_desc, 0, sizeof(res_desc));
+  res_desc.resType = cudaResourceTypeArray;
+  res_desc.res.array.array = cu_array;
+
+  // Specify texture object parameters
+  struct cudaTextureDesc tex_desc;
+  memset(&tex_desc, 0, sizeof(tex_desc));
+  tex_desc.filterMode = cudaFilterModePoint;
+  tex_desc.addressMode[0] = cudaAddressModeBorder;
+  tex_desc.addressMode[1] = cudaAddressModeBorder;
+  tex_desc.readMode = cudaReadModeElementType;
+
+  cudaTextureDesc tex_desc;
+  tex_desc.filterMode = cudaFilterModePoint;
+  tex_desc.addressMode[0] = cudaAddressModeBorder;
+  tex_desc.addressMode[1] = cudaAddressModeBorder;
+  tex_desc.normalizedCoords = 0;
+
+  // Create texture object
+  cudaTextureObject_t tex_obj = 0;
+  cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, NULL);
+  cudaDeviceSynchronize();
+
+  CUDA_CHECK_ERROR("creating texture object");
+
 
   // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
   if(h_filter != nullptr && strcmp(filter_name, "NULL") != 0) {
@@ -70,7 +106,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   }
 
   // MEMCPYS FROM HOST TO DEVICE
-  cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
 
@@ -81,7 +116,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // then apply everything else in the kernel_args struct
   // but first apply it filter_passes times
   for(int pass = 0; pass < extra.passes; pass++) {
-    filter_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_input, device_output,
+    filter_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(tex_obj, device_output,
                                                                                       width, height, device_filter, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("filter kernel");
@@ -90,21 +125,21 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   }
   // then apply everything else in the kernel_args struct
   if(extra.alpha_shift != 0 || extra.red_shift != 0 || extra.green_shift != 0 || extra.blue_shift != 0) {
-    other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_SHIFT_COLOURS, extra);
+    other_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_SHIFT_COLOURS, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("shift colours");
     cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
   }
   if(extra.tint[0] != 0 || extra.tint[1] != 0 || extra.tint[2] != 0 || extra.tint[3] != 0) {
-    other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_TINT, extra);
+    other_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_TINT, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("tint");
     cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
   }
   if(extra.brightness != 0) {
-    other_kernel<channels><<<gridSize, blockSize, pixels * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_BRIGHTNESS, extra);
+    other_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(device_output, device_output, width, height, OP_BRIGHTNESS, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("brightness");
     cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
@@ -142,14 +177,18 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying back d_output to pinned output");
 
+  
   // cleanup
+  cudaDestroyTextureObject(tex_obj);
+  cudaFreeArray(cu_array);
+
   cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
   delete h_smallest;
   delete h_largest;
   cudaFree(device_filter);
   cudaFree(d_smallest); cudaFree(d_largest);
-  cudaFree(device_input); cudaFree(device_output);
-
+  cudaFree(device_output);
+  
   if(!(h_filter->properties->basic_filter)) {
     delete h_filter; // only delete if its NOT a basic filter
     // basic filters get reused
@@ -161,15 +200,14 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
 template<unsigned int channels>
 __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
-                              const filter *filter, const struct kernel_args args) {
-
-  SharedMemory<Pixel<channels>> smem;
-  Pixel<channels> *filter_smem = smem.getPointer();
-
+                              const filter *filter, const struct kernel_args args, cudaTextureObject_t tex_obj) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
-  // load data and apply filter at same time
+  extern __shared__ float smem[];
+  cudaMemcpy(smem, filter->filter_data, filter->filter_dimension^2 * sizeof(float), cudaMemcpyDeviceToDevice);
+  __syncthreads();
+
   #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
 
@@ -177,13 +215,11 @@ __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
     int col = pixel_idx % width;
 
     #pragma unroll
-    for(int channel = 0; channel < channels; channel++) {
-      __syncthreads();
-      filter_smem[pixel_idx].data[channel] = in[pixel_idx].data[channel];
-      out[pixel_idx].data[channel] = apply_filter<channels>(filter_smem, filter, channel, width, height, row, col);
-    }
-  }
-  __syncthreads();
+    for(int ch = 0; ch < channels; ch++) {
+      apply_filter<channels>(tex_obj, filter, ch, width, height, row, col);
+    }  
+    __syncthreads();
+  } 
 }
 
 template<unsigned int channels>
@@ -200,15 +236,16 @@ __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
   #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
 
+    smem_other[threadIdx.x] = in[pixel_idx];
+    __syncthreads();
+    
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      __syncthreads();
-      smem_other[pixel_idx].data[channel] = in[pixel_idx].data[channel];
 
       if(operation == OP_SHIFT_COLOURS) {
-        out[pixel_idx].data[channel] = shift_colours(smem_other[pixel_idx].data[channel], extra, channel);
+        out[pixel_idx].data[channel] = shift_colours(smem_other[threadIdx.x].data[channel], extra, channel);
       } else if(operation == OP_BRIGHTNESS) {
-        out[pixel_idx].data[channel] = smem_other[pixel_idx].data[channel] * (100 + extra.brightness) / 100;
+        out[pixel_idx].data[channel] = smem_other[threadIdx.x].data[channel] * (100 + extra.brightness) / 100;
       }
       else if(operation == OP_TINT) {
         out[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor / 100)) * extra.tint[channel] + 
@@ -216,7 +253,6 @@ __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
       }
     }
   }
-  __syncthreads();
 }
 
 template<unsigned int channels>

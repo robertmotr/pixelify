@@ -13,6 +13,7 @@ Image processor that applies filters to images using CUDA.
 - add gamma option
 - add zoom in/zoom out tool
 - add filter size slider, i.e 2x2 -> 9x9
+- use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
 
 # in progress:
 - rewrite filter to use shared memory

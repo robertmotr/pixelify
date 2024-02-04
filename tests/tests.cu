@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "kernel.h"
+#include "kernel.cuh"
 #include "cub/cub.cuh"
 #include "reduce.h"
 #include "filters.h"
@@ -66,18 +66,14 @@ TEST(just_kernel, identity_filter) {
     assert(blockSize != 0);
     gridSize = (16 * 3 + blockSize - 1) / blockSize; 
 
-    cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<3>), cudaHostAllocDefault);
-    cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<3>), cudaHostAllocDefault); // possible bug
+    cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<3>), cudaHostAllocMapped);
+    cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<3>), cudaHostAllocMapped); // possible bug
     cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<3>), cudaMemcpyHostToHost);
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("copying input to pinned input");
 
     // MALLOCS ON DEVICE
     cudaMalloc(&device_input, pixels * sizeof(Pixel<3>));
     cudaMalloc(&device_output, pixels * sizeof(Pixel<3>));
-
-     cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("cuda mallocs for input, output, largest, smallest");
 
     // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
     if(h_filter != nullptr && strcmp("Identity", "NULL") != 0) {
@@ -92,9 +88,6 @@ TEST(just_kernel, identity_filter) {
         cudaMalloc(&device_filter_name, h_filter->name_size * sizeof(char));
         cudaMemcpy(device_filter_name, h_filter->filter_name, h_filter->name_size * sizeof(char), cudaMemcpyHostToDevice);
         cudaMemcpy(&(device_filter->filter_name), &device_filter_name, sizeof(char*), cudaMemcpyHostToDevice);
-
-        cudaDeviceSynchronize();
-        CUDA_CHECK_ERROR("cuda mallocs and memcpies for filter");
     }
 
     // MEMCPYS FROM HOST TO DEVICE
@@ -103,24 +96,21 @@ TEST(just_kernel, identity_filter) {
     for(int pass = 0; pass < extra.passes; pass++) {
         filter_kernel<3><<<gridSize, blockSize, pixels * sizeof(Pixel<3>)>>>(device_input, device_output,
                                                                                         3, 3, device_filter, extra);
-        cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("filter kernel");
         cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<3>), cudaMemcpyDeviceToDevice);
-        cudaDeviceSynchronize();
     }
 
     cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
     cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<3>), cudaMemcpyHostToHost);
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("copying back d_output to pinned output");
 
     // cleanup
     cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
-    delete h_filter;
+    if(!(h_filter->properties->basic_filter)) {
+        delete h_filter;
+    }
     cudaFree(device_filter);
     cudaFree(device_input); cudaFree(device_output);
-
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("freeing memory");    
 
     // assert output == expected
@@ -255,7 +245,7 @@ TEST(kernel_correctness, simple_box_blur) {
 
     // assert output == expected
     for (int i = 0; i < 9; i++) {
-        ASSERT_EQ(expected[i], output[i]);
+        ASSERT_EQ(expected[i], output[i]) << "Mismatch at index " << i;
     }
 }
 

@@ -12,7 +12,7 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-#include "kernel.h"
+#include "kernel.cuh"
 #include "pixel.h"
 #include "filters.h"
 #include "filter_impl.h"

@@ -26,26 +26,19 @@ const filter* find_basic_filter(const char *name) {
 
 const filter* create_filter(const char *filter_name, unsigned char filter_dimension,
                       char filter_strength) {
-    if(strcmp(filter_name, "NULL") == 0) {
+    const filter *basic_filter = find_basic_filter(filter_name);
+    
+    if(basic_filter == nullptr) {
         return nullptr;
     }
-    else if(find_basic_filter(filter_name) == nullptr) {
-        return nullptr;
-    }
-    else if(strcmp(filter_name, "Identity") == 0) {
-        return find_basic_filter("Identity");
+    // if we can match a basic filter to strength + dimension
+    // return it, otherwise we create our own
+
+    else if(basic_filter->filter_dimension == filter_dimension &&
+            filter_strength == 0) {
+        return basic_filter;
     }
     else {
-        // if we can match a basic filter to strength + dimension
-        // return it, otherwise we create our own
-        const filter *basic_filter = find_basic_filter(filter_name);
-        if(basic_filter != nullptr) {
-            if(basic_filter->filter_dimension == filter_dimension &&
-               (!basic_filter->properties->adjustable_strength && filter_strength != 0)) {
-                return basic_filter;
-            }
-        }
-
         kernel_formula_fn fn_ptr = kernel_formulas->at(filter_name);
         float *filter_data = new float[filter_dimension * filter_dimension];
         for (int i = 0; i < filter_dimension; i++) {
@@ -54,11 +47,11 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
             }
         }
 
-        filter *f = new filter(filter_name, filter_data, filter_dimension);
-        filter_properties *props = new filter_properties();
-        props->basic_filter = false;
-        f->properties = props;
-        return f;
+        filter* new_filter = new filter(filter_name, filter_data, filter_dimension);
+        new_filter->properties = new filter_properties;
+        new_filter->properties->basic_filter = false;
+        
+        return new_filter;
     }
 }
 
