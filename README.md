@@ -16,6 +16,8 @@ Image processor that applies filters to images using CUDA.
 - use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
 
 # in progress:
+- optimize kernels to get ~200ms runtime preferably even lower
+- make texture memory use ints because it supports only <= 32 bits
 - make pixels use texture memory for faster reads
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
