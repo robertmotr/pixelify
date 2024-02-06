@@ -110,7 +110,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // MEMCPYS FROM HOST TO DEVICE
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("cuda memcpys and mallocs");
 
@@ -220,7 +219,7 @@ __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels>
 
     int row = pixel_idx / width;
     int col = pixel_idx % width;
-
+    
     #pragma unroll
     for(int ch = 0; ch < channels; ch++) {
       out[pixel_idx].data[ch] = apply_filter<channels>(tex_obj, filter, ch, width, height, row, col);
@@ -257,13 +256,13 @@ __global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
 
 template<unsigned int channels>
 __global__ void normalize(Pixel<channels> *target, int width, int height,
-                           const Pixel<channels> *smallest, const Pixel<channels> *largest, bool normalize_or_clamp) {
+                           const Pixel<channels> *smallest, const Pixel<channels> *largest, bool normalize) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
   
   #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
-    if(normalize_or_clamp) {
+    if(normalize) {
       normalize_pixel<channels>(target, pixel_idx, smallest, largest);
     } else {
       clamp_pixels<channels>(target, pixel_idx);

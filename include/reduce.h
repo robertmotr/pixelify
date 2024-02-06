@@ -15,7 +15,7 @@ struct min_op {
     __device__ CUB_RUNTIME_FUNCTION __forceinline__ 
     Pixel<channels> operator()(const Pixel<channels>& a, const Pixel<channels>& b) const {
         Pixel<channels> result;
-        for (int i = 0; i < channels; ++i) {
+        for (int i = 0; i < channels; i++) {
             result.data[i] = min(a.data[i], b.data[i]);
         }
         return result;
@@ -27,7 +27,7 @@ struct max_op {
     __device__ CUB_RUNTIME_FUNCTION __forceinline__
     Pixel<channels> operator()(const Pixel<channels>& a, const Pixel<channels>& b) const {
         Pixel<channels> result;
-        for (int i = 0; i < channels; ++i) {
+        for (int i = 0; i < channels; i++) {
             result.data[i] = max(a.data[i], b.data[i]);
         }
         return result;
@@ -46,7 +46,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   max_op<channels>(),
-                                  Pixel<channels>(SHORT_MIN));;
+                                  Pixel<channels>{SHORT_MIN});;
         
         cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
@@ -56,7 +56,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   max_op<channels>(),
-                                  Pixel<channels>(SHORT_MIN));
+                                  Pixel<channels>{SHORT_MIN});
     }
     else {
         cub::DeviceReduce::Reduce(d_temp_storage,
@@ -65,7 +65,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   min_op<channels>(),
-                                  Pixel<channels>(SHORT_MAX));;
+                                  Pixel<channels>{SHORT_MAX});;
         
         cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
@@ -75,7 +75,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   min_op<channels>(),
-                                  Pixel<channels>(SHORT_MAX));
+                                  Pixel<channels>{SHORT_MAX});
     }
 
     cudaFree(d_temp_storage);

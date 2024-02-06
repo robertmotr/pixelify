@@ -44,6 +44,38 @@ struct Pixel {
         }
     }
     __host__ __device__
+    Pixel(std::initializer_list<short> values) {
+        // if values == 1 then set all channels to that value
+        // iff channels == 4, otherwise set 4th byte to 255
+        if (values.size() == 1) {
+            for (unsigned int i = 0; i < channels; i++) {
+                data[i] = *values.begin();
+            }
+            if constexpr(channels == 3) {
+                // Set the 4th byte to 255
+                data[3] = 255;
+            }
+        } else {
+            unsigned int i = 0;
+            for (auto it = values.begin(); it != values.end(); it++) {
+                data[i] = *it;
+                i++;
+            }
+        }
+    }
+
+    __host__ __device__ 
+    Pixel(short val) {
+        for (unsigned int i = 0; i < channels; i++) {
+            data[i] = val;
+        }
+        if constexpr(channels == 3) {
+            // Set the 4th byte to 255
+            data[3] = 255;
+        }
+    }
+
+    __host__ __device__
     Pixel() : Pixel(0) {}
 };
 

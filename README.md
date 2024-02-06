@@ -14,10 +14,10 @@ Image processor that applies filters to images using CUDA.
 - add zoom in/zoom out tool
 - add filter size slider, i.e 2x2 -> 9x9
 - use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
+- profile texture/shared memory for filter and use whichever one is faster
 
 # in progress:
-- optimize kernels to get ~200ms runtime preferably even lower
-- make pixels use texture memory for faster reads
+
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
@@ -25,6 +25,8 @@ Image processor that applies filters to images using CUDA.
 - set filter size slider to be dependent on filter selected, i.e identity can only have 3x3 
 
 # done:
+- optimize kernels to get ~200ms runtime preferably even lower (update: getting consistently sub 50ms which is fantastic)
+- make pixels use texture memory for faster reads
 - make texture memory use shorts because it supports only <= x bits
 - imgui implementation 
 - test cases for all cases 
