@@ -6,7 +6,7 @@
 #include "filter_impl.h"
 #include "kernel_formulas.h"
 
-inline void display_image(const GLuint& texture, const int& width, const int& height) {
+inline void display_image(const GLuint& texture, const int& width, const int& height, const unsigned char *image_data) {
     ImGui::Text("size = %d x %d", width, height);
     static bool use_text_color_for_tint = false;
     ImVec2 pos = ImGui::GetCursorScreenPos();        
@@ -28,23 +28,28 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
             region_x = std::clamp(region_x, 0.0f, static_cast<float>(width - region_sz));
             region_y = std::clamp(region_y, 0.0f, static_cast<float>(height - region_sz));
 
-            ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
-            ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
             ImVec2 uv0 = ImVec2((region_x) / width, (region_y) / height);
             ImVec2 uv1 = ImVec2((region_x + region_sz) / width, (region_y + region_sz) / height);
             ImGui::Image((void*)(intptr_t)texture, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
+
+            ImGui::Begin("Texture inspector:");
+            ImGuiTexInspect::BeginInspectorPanel("Inspector", texture, ImVec2(width, height));
+            ImGuiTexInspect::EndInspectorPanel();
+            ImGui::End();
             ImGui::EndTooltip();
         }
+
     }
 }
 
 inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const int& width, const int& height, 
-                            const GLuint& texture_orig, const GLuint& texture_preview) { 
+                            const GLuint& texture_orig, const GLuint& texture_preview, const unsigned char *image_orig, 
+                            const unsigned char *image_preview) { 
 
     if (ImGui::BeginTabBar("tab_bar", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Original image")) {
             if(original_loaded) {
-                display_image(texture_orig, width, height);
+                display_image(texture_orig, width, height, image_orig);
             }
             else {
                 ImGui::Text("No image loaded. Please select an input file and a filter on the right side panel, and click Apply Changes.");
@@ -54,7 +59,7 @@ inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const i
         ImGui::SetNextItemWidth(200.0f);
         if (ImGui::BeginTabItem("Preview transformations")) {
             if(preview_loaded) {
-                display_image(texture_preview, width, height);
+                display_image(texture_preview, width, height, image_preview);
             }
             else {
                 ImGui::Text("No image loaded. Please select an input file and a filter on the right side panel, and click Apply Changes.");
@@ -130,6 +135,7 @@ void show_ui(ImGuiIO& io) {
 
     // filter options
     static bool normalize =                     false;
+    static int filter_size =                    3;
     static int filter_strength =                0;
     static int red_strength =                   0;
     static int green_strength =                 0;
@@ -156,7 +162,9 @@ void show_ui(ImGuiIO& io) {
     static const filter** filters =             init_filters();
     static int current_filter_dropdown_idx =    0;
     static ImGuiComboFlags flags =              0;
-    static filter selected_filter =             *filters[current_filter_dropdown_idx];   
+    // cast filters to non-const
+
+    static filter* selected_filter =            const_cast<filter*>(filters[current_filter_dropdown_idx]);   
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -173,7 +181,7 @@ void show_ui(ImGuiIO& io) {
     ImVec2 parent_cursor_start = ImGui::GetCursorPos();
     ImGui::BeginChild("Main panel", main_panel_size, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysHorizontalScrollbar);
     ImGui::SetNextItemWidth(200.0f);
-    display_tab_bar(show_original, show_preview, width, height, texture_orig, texture_preview);
+    display_tab_bar(show_original, show_preview, width, height, texture_orig, texture_preview, image_data, image_data_out);
     ImGui::EndChild();
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y));
     ImGui::BeginChild("Side panel 1", side_panel_1_size, true);
@@ -249,7 +257,7 @@ void show_ui(ImGuiIO& io) {
             const bool is_selected = (current_filter_dropdown_idx == n);
             if (ImGui::Selectable(filters[n]->filter_name, is_selected))
                 current_filter_dropdown_idx = n;
-                selected_filter = *filters[current_filter_dropdown_idx];
+                selected_filter = const_cast<filter*>(filters[current_filter_dropdown_idx]);
             // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
             if (is_selected)
                 ImGui::SetItemDefaultFocus();
@@ -260,7 +268,36 @@ void show_ui(ImGuiIO& io) {
     ImGui::Spacing();
     ImGui::Spacing();
 
-    ImGui::SliderInt("Filter strength (0 to 100%)", &filter_strength, 0, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
+    if(selected_filter->properties->lower_bound_strength == selected_filter->properties->upper_bound_strength) {
+        // just print text instead of slider
+        ImGui::Text("Filter strength: %d (not adjustable)", filter_strength);
+    }
+    else {
+        ImGui::SliderInt("Filter strength", &filter_strength, 
+                    selected_filter->properties->lower_bound_strength, selected_filter->properties->upper_bound_strength, "%d", ImGuiSliderFlags_AlwaysClamp);
+    }
+    ImGui::Spacing();
+    // check if selected filter is adjustable by size, if so then allow user to iterate through sizes
+    if(selected_filter->properties->expandable_size) {
+        int min_size = selected_filter->properties->sizes_avail[0];
+        int max_size = selected_filter->properties->sizes_avail[selected_filter->properties->num_sizes_avail - 1];
+
+        // Display a single slider for the range of values in sizes_avail
+        ImGui::SliderInt("Filter size", &filter_size, min_size, max_size);
+
+        // clamp filter_size such that it is odd i.e if user selects even then set it to odd
+        if(filter_size % 2 == 0) {
+            filter_size++;
+            if(filter_size > max_size) {
+                filter_size = max_size;
+            }
+            ImGui::Text("Filter size must be odd, setting to %d", filter_size);
+        }
+    }
+    else {
+        filter_size = 3;
+        ImGui::Text("Filter size: %d (not adjustable)", filter_size);
+    }
     ImGui::Spacing();
     ImGui::SliderInt("Shift reds (-100 to 100%)", &red_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
     ImGui::Spacing();
@@ -279,17 +316,21 @@ void show_ui(ImGuiIO& io) {
     ImGui::Spacing();
 
     ImGui::Checkbox("Tint image", &show_tint);
+    ImGui::Spacing();
+    ImGui::Spacing();
     if(show_tint) {
         ImGui::Text("Tint colour of image");
         ImGui::Spacing();
         float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.y) * 0.40f;
         ImGui::SetNextItemWidth(w);
         ImGui::ColorPicker4("##tint1", (float*)&tint_colour, ImGuiColorEditFlags_AlphaBar |
-            ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_DisplayHex | ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_DisplayHSV);
+            ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_DisplayHex | ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_DisplayHSV
+            | ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_HDR);
+        
         ImGui::SameLine();
         ImGui::SetNextItemWidth(w);
-        ImGui::ColorPicker3("##tint2", (float*)&tint_colour,  
-            ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview);
+        ImGui::ColorPicker4("##tint2", (float*)&tint_colour,  
+            ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoSidePreview);
         ImGui::Spacing();
         ImGui::Spacing();
 
@@ -319,7 +360,7 @@ void show_ui(ImGuiIO& io) {
             extra_args.tint[2] = static_cast<unsigned char>(tint_colour.z);
             extra_args.tint[3] = static_cast<unsigned char>(tint_colour.w);
 
-            render_applied_changes(selected_filter.filter_name, extra_args, width, height, &texture_preview, channels,
+            render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
                                     &image_data, &image_data_out, input);
 
         }

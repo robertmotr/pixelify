@@ -1,6 +1,9 @@
 #ifndef __GUI__H
 #define __GUI__H
 
+#define IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_IMPL_OPENGL_LOADER_GL3W "imgui_impl_opengl3.h"
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -10,7 +13,10 @@
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
-#include <GLFW/glfw3.h> // Will drag system OpenGL headers
+
+#include <GLFW/glfw3.h>
+#include <GL/glew.h>  // or #include <GL/glad.h> if you're using GLAD
+#include <GL/gl.h>
 
 #include "kernel.cuh"
 #include "pixel.h"
@@ -20,6 +26,9 @@
 #include <vector>
 #include <iostream>
 #include <exiv2/exiv2.hpp>
+
+#include "imgui_tex_inspect.h"
+#include "tex_inspect_opengl.h"
 
 void free_image(unsigned char **image_data);
 

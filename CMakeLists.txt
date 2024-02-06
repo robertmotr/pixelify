@@ -7,6 +7,7 @@ include(GoogleTest REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(exiv2 REQUIRED)
+find_package(GLEW REQUIRED)
 
 set(CMAKE_CUDA_ARCHITECTURES 61)
 
@@ -30,10 +31,19 @@ set(IMGUI_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/imgui_impl_glfw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/imgui_impl_opengl3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog/ImGuiFileDialog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/imgui_tex_inspect.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends/tex_inspect_opengl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/imgui_tex_inspect_demo.cpp
 )
 
 add_library(imgui_lib STATIC ${IMGUI_SOURCES})
-target_include_directories(imgui_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
+target_include_directories(imgui_lib PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
+)
 
 add_library(pixelify_lib STATIC ${SOURCES})
 target_include_directories(pixelify_lib PUBLIC 
@@ -45,10 +55,13 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+    ${OPENGL_INCLUDE_DIR} ${GLFW_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS}
 )
 add_executable(pixelify src/main.cu)
-target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
+target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2 OpenGL GLEW::GLEW {$OPENGL_gl_LIBRARY})
 
 # ------ TESTS ------
 
@@ -81,7 +94,7 @@ target_link_libraries(tests pixelify_tests gtest)
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security -Wshadow")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security")
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -O3 -diag-suppress=326")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
