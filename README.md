@@ -17,7 +17,6 @@ Image processor that applies filters to images using CUDA.
 
 # in progress:
 - optimize kernels to get ~200ms runtime preferably even lower
-- make texture memory use ints because it supports only <= 32 bits
 - make pixels use texture memory for faster reads
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
@@ -26,6 +25,7 @@ Image processor that applies filters to images using CUDA.
 - set filter size slider to be dependent on filter selected, i.e identity can only have 3x3 
 
 # done:
+- make texture memory use shorts because it supports only <= x bits
 - imgui implementation 
 - test cases for all cases 
 - rewrite filter to use shared memory
