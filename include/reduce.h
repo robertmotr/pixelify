@@ -7,6 +7,9 @@
 #define MAX_REDUCE true
 #define MIN_REDUCE false
 
+#define SHORT_MAX 32767
+#define SHORT_MIN -32768
+
 template<unsigned int channels>
 struct min_op {
     __device__ CUB_RUNTIME_FUNCTION __forceinline__ 
@@ -43,7 +46,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   max_op<channels>(),
-                                  Pixel<channels>(INT_MIN));;
+                                  Pixel<channels>(SHORT_MIN));;
         
         cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
@@ -53,7 +56,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   max_op<channels>(),
-                                  Pixel<channels>(INT_MIN));
+                                  Pixel<channels>(SHORT_MIN));
     }
     else {
         cub::DeviceReduce::Reduce(d_temp_storage,
@@ -62,7 +65,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   min_op<channels>(),
-                                  Pixel<channels>(INT_MAX));;
+                                  Pixel<channels>(SHORT_MAX));;
         
         cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
@@ -72,7 +75,7 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
                                   d_result,
                                   size,
                                   min_op<channels>(),
-                                  Pixel<channels>(INT_MAX));
+                                  Pixel<channels>(SHORT_MAX));
     }
 
     cudaFree(d_temp_storage);

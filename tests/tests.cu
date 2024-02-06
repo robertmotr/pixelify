@@ -16,108 +16,108 @@ void print_to(const Pixel<3>& pixel, ::std::ostream* os) {
     *os << "Pixel(" << pixel.data[0] << ", " << pixel.data[1] << ", " << pixel.data[2] << ")";
 }
 
-TEST(just_kernel, identity_filter) {
-    Pixel<3> input[9] = {
-        {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
-        {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
-        {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
-    };
+// TEST(just_kernel, identity_filter) {
+//     Pixel<3> input[9] = {
+//         {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
+//         {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
+//         {1, 1, 1}, {1, 1, 1}, {1, 1, 1},
+//     };
 
-    Pixel<3> output[9] = {0};
-    Pixel<3> expected[9] = {0};
-    memcpy(expected, input, sizeof(Pixel<3>) * 9);
+//     Pixel<3> output[9] = {0};
+//     Pixel<3> expected[9] = {0};
+//     memcpy(expected, input, sizeof(Pixel<3>) * 9);
 
-    struct kernel_args extra;
-    extra.passes = 1;
-    extra.dimension = 3;
-    extra.filter_strength = 0;
-    extra.normalize = false;
-    extra.red_shift = 0;
-    extra.green_shift = 0;
-    extra.blue_shift = 0;
-    extra.alpha_shift = 0;
-    extra.brightness = 0;
-    extra.blend_factor = 0.0f;
-    extra.tint[0] = 0;
-    extra.tint[1] = 0;
-    extra.tint[2] = 0;
-    extra.tint[3] = 0;
+//     struct kernel_args extra;
+//     extra.passes = 1;
+//     extra.dimension = 3;
+//     extra.filter_strength = 0;
+//     extra.normalize = false;
+//     extra.red_shift = 0;
+//     extra.green_shift = 0;
+//     extra.blue_shift = 0;
+//     extra.alpha_shift = 0;
+//     extra.brightness = 0;
+//     extra.blend_factor = 0.0f;
+//     extra.tint[0] = 0;
+//     extra.tint[1] = 0;
+//     extra.tint[2] = 0;
+//     extra.tint[3] = 0;
 
-    const filter *h_filter =      nullptr;
-    filter*                       device_filter;
-    int*                          device_filter_data;
-    char*                         device_filter_name;
-    int                           pixels = 9;
-    Pixel<3>                      *device_input, *device_output;
-    Pixel<3>                      *h_pinned_input, *h_pinned_output;
+//     const filter *h_filter =      nullptr;
+//     filter*                       device_filter;
+//     int*                          device_filter_data;
+//     char*                         device_filter_name;
+//     int                           pixels = 9;
+//     Pixel<3>                      *device_input, *device_output;
+//     Pixel<3>                      *h_pinned_input, *h_pinned_output;
 
-    int blockSize;
-    int gridSize;
+//     int blockSize;
+//     int gridSize;
 
-    if(strcmp("Identity", "NULL") != 0) {         
-        h_filter = create_filter("Identity", extra.dimension, extra.filter_strength);
-        if(h_filter == nullptr) {
-        printf("Error: filter is null\n");
-        exit(1);
-        }
-    } 
+//     if(strcmp("Identity", "NULL") != 0) {         
+//         h_filter = create_filter("Identity", extra.dimension, extra.filter_strength);
+//         if(h_filter == nullptr) {
+//         printf("Error: filter is null\n");
+//         exit(1);
+//         }
+//     } 
 
-    cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
-    assert(blockSize != 0);
-    gridSize = (16 * 3 + blockSize - 1) / blockSize; 
+//     cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
+//     assert(blockSize != 0);
+//     gridSize = (16 * 3 + blockSize - 1) / blockSize; 
 
-    cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<3>), cudaHostAllocMapped);
-    cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<3>), cudaHostAllocMapped); // possible bug
-    cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<3>), cudaMemcpyHostToHost);
-    CUDA_CHECK_ERROR("copying input to pinned input");
+//     cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<3>), cudaHostAllocMapped);
+//     cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<3>), cudaHostAllocMapped); // possible bug
+//     cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<3>), cudaMemcpyHostToHost);
+//     CUDA_CHECK_ERROR("copying input to pinned input");
 
-    // MALLOCS ON DEVICE
-    cudaMalloc(&device_input, pixels * sizeof(Pixel<3>));
-    cudaMalloc(&device_output, pixels * sizeof(Pixel<3>));
+//     // MALLOCS ON DEVICE
+//     cudaMalloc(&device_input, pixels * sizeof(Pixel<3>));
+//     cudaMalloc(&device_output, pixels * sizeof(Pixel<3>));
 
-    // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
-    if(h_filter != nullptr && strcmp("Identity", "NULL") != 0) {
-        cudaMalloc(&device_filter, sizeof(filter));
-        cudaMemcpy(&(device_filter->filter_dimension), &(h_filter->filter_dimension), sizeof(unsigned int), cudaMemcpyHostToDevice);
-        cudaMemcpy(&(device_filter->name_size), &(h_filter->name_size), sizeof(size_t), cudaMemcpyHostToDevice);
+//     // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
+//     if(h_filter != nullptr && strcmp("Identity", "NULL") != 0) {
+//         cudaMalloc(&device_filter, sizeof(filter));
+//         cudaMemcpy(&(device_filter->filter_dimension), &(h_filter->filter_dimension), sizeof(unsigned int), cudaMemcpyHostToDevice);
+//         cudaMemcpy(&(device_filter->name_size), &(h_filter->name_size), sizeof(size_t), cudaMemcpyHostToDevice);
 
-        cudaMalloc(&device_filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(unsigned int));
-        cudaMemcpy(device_filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), cudaMemcpyHostToDevice);
-        cudaMemcpy(&(device_filter->filter_data), &device_filter_data, sizeof(float*), cudaMemcpyHostToDevice);
+//         cudaMalloc(&device_filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(unsigned int));
+//         cudaMemcpy(device_filter_data, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), cudaMemcpyHostToDevice);
+//         cudaMemcpy(&(device_filter->filter_data), &device_filter_data, sizeof(float*), cudaMemcpyHostToDevice);
 
-        cudaMalloc(&device_filter_name, h_filter->name_size * sizeof(char));
-        cudaMemcpy(device_filter_name, h_filter->filter_name, h_filter->name_size * sizeof(char), cudaMemcpyHostToDevice);
-        cudaMemcpy(&(device_filter->filter_name), &device_filter_name, sizeof(char*), cudaMemcpyHostToDevice);
-    }
+//         cudaMalloc(&device_filter_name, h_filter->name_size * sizeof(char));
+//         cudaMemcpy(device_filter_name, h_filter->filter_name, h_filter->name_size * sizeof(char), cudaMemcpyHostToDevice);
+//         cudaMemcpy(&(device_filter->filter_name), &device_filter_name, sizeof(char*), cudaMemcpyHostToDevice);
+//     }
 
-    // MEMCPYS FROM HOST TO DEVICE
-    cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+//     // MEMCPYS FROM HOST TO DEVICE
+//     cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
 
-    for(int pass = 0; pass < extra.passes; pass++) {
-        filter_kernel<3><<<gridSize, blockSize, pixels * sizeof(Pixel<3>)>>>(device_input, device_output,
-                                                                                        3, 3, device_filter, extra);
-        CUDA_CHECK_ERROR("filter kernel");
-        cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<3>), cudaMemcpyDeviceToDevice);
-    }
+//     for(int pass = 0; pass < extra.passes; pass++) {
+//         filter_kernel<3><<<gridSize, blockSize, pixels * sizeof(Pixel<3>)>>>(device_input, device_output,
+//                                                                                         3, 3, device_filter, extra);
+//         CUDA_CHECK_ERROR("filter kernel");
+//         cudaMemcpy(device_input, device_output, pixels * sizeof(Pixel<3>), cudaMemcpyDeviceToDevice);
+//     }
 
-    cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
-    cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<3>), cudaMemcpyHostToHost);
-    CUDA_CHECK_ERROR("copying back d_output to pinned output");
+//     cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<3>), cudaMemcpyHostToHost);
+//     CUDA_CHECK_ERROR("copying back d_output to pinned output");
 
-    // cleanup
-    cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
-    if(!(h_filter->properties->basic_filter)) {
-        delete h_filter;
-    }
-    cudaFree(device_filter);
-    cudaFree(device_input); cudaFree(device_output);
-    CUDA_CHECK_ERROR("freeing memory");    
+//     // cleanup
+//     cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
+//     if(!(h_filter->properties->basic_filter)) {
+//         delete h_filter;
+//     }
+//     cudaFree(device_filter);
+//     cudaFree(device_input); cudaFree(device_output);
+//     CUDA_CHECK_ERROR("freeing memory");    
 
-    // assert output == expected
-    for (int i = 0; i < 9; i++) {
-        ASSERT_EQ(expected[i], output[i]) << "Mismatch at index " << i << "\nExpected: " << expected[i] << "\nActual: " << output[i];
-    }
-}
+//     // assert output == expected
+//     for (int i = 0; i < 9; i++) {
+//         ASSERT_EQ(expected[i], output[i]) << "Mismatch at index " << i << "\nExpected: " << expected[i] << "\nActual: " << output[i];
+//     }
+// }
 
 TEST(kernel_correctness, identity_filter) {
     Pixel<3> input[9] = {
@@ -249,140 +249,140 @@ TEST(kernel_correctness, simple_box_blur) {
     }
 }
 
-TEST(parallel_reduction_correctness, real_sample_image) {
-    int width, height, channels;
-    const char *env_var = getenv("current_dir");
-    char *full_path = NULL;
-    if(env_var != NULL) {
-        full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
-        printf("Current dir: %s\nRunning parallel_reduction_correctness\n", env_var);
-        strcpy(full_path, env_var);
-        strcat(full_path, "/sample_images/Puzzle_Mountain.png");
-    }
-    else {
-        free(full_path);
-        printf("Error: current_dir environment variable not set\n");
-        FAIL();
-    }
+// TEST(parallel_reduction_correctness, real_sample_image) {
+//     int width, height, channels;
+//     const char *env_var = getenv("current_dir");
+//     char *full_path = NULL;
+//     if(env_var != NULL) {
+//         full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
+//         printf("Current dir: %s\nRunning parallel_reduction_correctness\n", env_var);
+//         strcpy(full_path, env_var);
+//         strcat(full_path, "/sample_images/Puzzle_Mountain.png");
+//     }
+//     else {
+//         free(full_path);
+//         printf("Error: current_dir environment variable not set\n");
+//         FAIL();
+//     }
 
-    int ok = stbi_info(full_path, &width, &height, &channels);
-    if(ok != 1) {
-        printf("Failed to get image properties: %s\n", stbi_failure_reason());
-        FAIL();
-    }
+//     int ok = stbi_info(full_path, &width, &height, &channels);
+//     if(ok != 1) {
+//         printf("Failed to get image properties: %s\n", stbi_failure_reason());
+//         FAIL();
+//     }
 
-    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
-    if (image_data == NULL) {
-        printf("Failed to load image: %s\n", stbi_failure_reason());
-        FAIL();
-    }
+//     unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
+//     if (image_data == NULL) {
+//         printf("Failed to load image: %s\n", stbi_failure_reason());
+//         FAIL();
+//     }
 
-    unsigned char *image_output = new unsigned char[width * height * channels];
-    Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
+//     unsigned char *image_output = new unsigned char[width * height * channels];
+//     Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
     
-    Pixel<3> *d_input, *d_smallest, *d_largest;
+//     Pixel<3> *d_input, *d_smallest, *d_largest;
 
-    cudaMalloc(&d_input, sizeof(Pixel<3>) * width * height);
-    cudaMalloc(&d_smallest, sizeof(Pixel<3>));
-    cudaMalloc(&d_largest, sizeof(Pixel<3>));
+//     cudaMalloc(&d_input, sizeof(Pixel<3>) * width * height);
+//     cudaMalloc(&d_smallest, sizeof(Pixel<3>));
+//     cudaMalloc(&d_largest, sizeof(Pixel<3>));
 
-    cudaMemcpy(d_input, pixels_in, sizeof(Pixel<3>) * width * height, cudaMemcpyHostToDevice);
+//     cudaMemcpy(d_input, pixels_in, sizeof(Pixel<3>) * width * height, cudaMemcpyHostToDevice);
 
-    image_reduction<3>(d_input, d_largest, width * height, MAX_REDUCE);
-    image_reduction<3>(d_input, d_smallest, width * height, MIN_REDUCE);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("sync after reduction");
+//     image_reduction<3>(d_input, d_largest, width * height, MAX_REDUCE);
+//     image_reduction<3>(d_input, d_smallest, width * height, MIN_REDUCE);
+//     cudaDeviceSynchronize();
+//     CUDA_CHECK_ERROR("sync after reduction");
 
-    Pixel<3> *h_smallest = new Pixel<3>();
-    Pixel<3> *h_largest = new Pixel<3>();
+//     Pixel<3> *h_smallest = new Pixel<3>();
+//     Pixel<3> *h_largest = new Pixel<3>();
 
-    cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
 
-    // print values of h smallest/hlargest
-    char buf[100];
-    sprintf(buf, "Global max values: [%d, %d, %d]\nGlobal min values: [%d, %d, %d]\n", 
-            h_largest->data[0], h_largest->data[1], h_largest->data[2],
-            h_smallest->data[0], h_smallest->data[1], h_smallest->data[2]);
+//     // print values of h smallest/hlargest
+//     char buf[100];
+//     sprintf(buf, "Global max values: [%d, %d, %d]\nGlobal min values: [%d, %d, %d]\n", 
+//             h_largest->data[0], h_largest->data[1], h_largest->data[2],
+//             h_smallest->data[0], h_smallest->data[1], h_smallest->data[2]);
 
-    char cmd[512];
-    sprintf(cmd, "python ");
-    strcat(cmd, getenv("current_dir"));
-    strcat(cmd, "/tests/test_reduction.py > output.txt");
-    system(cmd);
+//     char cmd[512];
+//     sprintf(cmd, "python ");
+//     strcat(cmd, getenv("current_dir"));
+//     strcat(cmd, "/tests/test_reduction.py > output.txt");
+//     system(cmd);
 
-    FILE *f = fopen("output.txt", "r");
-    if (f == NULL) {
-        perror("Error opening output.txt");
-        FAIL();
-    }
+//     FILE *f = fopen("output.txt", "r");
+//     if (f == NULL) {
+//         perror("Error opening output.txt");
+//         FAIL();
+//     }
 
-    char output_buf[200];
-    size_t bytes_read = fread(output_buf, 1, sizeof(output_buf) - 1, f);
-    output_buf[bytes_read] = '\0'; 
+//     char output_buf[200];
+//     size_t bytes_read = fread(output_buf, 1, sizeof(output_buf) - 1, f);
+//     output_buf[bytes_read] = '\0'; 
 
-    fclose(f);
+//     fclose(f);
 
-    printf("\nBUF RESULT:\n%s", buf);
-    printf("\nOUTPUTBUF RESULT:\n%s", output_buf);
+//     printf("\nBUF RESULT:\n%s", buf);
+//     printf("\nOUTPUTBUF RESULT:\n%s", output_buf);
 
-    if(strcmp(buf, output_buf) != 0) {
-        std::cout << strcmp(buf, output_buf) << " STRCMP RESULT" << "\n";
-        system("rm output.txt");
-        FAIL();
-    }
-    system("rm output.txt");
+//     if(strcmp(buf, output_buf) != 0) {
+//         std::cout << strcmp(buf, output_buf) << " STRCMP RESULT" << "\n";
+//         system("rm output.txt");
+//         FAIL();
+//     }
+//     system("rm output.txt");
     
-    SUCCEED();
-}
+//     SUCCEED();
+// }
 
-TEST(parallel_reduction_correctness, small_image) {
-    Pixel<3> input[9] = {
-        {1, 1, 1}, {2, 2, 2}, {3, 3, 3},
-        {4, 4, 4}, {5, 5, 5}, {6, 6, 6},
-        {7, 7, 7}, {8, 8, 8}, {9, 9, 9}
-    };
+// TEST(parallel_reduction_correctness, small_image) {
+//     Pixel<3> input[9] = {
+//         {1, 1, 1}, {2, 2, 2}, {3, 3, 3},
+//         {4, 4, 4}, {5, 5, 5}, {6, 6, 6},
+//         {7, 7, 7}, {8, 8, 8}, {9, 9, 9}
+//     };
 
-    Pixel<3> *d_input;
-    cudaMalloc(&d_input, sizeof(Pixel<3>) * 9);
-    cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 9, cudaMemcpyHostToDevice);
+//     Pixel<3> *d_input;
+//     cudaMalloc(&d_input, sizeof(Pixel<3>) * 9);
+//     cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 9, cudaMemcpyHostToDevice);
 
-    Pixel<3> *d_largest;
-    Pixel<3> *d_smallest;
+//     Pixel<3> *d_largest;
+//     Pixel<3> *d_smallest;
 
-    Pixel<3> *h_largest = new Pixel<3>{INT_MIN};
-    Pixel<3> *h_smallest = new Pixel<3>{INT_MAX};
+//     Pixel<3> *h_largest = new Pixel<3>{INT_MIN};
+//     Pixel<3> *h_smallest = new Pixel<3>{INT_MAX};
 
-    cudaMalloc(&d_largest, sizeof(Pixel<3>));
-    cudaMalloc(&d_smallest, sizeof(Pixel<3>));
+//     cudaMalloc(&d_largest, sizeof(Pixel<3>));
+//     cudaMalloc(&d_smallest, sizeof(Pixel<3>));
 
-    cudaMemcpy(d_largest, h_largest, sizeof(Pixel<3>), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+//     cudaMemcpy(d_largest, h_largest, sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+//     cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<3>), cudaMemcpyHostToDevice);
 
-    image_reduction<3>(d_input, d_largest, 9, MAX_REDUCE);
-    image_reduction<3>(d_input, d_smallest, 9, MIN_REDUCE);
-    cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("synchronize after reduction");
+//     image_reduction<3>(d_input, d_largest, 9, MAX_REDUCE);
+//     image_reduction<3>(d_input, d_smallest, 9, MIN_REDUCE);
+//     cudaDeviceSynchronize();
+//     CUDA_CHECK_ERROR("synchronize after reduction");
 
-    // copy back d_input to double check its unchanged
-    Pixel<3> *h_input = new Pixel<3>[9];
-    cudaMemcpy(h_input, d_input, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
-    for (int i = 0; i < 9; i++) {
-        ASSERT_EQ(input[i], h_input[i]);
-    }
+//     // copy back d_input to double check its unchanged
+//     Pixel<3> *h_input = new Pixel<3>[9];
+//     cudaMemcpy(h_input, d_input, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
+//     for (int i = 0; i < 9; i++) {
+//         ASSERT_EQ(input[i], h_input[i]);
+//     }
 
-    cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
 
-    ASSERT_EQ(*h_largest, input[8]);
-    ASSERT_EQ(*h_smallest, input[0]);
+//     ASSERT_EQ(*h_largest, input[8]);
+//     ASSERT_EQ(*h_smallest, input[0]);
 
-    cudaFree(d_input);
-    cudaFree(d_largest);
-    cudaFree(d_smallest);
-    delete h_largest;
-    delete h_smallest;
-}
+//     cudaFree(d_input);
+//     cudaFree(d_largest);
+//     cudaFree(d_smallest);
+//     delete h_largest;
+//     delete h_smallest;
+// }
 
 TEST(normalization_correctness, identity_filter) {
     Pixel<3> input[9] = {

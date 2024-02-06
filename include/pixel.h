@@ -8,7 +8,7 @@
 
 template<unsigned int channels>
 struct Pixel {
-    int data[channels];
+    short data[4];
 
     friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
         os << "Pixel(";
@@ -23,7 +23,7 @@ struct Pixel {
     }    
 
     __host__ __device__
-    bool operator==(const Pixel<channels> &other) const {
+    bool operator==(const Pixel &other) const {
         for (unsigned int i = 0; i < channels; i++) {
             if (data[i] != other.data[i]) {
                 return false;
@@ -32,15 +32,19 @@ struct Pixel {
         return true;
     }
 
+    // if channels == 3 set 4th byte to 255
+    // in constructor
     template<typename... Args>
     __host__ __device__
-    Pixel(Args... args) : data{static_cast<int>(args)...} {}
-
+    Pixel(Args... args) : data{static_cast<short>(args)...} {
+        static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
+        if constexpr(sizeof...(Args) == 3) {
+            // Set the 4th byte to 255
+            data[3] = 255;
+        }
+    }
     __host__ __device__
     Pixel() : Pixel(0) {}
-
-    __host__ __device__
-    Pixel(int value) : Pixel(value, value, value) {}
 };
 
 // dont use this doesnt work with imgui, kept this so tests are stable
@@ -61,7 +65,7 @@ Pixel<channels>* raw_image_to_pixel(const unsigned char *input, unsigned int siz
     Pixel<channels> *output = new Pixel<channels>[size];
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
-            output[i].data[j] = static_cast<int>(input[i * channels + j]);
+            output[i].data[j] = static_cast<short>(input[i * channels + j]);
         }
     }
     return output;
@@ -85,7 +89,7 @@ template<unsigned int channels>
 void imgui_get_pixels(const unsigned char *input, Pixel<channels> *output, unsigned int size) {
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
-            output[i].data[j] = static_cast<int>(input[i * INTERNAL_CHANNEL_SIZE + j]);
+            output[i].data[j] = static_cast<short>(input[i * INTERNAL_CHANNEL_SIZE + j]);
         }
     }
 }

@@ -68,9 +68,9 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
                                                     const Pixel<channels> *smallest, const Pixel<channels> *largest) {
     // normalize each respective channel
     for (int channel = 0; channel < channels; channel++) {
-        int min = smallest->data[channel];
-        int max = largest->data[channel];
-        int value = target[pixel_idx].data[channel];
+        short min = smallest->data[channel];
+        short max = largest->data[channel];
+        short value = target[pixel_idx].data[channel];
 
         if(max == min) {
             max = (min + 1) % 255;
@@ -88,12 +88,12 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
 template<unsigned int channels>
-__device__ __forceinline__ int apply_filter(cudaTextureObject_t tex_obj, const filter *filter, unsigned int mask, int width, 
+__device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, const filter *filter, unsigned int mask, int width, 
                                             int height, int row, int col) {
     assert(mask < channels);
 
     extern __shared__ float smem[];
-    
+
     int sum = 0;
     int start_i = row - filter->filter_dimension / 2;
     int start_j = col - filter->filter_dimension / 2;
@@ -107,11 +107,22 @@ __device__ __forceinline__ int apply_filter(cudaTextureObject_t tex_obj, const f
             int filter_x = start_i + i;
             int filter_y = start_j + j;
 
-            if (find_index(width, height, filter_x, filter_y) != OUT_OF_BOUNDS) {
-                int member_value = tex2D<Pixel<channels>>(tex_obj, (float) filter_x, (float) filter_y).data[mask];
-                int filter_value = smem[i * filter->filter_dimension + j];
-                sum += member_value * filter_value;
+            short4 tex_value = tex2D<short4>(tex_obj, filter_y, filter_x);
+            int member_value = 0;
+            if(mask == 0) {
+                member_value = tex_value.x;
             }
+            else if(mask == 1) {
+                member_value = tex_value.y;
+            }
+            else if(mask == 2) {
+                member_value = tex_value.z;
+            }
+            else if(mask == 3) {
+                member_value = tex_value.w;
+            }
+            int filter_value = smem[i * filter->filter_dimension + j];
+            sum += member_value * filter_value;
         }
     }
     return sum;
@@ -154,10 +165,10 @@ __global__ void normalize(Pixel<channels> *image, int width, int height,
                            bool normalize_or_clamp);
 
 // EXPLICIT INSTANTIATIONS
-template __device__ __forceinline__ int apply_filter<3u>(cudaTextureObject_t tex_obj, const filter *filter,
+template __device__ __forceinline__ int apply_filter<3u>(const cudaTextureObject_t tex_obj, const filter *filter,
                                                         unsigned int mask, int width, int height, int row, int col);
 
-template __device__ __forceinline__ int apply_filter<4u>(cudaTextureObject_t tex_obj, const filter *filter,
+template __device__ __forceinline__ int apply_filter<4u>(const cudaTextureObject_t tex_obj, const filter *filter,
                                                         unsigned int mask, int width, int height, int row, int col);
 
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
