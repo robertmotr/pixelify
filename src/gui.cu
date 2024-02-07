@@ -7,30 +7,32 @@
 #include "kernel_formulas.h"
 
 inline void display_image(const GLuint& texture, const int& width, const int& height, const unsigned char *image_data) {
-
+    static float zoom_factor = 1.0f;
+    ImVec2 pos = ImGui::GetCursorScreenPos();  
     ImGui::Text("size = %d x %d", width, height);
-    ImVec2 pos = ImGui::GetCursorScreenPos();   
-
-    // get io
     ImGuiIO& io = ImGui::GetIO();
-
     // Check if the mouse is within the bounds of the image
-    if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
+    if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width * zoom_factor, pos.y + height * zoom_factor))) {
 
         ImGui::BeginTooltip();
         ImGui::Text("Ctrl + Scroll to zoom in/out");
         ImGui::EndTooltip();
-
+        if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().MouseWheel != 0.0f) {
+            zoom_factor += io.MouseWheel * 0.1f;
+            zoom_factor = std::max(0.1f, std::min(zoom_factor, 5.0f));
+            ImGui::SetScrollX(500.0f);
+            ImGui::SetScrollY(500.0f);
+        }
         ImVec2 mouse_pos = ImGui::GetMousePos();
         
-        // Correct the UV coordinate calculation
         ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y) / height);
         ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
-        // Call ImageInspect::inspect with corrected UV coordinates
-        ImageInspect::inspect(width, height, image_data, mouse_uv_coords, displayed_texture_size);
+        displayed_texture_size.x *= zoom_factor;
+        displayed_texture_size.y *= zoom_factor;
+        ImageInspect::inspect(width * zoom_factor, height * zoom_factor, image_data, mouse_uv_coords, displayed_texture_size);
     }
 
-    ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
+    ImGui::Image((void*)(intptr_t)texture, ImVec2(width * zoom_factor, height * zoom_factor));
 }
 
 

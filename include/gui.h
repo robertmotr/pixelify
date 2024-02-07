@@ -15,6 +15,7 @@
 
 #include <GLFW/glfw3.h>
 #include <GL/gl.h>
+#include <SDL2/SDL.h>
 #include "imgInspect.h"
 
 #include "kernel.cuh"
@@ -25,7 +26,6 @@
 #include <vector>
 #include <iostream>
 #include <exiv2/exiv2.hpp>
-
 void free_image(unsigned char **image_data);
 
 bool load_texture_from_data(int out_channels, int out_width, int out_height, GLuint *out_texture, const unsigned char *image_data);
