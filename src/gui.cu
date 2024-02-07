@@ -7,40 +7,32 @@
 #include "kernel_formulas.h"
 
 inline void display_image(const GLuint& texture, const int& width, const int& height, const unsigned char *image_data) {
-    ImGui::Text("size = %d x %d", width, height);
-    static bool use_text_color_for_tint = false;
-    ImVec2 pos = ImGui::GetCursorScreenPos();        
-    ImVec4 tint_col = use_text_color_for_tint ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-    ImVec4 border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
 
-    // Render the original image
-    ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
+    ImGui::Text("size = %d x %d", width, height);
+    ImVec2 pos = ImGui::GetCursorScreenPos();   
+
+    // get io
+    ImGuiIO& io = ImGui::GetIO();
 
     // Check if the mouse is within the bounds of the image
     if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
-        if (ImGui::BeginTooltip()) {
-            float region_sz = 32.0f;
-            float region_x = ImGui::GetIO().MousePos.x - pos.x - region_sz * 0.5f;
-            float region_y = ImGui::GetIO().MousePos.y - pos.y - region_sz * 0.5f;
-            float zoom = 4.0f;
 
-            // Clamp the region within the bounds of the image
-            region_x = std::clamp(region_x, 0.0f, static_cast<float>(width - region_sz));
-            region_y = std::clamp(region_y, 0.0f, static_cast<float>(height - region_sz));
+        ImGui::BeginTooltip();
+        ImGui::Text("Ctrl + Scroll to zoom in/out");
+        ImGui::EndTooltip();
 
-            ImVec2 uv0 = ImVec2((region_x) / width, (region_y) / height);
-            ImVec2 uv1 = ImVec2((region_x + region_sz) / width, (region_y + region_sz) / height);
-            ImGui::Image((void*)(intptr_t)texture, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
-
-            ImGui::Begin("Texture inspector:");
-            ImGuiTexInspect::BeginInspectorPanel("Inspector", texture, ImVec2(width, height));
-            ImGuiTexInspect::EndInspectorPanel();
-            ImGui::End();
-            ImGui::EndTooltip();
-        }
-
+        ImVec2 mouse_pos = ImGui::GetMousePos();
+        
+        // Correct the UV coordinate calculation
+        ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y) / height);
+        ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
+        // Call ImageInspect::inspect with corrected UV coordinates
+        ImageInspect::inspect(width, height, image_data, mouse_uv_coords, displayed_texture_size);
     }
+
+    ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
 }
+
 
 inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const int& width, const int& height, 
                             const GLuint& texture_orig, const GLuint& texture_preview, const unsigned char *image_orig, 

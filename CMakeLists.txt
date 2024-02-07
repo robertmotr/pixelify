@@ -31,9 +31,6 @@ set(IMGUI_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/imgui_impl_glfw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/imgui_impl_opengl3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog/ImGuiFileDialog.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/imgui_tex_inspect.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends/tex_inspect_opengl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/imgui_tex_inspect_demo.cpp
 )
 
 add_library(imgui_lib STATIC ${IMGUI_SOURCES})
@@ -41,8 +38,6 @@ target_include_directories(imgui_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
 )
 
 add_library(pixelify_lib STATIC ${SOURCES})
@@ -55,13 +50,11 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     ${OPENGL_INCLUDE_DIR} ${GLFW_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS}
 )
 add_executable(pixelify src/main.cu)
-target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2 OpenGL GLEW::GLEW {$OPENGL_gl_LIBRARY})
+target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
 
 # ------ TESTS ------
 

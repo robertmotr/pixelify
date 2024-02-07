@@ -7,9 +7,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include "tex_inspect_opengl.h"
-#include "imgui_tex_inspect.h"
-
 // normally its kind of pointless to implement a function like this but
 // stb_image requires header defines to be in the same file as the implementation
 void free_image(unsigned char **image_data) {
@@ -119,11 +116,6 @@ void render_gui_loop() {
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-
-    // Setup tex inspect
-    ImGuiTexInspect::ImplOpenGL3_Init();
-    ImGuiTexInspect::Init();
-    ImGuiTexInspect::CreateContext();
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
