@@ -139,7 +139,9 @@ void show_ui(ImGuiIO& io) {
     static bool show_tint =                     false;
 
     // filter options
+    struct kernel_args                          extra_args;
     static bool normalize =                     false;
+    static int passes =                         1;
     static int filter_size =                    3;
     static int filter_strength =                0;
     static int red_strength =                   0;
@@ -159,7 +161,6 @@ void show_ui(ImGuiIO& io) {
     static std::string                          xmp_data_str;
 
     // rendering stuff
-
     static int width, height, channels;
     static unsigned char *image_data =          NULL;
     static unsigned char *image_data_out =      NULL;
@@ -308,6 +309,8 @@ void show_ui(ImGuiIO& io) {
         ImGui::Text("Filter size: %d (not adjustable)", filter_size);
     }
     ImGui::Spacing();
+    ImGui::SliderInt("Filter passes (1 to 10)", &passes, 1, 10, "%d", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::Spacing();
     ImGui::SliderInt("Shift reds (-100 to 100%)", &red_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
     ImGui::Spacing();
     ImGui::SliderInt("Shift blues (-100 to 100%)", &blue_strength, -100, 100, "%d%", ImGuiSliderFlags_AlwaysClamp);
@@ -354,13 +357,13 @@ void show_ui(ImGuiIO& io) {
         if(show_original) {
             show_preview = true;
             // pass kernel args to render function
-            struct kernel_args extra_args;
             extra_args.red_shift = static_cast<char>(red_strength);
             extra_args.green_shift = static_cast<char>(green_strength);
             extra_args.blue_shift = static_cast<char>(blue_strength);
             extra_args.alpha_shift = static_cast<char>(alpha_strength);
             extra_args.brightness = static_cast<char>(brightness);
-        
+
+            extra_args.passes = static_cast<unsigned char>(passes);
             extra_args.normalize = normalize;
             extra_args.filter_strength = static_cast<char>(filter_strength);
             extra_args.blend_factor = blend_factor;
@@ -369,8 +372,13 @@ void show_ui(ImGuiIO& io) {
             extra_args.tint[2] = static_cast<unsigned char>(tint_colour.z);
             extra_args.tint[3] = static_cast<unsigned char>(tint_colour.w);
 
-            render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
-                                    &image_data, &image_data_out, input);
+            if(render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
+                                    &image_data, &image_data_out, input)) {
+                printf("Rendered changes successfully\n");
+            }
+            else {
+                printf("Error rendering changes\n");
+            }
 
         }
     }
