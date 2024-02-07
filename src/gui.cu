@@ -7,32 +7,20 @@
 #include "kernel_formulas.h"
 
 inline void display_image(const GLuint& texture, const int& width, const int& height, const unsigned char *image_data) {
-    static float zoom_factor = 1.0f;
     ImVec2 pos = ImGui::GetCursorScreenPos();  
     ImGui::Text("size = %d x %d", width, height);
+    // ImVec2 mouseUVCoord = (io.MousePos - rc.Min) / rc.GetSize();    
     ImGuiIO& io = ImGui::GetIO();
     // Check if the mouse is within the bounds of the image
-    if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width * zoom_factor, pos.y + height * zoom_factor))) {
+    if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
 
-        ImGui::BeginTooltip();
-        ImGui::Text("Ctrl + Scroll to zoom in/out");
-        ImGui::EndTooltip();
-        if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().MouseWheel != 0.0f) {
-            zoom_factor += io.MouseWheel * 0.1f;
-            zoom_factor = std::max(0.1f, std::min(zoom_factor, 5.0f));
-            ImGui::SetScrollX(500.0f);
-            ImGui::SetScrollY(500.0f);
-        }
         ImVec2 mouse_pos = ImGui::GetMousePos();
-        
-        ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y) / height);
-        ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
-        displayed_texture_size.x *= zoom_factor;
-        displayed_texture_size.y *= zoom_factor;
-        ImageInspect::inspect(width * zoom_factor, height * zoom_factor, image_data, mouse_uv_coords, displayed_texture_size);
-    }
+        ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y - 15) / height);    
 
-    ImGui::Image((void*)(intptr_t)texture, ImVec2(width * zoom_factor, height * zoom_factor));
+        ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
+        ImageInspect::inspect(width, height, image_data, mouse_uv_coords, displayed_texture_size);
+    }
+    ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
 }
 
 
@@ -121,6 +109,29 @@ std::string generate_iptc_string(const Exiv2::IptcData& iptcData) {
     return result.str();
 }
 
+std::string generate_xmp_string(const Exiv2::XmpData& xmp_data) {
+    if(xmp_data.empty()) {
+        return std::string("No XMP data found in file\n");
+    }
+
+    std::ostringstream result;
+
+    auto end = xmp_data.end();
+    for (auto md = xmp_data.begin(); md != end; ++md) {
+     result << std::setfill(' ') << std::left
+            << std::setw(44)
+            << md->key() << " "
+            << std::setw(9) << std::setfill(' ') << std::left
+            << md->typeName() << " "
+            << std::dec << std::setw(3)
+            << std::setfill(' ') << std::right
+            << md->count() << "  "
+            << std::dec << md->value()
+            << std::endl;
+    }
+    return result.str();
+}
+
 void show_ui(ImGuiIO& io) {
     // to determine whether which tab is shown
     static bool show_original =                 false;
@@ -145,6 +156,7 @@ void show_ui(ImGuiIO& io) {
     static Exiv2::Image::UniquePtr              image;
     static std::string                          exif_data_str;
     static std::string                          iptc_data_str;
+    static std::string                          xmp_data_str;
 
     // rendering stuff
 
@@ -212,6 +224,9 @@ void show_ui(ImGuiIO& io) {
 
             Exiv2::IptcData& iptcdata = image->iptcData();
             iptc_data_str = generate_iptc_string(iptcdata);
+
+            Exiv2::XmpData& xmpdata = image->xmpData();
+            xmp_data_str = generate_xmp_string(xmpdata);
 
             show_original = true;
         }
@@ -400,6 +415,8 @@ void show_ui(ImGuiIO& io) {
         ImGui::Text("%s", exif_data_str.c_str());
         ImGui::Text("IPTC data: ");
         ImGui::Text("%s", iptc_data_str.c_str());
+        ImGui::Text("XMP data: ");
+        ImGui::Text("%s", xmp_data_str.c_str());
     }
     else {
         ImGui::Text("Please load an image to view details.");
