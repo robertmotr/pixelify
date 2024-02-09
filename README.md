@@ -7,21 +7,20 @@ Image processor that applies filters to images using CUDA.
 - support anti-aliasing methods + other applications aside from filters?
 - cuda <--> amd, work on any GPU, maybe use HIP or some transpiling method
 - add contrast, should be easy with CUB histogram
-- add fits/xmpp data to image description, also add file modification date, etc
 - add gamma option
-- add zoom in/zoom out tool
+- add zoom/pan tool
 - use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
 - profile texture/shared memory for filter and use whichever one is faster
 - add flip option
-- fix segfault from kernel formulas
-
 
 # in progress:
+- fix segfault from kernel formulas
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
 
 # done:
+- add fits/xmpp data to image description
 - add multiple filter passes option
 - add pixel inspector
 - add filter size slider, i.e 2x2 -> 9x9
