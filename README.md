@@ -13,11 +13,13 @@ Image processor that applies filters to images using CUDA.
 - profile texture/shared memory for filter and use whichever one is faster
 - add flip option
 
+
 # in progress:
 - fix segfault from kernel formulas
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
+- add zoom in/zoom out/pan tool
 
 # done:
 - add fits/xmpp data to image description
