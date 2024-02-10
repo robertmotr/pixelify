@@ -17,7 +17,6 @@ float box_blur(int i, int j, char strength, unsigned char dimension);
 float gaussian_blur(int i, int j, char strength, unsigned char dimension);
 float unsharp_mask(int i, int j, char strength, unsigned char dimension);
 float emboss(int i, int j, char strength, unsigned char dimension);
-float high_pass(int i, int j, char strength, unsigned char dimension);
 float laplacian(int i, int j, char strength, unsigned char dimension);
 float horizontal_shear(int i, int j, char strength, unsigned char dimension);
 float vertical_shear(int i, int j, char strength, unsigned char dimension);

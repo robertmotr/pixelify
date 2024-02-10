@@ -175,6 +175,10 @@ void show_ui(ImGuiIO& io) {
     static void *pixels_in =                    NULL;
     static void *pixels_out =                   NULL;
 
+    // backend GPU stuff
+    static void *d_pixels_in =                  NULL;
+    static void *d_pixels_out =                 NULL;
+
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
      | ImGuiWindowFlags_AlwaysHorizontalScrollbar);

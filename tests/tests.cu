@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "kernel.cuh"
 #include "cub/cub.cuh"
-#include "reduce.h"
+#include "reduce.cuh"
 #include "filters.h"
 #include "filter_impl.h"
 

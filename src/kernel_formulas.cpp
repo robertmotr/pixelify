@@ -1,4 +1,5 @@
 #include "kernel_formulas.h"
+#include <math.h>
 
 kernel_formula_map *kernel_formulas;
 
@@ -45,10 +46,6 @@ float unsharp_mask(int i, int j, char strength, unsigned char dimension) {
         s_factor = (dimension * dimension - 1) * (float)strength / 5.0f + 1;
     }
     return s_factor;
-}
-
-float high_pass(int i, int j, char strength, unsigned char dimension) {
-    return delta(i, 0) * delta(j, 0) - 1/(dimension * dimension);
 }
 
 float emboss(int i, int j, char strength, unsigned char dimension) {
@@ -114,7 +111,6 @@ void init_kernel_formulas() {
     kernel_formulas->emplace("Box Blur", box_blur);
     kernel_formulas->emplace("Gaussian Blur", gaussian_blur);
     kernel_formulas->emplace("Unsharp Mask", unsharp_mask);
-    kernel_formulas->emplace("High Pass", high_pass);
     kernel_formulas->emplace("Emboss", emboss);
     kernel_formulas->emplace("Laplacian", laplacian);
     kernel_formulas->emplace("Horizontal Shear", horizontal_shear);

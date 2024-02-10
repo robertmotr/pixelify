@@ -15,15 +15,17 @@
 #define OP_THRESHOLD            4
 #define OP_COLOUR_CONVERSION    5
 
-#define CUDA_CHECK_ERROR(errorMessage) do { \
-    cudaError_t error = cudaGetLastError(); \
-    if (error != cudaSuccess) { \
-        fprintf(stderr, "CUDA error at %s:%d - %s\n", \
-                __FILE__, __LINE__, cudaGetErrorString(error)); \
-        fprintf(stderr, "    %s\n", errorMessage); \
-        exit(EXIT_FAILURE); \
-    } \
-} while (0)
+#ifdef _DEBUG
+    #define CUDA_CHECK_ERROR(errorMessage) do { \
+        cudaError_t error = cudaGetLastError(); \
+        if (error != cudaSuccess) { \
+            fprintf(stderr, "CUDA error at %s:%d - %s\n", \
+                    __FILE__, __LINE__, cudaGetErrorString(error)); \
+            fprintf(stderr, "    %s\n", errorMessage); \
+            exit(EXIT_FAILURE); \
+        } \
+    } while (0)
+#endif
 
 struct kernel_args {
     bool                        normalize; // false means we clamp values to [0, 255] to be able to display them,
@@ -43,6 +45,33 @@ struct kernel_args {
     float                       blend_factor;
     unsigned char               passes;
 };
+
+// helper function to avoid if statement spam
+// gets the value of the texel at the given coordinates
+// mask is the channel we are interested in
+// note that x and y are REVERSED in the tex2D function
+// so we have to call it with (y, x) instead of (x, y) (IMPORTANT)
+template<unsigned int channels>
+__device__ short get_texel(const cudaTextureObject_t tex_obj, 
+                                           int x, int y, unsigned int mask) {
+    #ifdef _DEBUG
+        assert(mask < channels);
+        assert(tex_obj != NULL);
+    #endif
+    
+    // we have to reverse x and y because of the way tex2D works
+    short4 texel = tex2D<short4>(tex_obj, y, x);
+    if (mask == 0) {
+        return texel.x;
+    } else if (mask == 1) {
+        return texel.y;
+    } else if (mask == 2) {
+        return texel.z;
+    } else if (mask == 3) {
+        return texel.w;
+    }
+    return INT_MIN; // error
+}
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
 __device__ __forceinline__ int find_index(int width, int height, int row, int column) {
@@ -71,9 +100,9 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
                                                     const Pixel<channels> *smallest, const Pixel<channels> *largest) {
     // normalize each respective channel
     for (int channel = 0; channel < channels; channel++) {
-        short min = smallest->data[channel];
-        short max = largest->data[channel];
-        short value = target[pixel_idx].data[channel];
+        int min = smallest->data[channel];
+        int max = largest->data[channel];
+        int value = target[pixel_idx].data[channel];
 
         if(max == min) {
             max = (min + 1) % 255;
@@ -84,7 +113,7 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
         // this shouldnt happen in real life, so we'll just ignore it
         // although i am unsure if this is the best way to handle this
 
-        target[pixel_idx].data[channel] = (value - min) * 255 / (max - min);
+        target[pixel_idx].data[channel] = (short) (value - min) * 255 / (max - min);
     }
 }
 
@@ -93,8 +122,6 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
 template<unsigned int channels>
 __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, const filter *filter, unsigned int mask, int width, 
                                             int height, int row, int col) {
-    assert(mask < channels);
-
     extern __shared__ float smem[];
 
     float sum = 0;
@@ -110,20 +137,7 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
             int filter_x = start_i + i;
             int filter_y = start_j + j;
 
-            short4 tex_value = tex2D<short4>(tex_obj, filter_y, filter_x);
-            short member_value = 0;
-            if(mask == 0) {
-                member_value = tex_value.x;
-            }
-            else if(mask == 1) {
-                member_value = tex_value.y;
-            }
-            else if(mask == 2) {
-                member_value = tex_value.z;
-            }
-            else if(mask == 3) {
-                member_value = tex_value.w;
-            }
+            short member_value = get_texel<channels>(tex_obj, filter_x, filter_y, mask);
             float filter_value = smem[i * filter->filter_dimension + j];
             sum += member_value * filter_value;
         }
@@ -159,7 +173,7 @@ __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels>
                               const filter *filter, const struct kernel_args args);
 
 template<unsigned int channels>
-__global__  void other_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
+__global__  void other_kernel(const cudaTextureObject_t& in, Pixel<channels> *out, int width, int height,
                               unsigned char operation, struct kernel_args extra);
 
 template<unsigned int channels>
@@ -168,6 +182,12 @@ __global__ void normalize(Pixel<channels> *image, int width, int height,
                            bool normalize_or_clamp);
 
 // EXPLICIT INSTANTIATIONS
+template __device__ short get_texel<3u>(const cudaTextureObject_t tex_obj, 
+                                                        int x, int y, unsigned int mask);
+
+template __device__ short get_texel<4u>(const cudaTextureObject_t tex_obj,
+                                                        int x, int y, unsigned int mask);       
+
 template __device__ __forceinline__ int apply_filter<3u>(const cudaTextureObject_t tex_obj, const filter *filter,
                                                         unsigned int mask, int width, int height, int row, int col);
 
