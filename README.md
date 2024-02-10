@@ -14,6 +14,7 @@ Image processor that applies filters to images using CUDA.
 - add flip option
 
 # in progress:
+- add invert image, threshold, RGB -> HSV etc
 - get other_kernel functionality working again
 - move allocating image data and stuff to opening input file to make rendering seem faster,
 plus fix segfault
