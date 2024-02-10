@@ -45,7 +45,7 @@ void render_gui_loop();
 // calls run_kernel to process the original image into preview image using the filter + other changes
 bool render_applied_changes(const char* filter_name, struct kernel_args args, int width, int height, 
                 GLuint *texture_preview, int channels, unsigned char **image_data_in, unsigned char **image_data_out, 
-                const char *image_filename);
+                const char *image_filename, void *pixels_in, void *pixels_out);
 
 // displays image in the GUI given a gluint texture
 inline void display_image(const GLuint& texture, const int& width, const int& height);

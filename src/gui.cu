@@ -133,7 +133,7 @@ std::string generate_xmp_string(const Exiv2::XmpData& xmp_data) {
 }
 
 void show_ui(ImGuiIO& io) {
-    // to determine whether which tab is shown
+    // to determine which tab is shown
     static bool show_original =                 false;
     static bool show_preview =                  false;
     static bool show_tint =                     false;
@@ -162,16 +162,18 @@ void show_ui(ImGuiIO& io) {
 
     // rendering stuff
     static int width, height, channels;
-    static unsigned char *image_data =          NULL;
-    static unsigned char *image_data_out =      NULL;
     static GLuint texture_orig =                0;
     static GLuint texture_preview =             0;
+
+    // backend stuff
+    static unsigned char *image_data =          NULL;
+    static unsigned char *image_data_out =      NULL;
     static const filter** filters =             init_filters();
     static int current_filter_dropdown_idx =    0;
     static ImGuiComboFlags flags =              0;
-    // cast filters to non-const
-
     static filter* selected_filter =            const_cast<filter*>(filters[current_filter_dropdown_idx]);   
+    static void *pixels_in =                    NULL;
+    static void *pixels_out =                   NULL;
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -217,6 +219,38 @@ void show_ui(ImGuiIO& io) {
             ImGui::OpenPopup("Error loading image");
             show_original = false;
         } else {
+
+            unsigned char *image_data_out = stbi_load(input, &width, &height, &channels, 4);
+            if(image_data_out == NULL) {
+                printf("Error loading copy of image\n");
+                return;
+            }
+
+            if(channels == 3) {
+                Pixel<3> *px_in = new Pixel<3>[width * height];
+                Pixel<3> *px_out = new Pixel<3>[width * height];
+                pixels_in = (void*)px_in;
+                pixels_out = (void*)px_out;
+                // convert image data to pixel array
+                imgui_get_pixels<3>(image_data, px_in, width * height);
+                // now copy over px_in to px_out
+                memcpy(px_out, px_in, width * height * sizeof(Pixel<3>));
+            }  
+            else if(channels == 4) {
+                Pixel<4> *px_in = new Pixel<4>[width * height];
+                Pixel<4> *px_out = new Pixel<4>[width * height];
+                pixels_in = (void*)px_in;
+                pixels_out = (void*)px_out;
+                // convert image data to pixel array
+                imgui_get_pixels<4>(image_data, px_in, width * height);
+                // now copy over px_in to px_out
+                memcpy(px_out, px_in, width * height * sizeof(Pixel<4>));
+            }
+            else {
+                printf("Error: unsupported number of channels\n");
+                return;
+            }
+
             image = Exiv2::ImageFactory::open(input);
             assert(image.get() != 0);
             image->readMetadata();
@@ -377,7 +411,7 @@ void show_ui(ImGuiIO& io) {
             // time render applied changes and put it in console
             auto start = std::chrono::high_resolution_clock::now();
             if(render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
-                                    &image_data, &image_data_out, input)) {
+                                    &image_data, &image_data_out, input, pixels_in, pixels_out)) {
                 printf("Rendered changes successfully\n");
             }
             else {

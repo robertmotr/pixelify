@@ -12,16 +12,18 @@ Image processor that applies filters to images using CUDA.
 - use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
 - profile texture/shared memory for filter and use whichever one is faster
 - add flip option
-- fix kernel formulas not producing results that "look righ
 
 # in progress:
-- fix segfault from kernel formulas
+- move allocating image data and stuff to opening input file to make rendering seem faster,
+plus fix segfault
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
 - add zoom in/zoom out/pan tool
 
 # done:
+- fix segfault from kernel formulas
+- fix kernel formulas not producing results that "look right"
 - add fits/xmpp data to image description
 - add multiple filter passes option
 - add pixel inspector

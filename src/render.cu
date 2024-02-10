@@ -167,8 +167,8 @@ void render_gui_loop() {
 }
 
 bool render_applied_changes(const char* filter_name, struct kernel_args args, int width, int height, 
-                GLuint *texture_preview, int channels, unsigned char **image_data_in, unsigned char **image_data_out, 
-                const char *image_filename) {
+                            GLuint *texture_preview, int channels, unsigned char **image_data_in, unsigned char **image_data_out, 
+                            const char *image_filename, void *pixels_in, void *pixels_out) {
     
     if(image_data_in == nullptr || *image_data_in == nullptr) {
         std::cout << "No image data to apply changes to" << std::endl;
@@ -191,36 +191,16 @@ bool render_applied_changes(const char* filter_name, struct kernel_args args, in
         return false;
     }
 
-    if(*image_data_out != nullptr) {
-        stbi_image_free(*image_data_out);
-        image_data_out = nullptr;
+    if(channels == 3) {
+        run_kernel<3>(filter_name, (Pixel<3>*) pixels_in, (Pixel<3>*) pixels_out, width, height, args);
+        // convert pixel array to image data
+        imgui_get_raw_image<3>((Pixel<3>*) pixels_out, *image_data_out, width * height);
     }
-    // we didnt apply a transformation so allocate new memory
-    int w, h, c;
-    *image_data_out = stbi_load(image_filename, &w, &h, &c, 0);
-    assert(w == width && h == height && c == channels);
-
-    Pixel<3> *pixels_in = new Pixel<3>[width * height];
-    if(pixels_in == nullptr) {
-        std::cout << "Failed to allocate memory for input pixels" << std::endl;
-        return false;
+    else {
+        run_kernel<4>(filter_name, (Pixel<4>*) pixels_in, (Pixel<4>*) pixels_out, width, height, args);
+        // convert pixel array to image data
+        imgui_get_raw_image<4>((Pixel<4>*) pixels_out, *image_data_out, width * height);
     }
-    Pixel<3> *pixels_out = new Pixel<3>[width * height];
-    if(pixels_out == nullptr) {
-        std::cout << "Failed to allocate memory for output pixels" << std::endl;
-        return false;
-    }
-    
-    // convert image data to pixel array
-    imgui_get_pixels(*image_data_in, pixels_in, width * height);
-
-    run_kernel<3>(filter_name, pixels_in, pixels_out, width, height, args);
-
-    // convert pixel array to image data
-    imgui_get_raw_image(pixels_out, *image_data_out, width * height);
-
-    delete[] pixels_in;
-    delete[] pixels_out;
 
     if(load_texture_from_data(channels, width, height, texture_preview, *image_data_out)) {
         return true;
