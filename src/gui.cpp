@@ -220,7 +220,7 @@ void show_ui(ImGuiIO& io) {
             show_original = false;
         } else {
 
-            unsigned char *image_data_out = stbi_load(input, &width, &height, &channels, 4);
+            image_data_out = stbi_load(input, &width, &height, &channels, 4);
             if(image_data_out == NULL) {
                 printf("Error loading copy of image\n");
                 return;
@@ -268,14 +268,30 @@ void show_ui(ImGuiIO& io) {
     }
     ImGui::SameLine();
     if(ImGui::Button("Clear original image")) {
-        show_original = false;
-        if(image_data != NULL) {
-            free_image(&image_data);
+
+        if(channels == 3 && pixels_in != NULL && pixels_out != NULL) {
+            delete[] (Pixel<3>*) pixels_in;
+            delete[] (Pixel<3>*) pixels_out;
         }
+        else if(channels == 4 && pixels_in != NULL && pixels_out != NULL) {
+            delete[] (Pixel<4>*) pixels_in;
+            delete[] (Pixel<4>*) pixels_out;
+        }
+        stbi_image_free(image_data);
+        stbi_image_free(image_data_out);
+
+        show_original = false;
+        show_preview = false;
+
         if(texture_orig != 0) {
             glDeleteTextures(1, &texture_orig);
             texture_orig = 0;
         }
+        if(texture_preview != 0) {
+            glDeleteTextures(1, &texture_preview);
+            texture_preview = 0;
+        }
+        printf("Cleared original + preview image successfully.\n");
     }
 
     if(ImGui::BeginPopup("Error loading image")) {
@@ -420,18 +436,34 @@ void show_ui(ImGuiIO& io) {
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end - start;
             printf("Time taken to render changes: %f seconds\n", elapsed.count());
+            
+            #ifdef _DEBUG
+                printf("Using changes: \n");
+                // print all values of extra args
+                printf("Red shift: %d\n", extra_args.red_shift);
+                printf("Green shift: %d\n", extra_args.green_shift);
+                printf("Blue shift: %d\n", extra_args.blue_shift);
+                printf("Alpha shift: %d\n", extra_args.alpha_shift);
+                printf("Brightness: %d\n", extra_args.brightness);
+                printf("Passes: %d\n", extra_args.passes);
+                printf("Normalize: %d\n", extra_args.normalize);
+                printf("Filter strength: %d\n", extra_args.filter_strength);
+                printf("Filter size: %d\n", extra_args.dimension);
+                printf("Blend factor: %f\n", extra_args.blend_factor);
+                printf("Tint colour: %d, %d, %d, %d\n", extra_args.tint[0], extra_args.tint[1], extra_args.tint[2], extra_args.tint[3]);
+            #endif // DEBUG
+
 
         }
     }
     ImGui::SameLine();
     if(ImGui::Button("Clear all changes")) {
         show_preview = false;
+
         if(texture_preview != 0) {
             glDeleteTextures(1, &texture_preview);
             texture_preview = 0;
         }
-        if(image_data_out != NULL) free_image(&image_data_out);
-        if(image_data != NULL) free_image(&image_data);
 
     }
     ImGui::SameLine();

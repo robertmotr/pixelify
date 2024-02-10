@@ -7,10 +7,13 @@
 #include "filter_impl.h"
 #include "pixel.h"
 
-#define OUT_OF_BOUNDS       -1
-#define OP_SHIFT_COLOURS    0
-#define OP_BRIGHTNESS       1
-#define OP_TINT             2
+#define OUT_OF_BOUNDS           -1
+#define OP_SHIFT_COLOURS        0
+#define OP_BRIGHTNESS           1
+#define OP_TINT                 2
+#define OP_INVERT               3
+#define OP_THRESHOLD            4
+#define OP_COLOUR_CONVERSION    5
 
 #define CUDA_CHECK_ERROR(errorMessage) do { \
     cudaError_t error = cudaGetLastError(); \

@@ -29,7 +29,7 @@ float sharpen(int i, int j, char strength, unsigned char dimension) {
 }
 
 float box_blur(int i, int j, char strength, unsigned char dimension) {
-    return 1.0f / (dimension * dimension);
+    return ((float)strength / 10.0f) * 1.0f / (dimension * dimension);
 }
 
 float gaussian_blur(int i, int j, char strength, unsigned char dimension) {

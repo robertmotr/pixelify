@@ -13,13 +13,13 @@ find_package(SDL2 REQUIRED)
 set(CMAKE_CUDA_ARCHITECTURES 61)
 
 set(SOURCES 
-    src/main.cu
-    src/gui.cu
-    src/render.cu
+    src/main.cpp
+    src/gui.cpp
+    src/render.cpp
     src/kernel.cu
-    src/filters.cu
-    src/filter_impl.cu
-    src/kernel_formulas.cu
+    src/filters.cpp
+    src/filter_impl.cpp
+    src/kernel_formulas.cpp
 )
 
 set(IMGUI_SOURCES
@@ -60,25 +60,25 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     ${OPENGL_INCLUDE_DIR} ${GLFW_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS}
 )
-add_executable(pixelify src/main.cu)
+add_executable(pixelify src/main.cpp)
 target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2 SDL2)
 
 # ------ TESTS ------
 
 set(SOURCES_TEST 
     src/kernel.cu 
-    src/filters.cu
-    src/filter_impl.cu
-    src/kernel_formulas.cu
+    src/filters.cpp
+    src/filter_impl.cpp
+    src/kernel_formulas.cpp
 )
 
 set(HEADERS_TEST 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
     ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.h 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.cuh 
 )
 
 add_library(pixelify_tests STATIC ${SOURCES_TEST})
@@ -94,8 +94,8 @@ target_link_libraries(tests pixelify_tests gtest)
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security")
-set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -O3 -diag-suppress=326")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG -ggdb3 -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -D_DEBUG -O0 -G -diag-suppress=326")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -O3 --use-fast-math -DNDEBUG")

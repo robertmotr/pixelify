@@ -40,8 +40,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   gridSize = (8 * height + blockSize - 1) / blockSize; 
 
   // create copy of input, output on pinned memory on host
-  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault);
-  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault); // possible bug
+  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
+  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); // possible bug
   cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying input to pinned input");
@@ -53,6 +53,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("cuda mallocs for input, output, largest, smallest");
 
+  // -- SETTING UP STUFF FOR TEXTURE -- 
   cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc(8 * sizeof(short), 
                                                              8 * sizeof(short), 
                                                              8 * sizeof(short),
@@ -88,6 +89,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, NULL);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("creating texture object");
+  // -- END TEXTURE SETUP --
 
   // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
   if(h_filter != nullptr && strcmp(filter_name, "NULL") != 0) {
@@ -106,6 +108,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("cuda mallocs and memcpies for filter");
   }
+  // END FILTER SETUP
 
   // MEMCPYS FROM HOST TO DEVICE
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
