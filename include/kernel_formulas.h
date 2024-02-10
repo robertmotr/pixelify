@@ -21,10 +21,11 @@ float high_pass(int i, int j, char strength, unsigned char dimension);
 float laplacian(int i, int j, char strength, unsigned char dimension);
 float horizontal_shear(int i, int j, char strength, unsigned char dimension);
 float vertical_shear(int i, int j, char strength, unsigned char dimension);
+// float flip_horizontal(int i, int j, char strength, unsigned char dimension);
+// float flip_vertical(int i, int j, char strength, unsigned char dimension);
 
-int kronecker_delta(int i, int j);
-
-float kronecker_delta_f(int i, int j);
+// kronecker delta
+float delta(int i, int j);
 
 void init_kernel_formulas();
 

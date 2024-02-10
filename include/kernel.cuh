@@ -94,7 +94,7 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
 
     extern __shared__ float smem[];
 
-    int sum = 0;
+    float sum = 0;
     int start_i = row - filter->filter_dimension / 2;
     int start_j = col - filter->filter_dimension / 2;
 
@@ -108,7 +108,7 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
             int filter_y = start_j + j;
 
             short4 tex_value = tex2D<short4>(tex_obj, filter_y, filter_x);
-            int member_value = 0;
+            short member_value = 0;
             if(mask == 0) {
                 member_value = tex_value.x;
             }
@@ -121,11 +121,11 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
             else if(mask == 3) {
                 member_value = tex_value.w;
             }
-            int filter_value = smem[i * filter->filter_dimension + j];
+            float filter_value = smem[i * filter->filter_dimension + j];
             sum += member_value * filter_value;
         }
     }
-    return sum;
+    return (int) sum;
 }
 
 // shifts the colour of the given channel by the given percentage specified in extra

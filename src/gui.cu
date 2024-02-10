@@ -280,6 +280,7 @@ void show_ui(ImGuiIO& io) {
 
     if(selected_filter->properties->lower_bound_strength == selected_filter->properties->upper_bound_strength) {
         // just print text instead of slider
+        filter_strength = 0;
         ImGui::Text("Filter strength: %d (not adjustable)", filter_strength);
     }
     else {
@@ -366,12 +367,15 @@ void show_ui(ImGuiIO& io) {
             extra_args.passes = static_cast<unsigned char>(passes);
             extra_args.normalize = normalize;
             extra_args.filter_strength = static_cast<char>(filter_strength);
+            extra_args.dimension = static_cast<unsigned char>(filter_size);
             extra_args.blend_factor = blend_factor;
             extra_args.tint[0] = static_cast<unsigned char>(tint_colour.x);
             extra_args.tint[1] = static_cast<unsigned char>(tint_colour.y);
             extra_args.tint[2] = static_cast<unsigned char>(tint_colour.z);
             extra_args.tint[3] = static_cast<unsigned char>(tint_colour.w);
 
+            // time render applied changes and put it in console
+            auto start = std::chrono::high_resolution_clock::now();
             if(render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
                                     &image_data, &image_data_out, input)) {
                 printf("Rendered changes successfully\n");
@@ -379,6 +383,9 @@ void show_ui(ImGuiIO& io) {
             else {
                 printf("Error rendering changes\n");
             }
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed = end - start;
+            printf("Time taken to render changes: %f seconds\n", elapsed.count());
 
         }
     }

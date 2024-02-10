@@ -12,7 +12,7 @@ Image processor that applies filters to images using CUDA.
 - use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
 - profile texture/shared memory for filter and use whichever one is faster
 - add flip option
-
+- fix kernel formulas not producing results that "look righ
 
 # in progress:
 - fix segfault from kernel formulas

@@ -27,7 +27,6 @@ const filter* find_basic_filter(const char *name) {
 const filter* create_filter(const char *filter_name, unsigned char filter_dimension,
                       char filter_strength) {
     const filter *basic_filter = find_basic_filter(filter_name);
-    
     if(basic_filter == nullptr) {
         return nullptr;
     }
@@ -50,7 +49,17 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
         filter* new_filter = new filter(filter_name, filter_data, filter_dimension);
         new_filter->properties = new filter_properties;
         new_filter->properties->basic_filter = false;
-        
+
+        // print filter data of new_filter against its size nicely formatted
+        printf("Filter data for %s with dimension %d and strength %d\n", filter_name, filter_dimension, filter_strength);
+        // print as a matrix
+        for (int i = 0; i < filter_dimension; i++) {
+            for(int j = 0; j < filter_dimension; j++) {
+                printf("%f ", filter_data[i * filter_dimension + j]);
+            }
+            printf("\n");
+        }
+        printf("\n");        
         return new_filter;
     }
 }

@@ -4,7 +4,7 @@
 #include "filter_impl.h"
 #include "kernel_formulas.h"
 
-#define BASIC_FILTER_SIZE 16
+#define BASIC_FILTER_SIZE 15
 
 // arrays that hold actual filter values
 extern const float* identity_filter_data;
@@ -13,7 +13,6 @@ extern const float* sharpen_filter_data;
 extern const float* box_blur_filter_data;
 extern const float* gaussian_blur_filter_data;
 extern const float* unsharp_mask_filter_data;
-extern const float* high_pass_filter_data;
 extern const float* emboss_filter_data;
 extern const float* laplacian_filter_data;
 extern const float* motion_blur_filter_data;
@@ -31,7 +30,6 @@ extern filter *sharpen_filter;
 extern filter *box_blur_filter;
 extern filter *gaussian_blur_filter;
 extern filter *unsharp_mask_filter;
-extern filter *high_pass_filter;
 extern filter *emboss_filter;
 extern filter *laplacian_filter;
 extern filter *motion_blur_filter;
@@ -49,7 +47,6 @@ extern struct filter_properties* sharpen_properties;
 extern struct filter_properties* box_blur_properties;
 extern struct filter_properties* gaussian_blur_properties;
 extern struct filter_properties* unsharp_mask_properties;
-extern struct filter_properties* high_pass_properties;
 extern struct filter_properties* emboss_properties;
 extern struct filter_properties* laplacian_properties;
 extern struct filter_properties* motion_blur_properties;

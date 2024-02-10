@@ -9,7 +9,6 @@ const float* sharpen_filter_data;
 const float* box_blur_filter_data;
 const float* gaussian_blur_filter_data;
 const float* unsharp_mask_filter_data;
-const float* high_pass_filter_data;
 const float* emboss_filter_data;
 const float* laplacian_filter_data;
 const float* motion_blur_filter_data;
@@ -27,7 +26,6 @@ filter *sharpen_filter;
 filter *box_blur_filter;
 filter *gaussian_blur_filter;
 filter *unsharp_mask_filter;
-filter *high_pass_filter;
 filter *emboss_filter;
 filter *laplacian_filter;
 filter *motion_blur_filter;
@@ -45,7 +43,6 @@ struct filter_properties* sharpen_properties;
 struct filter_properties* box_blur_properties;
 struct filter_properties* gaussian_blur_properties;
 struct filter_properties* unsharp_mask_properties;
-struct filter_properties* high_pass_properties;
 struct filter_properties* emboss_properties;
 struct filter_properties* laplacian_properties;
 struct filter_properties* motion_blur_properties;
@@ -61,22 +58,21 @@ const filter** basic_filters_array;
 
 void initialize_properties() {
     // Define filter kernels with corresponding properties
-    identity_properties = new filter_properties {false, false, nullptr, 0, 0, 0, true};
-    edge_properties = new filter_properties{false, true, nullptr, 0, 0, 100, true};
-    sharpen_properties = new filter_properties {false, true, nullptr, 0, 0, 100, true};
-    box_blur_properties = new filter_properties {true, true, new unsigned char[5]{3, 5, 7, 9, 11}, 5, -100, 100, true};
-    gaussian_blur_properties = new filter_properties {true, true, new unsigned char[5]{3, 5, 7, 9, 11}, 0, 0, 100, true};
-    unsharp_mask_properties = new filter_properties {true, true, nullptr, 0, 0, 100, true};
-    high_pass_properties = new filter_properties {false, true, nullptr, 0, 0, 100, true};
-    emboss_properties = new filter_properties {false, true, nullptr, 0, 0, 100, true};
-    laplacian_properties = new filter_properties {false, true, nullptr, 0, 0, 100, true};
-    motion_blur_properties = new filter_properties {true, true, new unsigned char[5]{3, 5, 7, 9, 11}, 5, 0, 100, true};
-    horizontal_shear_properties = new filter_properties {false, true, nullptr, 0, -100, 100, true};
-    vertical_shear_properties = new filter_properties {false, true, nullptr, 0, -100, 100, true};
-    sobel_x_properties = new filter_properties {false, false, nullptr, 0, 0, 0, true};
-    sobel_y_properties = new filter_properties {false, false, nullptr, 0, 0, 0, true};
-    prewitt_x_properties = new filter_properties {false, false, nullptr, 0, 0, 0, true};
-    prewitt_y_properties = new filter_properties {false, false, nullptr, 0, 0, 0, true};
+    identity_properties =           new filter_properties {false, false, nullptr, 0, 0, 0, true};
+    edge_properties =               new filter_properties {false, false, nullptr, 0, 0, 0, true};
+    sharpen_properties =            new filter_properties {false, true, nullptr, 0, 0, 100, true};
+    box_blur_properties =           new filter_properties {true, false, new unsigned char[7]{3, 5, 7, 9, 11, 13, 15}, 7, 0, 0, true};
+    gaussian_blur_properties =      new filter_properties {true, true, new unsigned char[7]{3, 5, 7, 9, 11, 13, 15}, 7, 0, 100, true};
+    unsharp_mask_properties =       new filter_properties {true, true, new unsigned char[7]{3, 5, 7, 9, 11, 13, 15}, 7, 0, 10, true};
+    emboss_properties =             new filter_properties {false, true, nullptr, 0, 0, 100, true};
+    laplacian_properties =          new filter_properties {false, true, nullptr, 0, 0, 100, true};
+    motion_blur_properties =        new filter_properties {true, true, new unsigned char[5]{3, 5, 7, 9, 11}, 5, 0, 100, true};
+    horizontal_shear_properties =   new filter_properties {false, true, nullptr, 0, -100, 100, true};
+    vertical_shear_properties =     new filter_properties {false, true, nullptr, 0, -100, 100, true};
+    sobel_x_properties =            new filter_properties {false, false, nullptr, 0, 0, 0, true};
+    sobel_y_properties =            new filter_properties {false, false, nullptr, 0, 0, 0, true};
+    prewitt_x_properties =          new filter_properties {false, false, nullptr, 0, 0, 0, true};
+    prewitt_y_properties =          new filter_properties {false, false, nullptr, 0, 0, 0, true};
 }
 
 void initialize_filter_data() {
@@ -110,11 +106,6 @@ void initialize_filter_data() {
         -1, 9, -1,
         -1, -1, -1
     };
-    high_pass_filter_data = new float[9] {
-        -1, -1, -1,
-        -1, 8, -1,
-        -1, -1, -1
-    };
     emboss_filter_data = new float[9] {
         -2, -1, 0,
         -1, 1, 1,
@@ -132,13 +123,13 @@ void initialize_filter_data() {
     };
 
     horizontal_shear_filter_data = new float[9] {
-        1, 1, 0,
+        1, 0.01, 0,
         0, 1, 0,
         0, 0, 1
     };
     vertical_shear_filter_data = new float[9] {
         1, 0, 0,
-        0, 1, 0,
+        0.01, 1, 0,
         0, 0, 1
     };
     sobel_x_filter_data = new float[9] {
@@ -176,8 +167,6 @@ void initialize_filter_objects() {
     gaussian_blur_filter->set_properties(gaussian_blur_properties);
     unsharp_mask_filter = new filter("Unsharp Mask", unsharp_mask_filter_data, 3);
     unsharp_mask_filter->set_properties(unsharp_mask_properties);
-    high_pass_filter = new filter("High Pass", high_pass_filter_data, 3);
-    high_pass_filter->set_properties(high_pass_properties);
     emboss_filter = new filter("Emboss", emboss_filter_data, 3);
     emboss_filter->set_properties(emboss_properties);
     laplacian_filter = new filter("Laplacian", laplacian_filter_data, 3);
@@ -217,7 +206,6 @@ const filter** init_filters() {
         box_blur_filter_data,
         gaussian_blur_filter_data,
         unsharp_mask_filter_data,
-        high_pass_filter_data,
         emboss_filter_data,
         laplacian_filter_data,
         motion_blur_filter_data,
@@ -236,7 +224,6 @@ const filter** init_filters() {
         box_blur_filter,
         gaussian_blur_filter,
         unsharp_mask_filter,
-        high_pass_filter,
         emboss_filter,
         laplacian_filter,
         motion_blur_filter,

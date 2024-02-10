@@ -2,11 +2,8 @@
 
 kernel_formula_map *kernel_formulas;
 
-int kronecker_delta(int i, int j) {
-    return (i == j) ? 1 : 0;
-}
-
-float kronecker_delta_f(int i, int j) {
+// kronecker delta
+float delta(int i, int j) {
     return (i == j) ? 1.0f : 0.0f;
 }
 
@@ -15,7 +12,20 @@ float edge(int i, int j, char strength, unsigned char dimension) {
 }
 
 float sharpen(int i, int j, char strength, unsigned char dimension) {
-    return 2 * kronecker_delta_f(i, j) - 1.0f;
+    // check if (i, j) is center value
+    if(i == (dimension - 1) / 2 && j == (dimension - 1) / 2) {
+        return (5 + (float) strength / 100.0f);
+    }
+    // corner values get 0
+    if((i == 0 || i == dimension - 1) && (j == 0 || j == dimension - 1)) {
+        return 0.0f;
+    }
+    // edge values get -1
+    if(i == 0 || i == dimension - 1 || j == 0 || j == dimension - 1) {
+        return -1.0f;
+    }
+    // return -floatinf as error (shouldnt reach here)
+    return -std::numeric_limits<float>::infinity();
 }
 
 float box_blur(int i, int j, char strength, unsigned char dimension) {
@@ -23,40 +33,82 @@ float box_blur(int i, int j, char strength, unsigned char dimension) {
 }
 
 float gaussian_blur(int i, int j, char strength, unsigned char dimension) {
-    float sigma = (float)strength;
-    float x = (float)i - (float)dimension / 2.0f;
-    float y = (float)j - (float)dimension / 2.0f;
-    return expf(-(x * x + y * y) / (2 * sigma * sigma)) / (2 * M_PI * sigma * sigma);
+    double sigma = static_cast<double>(dimension) / (strength / 10.0f);
+    double exponent = -((pow(i - (dimension - 1) / 2, 2) + pow(j - (dimension - 1) / 2, 2)) / (2 * pow(sigma, 2)));
+    double value = (1 / (2 * M_PI * pow(sigma, 2))) * exp(exponent);
+    return static_cast<float>(value);
 }
 
 float unsharp_mask(int i, int j, char strength, unsigned char dimension) {
-    return strength * (kronecker_delta_f(i, 0) * kronecker_delta_f(j, 0) - 1/(dimension * dimension));
+    float s_factor = -1.0;
+    if(i == (dimension - 1) / 2 && j == (dimension - 1) / 2) {
+        s_factor = (dimension * dimension - 1) * (float)strength / 5.0f + 1;
+    }
+    return s_factor;
 }
 
 float high_pass(int i, int j, char strength, unsigned char dimension) {
-    return kronecker_delta_f(i, 0) * kronecker_delta_f(j, 0) - 1/(dimension * dimension);
+    return delta(i, 0) * delta(j, 0) - 1/(dimension * dimension);
 }
 
 float emboss(int i, int j, char strength, unsigned char dimension) {
-    return 2 * kronecker_delta_f(i, j) - 1.0f;
+    float embossKernel[3][3] = {
+        {-1, -1, 0},
+        {-1,  1, 1},
+        { 0,  1, 1}
+    };
+
+    float embossedPixel = 0.0;
+    for (int ki = 0; ki < dimension; ++ki) {
+        for (int kj = 0; kj < dimension; ++kj) {
+            if(ki == i && kj == j) {
+                embossedPixel = embossKernel[ki][kj] * (float)strength / 10.0f;
+            }
+        }
+    }
+
+    return embossedPixel;
 }
 
 float laplacian(int i, int j, char strength, unsigned char dimension) {
-    return -4 + kronecker_delta_f(i - 1, j) + kronecker_delta_f(i + 1, j) + kronecker_delta_f(i, j - 1) + kronecker_delta_f(i, j + 1);
+    return (-4 * (float)strength / 10.0f) + delta(i - 1, j) + delta(i + 1, j) + delta(i, j - 1) + delta(i, j + 1);
 }
 
 float horizontal_shear(int i, int j, char strength, unsigned char dimension) {
-    return kronecker_delta_f(i, 0) * kronecker_delta_f(j, floor(strength * i));
+
+    float h_shear[3][3] = {
+        1, 1, 0,
+        0, 1, 0,
+        0, 0, 1
+    };
+
+    if(i == 0 && j == 1) {
+        return h_shear[i][j] * (float)strength / 100.0f;
+    }
+    else {
+        return h_shear[i][j];
+    }
 }
 
 float vertical_shear(int i, int j, char strength, unsigned char dimension) {
-    return kronecker_delta_f(i, floor(strength * j)) * kronecker_delta_f(j, 0);
+
+    float v_shear[3][3] = {
+        1, 0, 0,
+        1, 1, 0,
+        0, 0, 1
+    };
+
+    if(i == 1 && j == 0) {
+        return v_shear[i][j] * (float)strength / 100.0f;
+    }
+    else {
+        return v_shear[i][j];
+    }
 }
 
 void init_kernel_formulas() {
 
     kernel_formulas = new kernel_formula_map();
-
     kernel_formulas->emplace("Edge", edge);
     kernel_formulas->emplace("Sharpen", sharpen);
     kernel_formulas->emplace("Box Blur", box_blur);
