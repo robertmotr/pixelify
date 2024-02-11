@@ -30,7 +30,9 @@
 struct kernel_args {
     bool                        normalize; // false means we clamp values to [0, 255] to be able to display them,
                                            // true means perform linear normalization instead
-    
+    bool                        invert;
+    bool                        threshold;
+    bool                        conversion;
     // values below are expected to be in [-100, 100] range
     // 0 means do nothing, 0 < x < 100 means increase values by x%, 0 > x > -100 means decrease values by x%
     unsigned char               filter_strength; // how much of the filter to apply [0, 100]

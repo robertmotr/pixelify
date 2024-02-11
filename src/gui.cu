@@ -151,6 +151,9 @@ void show_ui(ImGuiIO& io) {
     static int brightness =                     0;
     static ImVec4 tint_colour =                 ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
     static float blend_factor =                 0;
+    static bool invert =                        false;
+    static bool conversion =                    false;
+    static bool threshold =                     false;
 
     // image details stuff
     static char input[256] =                    "";
@@ -178,6 +181,8 @@ void show_ui(ImGuiIO& io) {
     // backend GPU stuff
     static void *d_pixels_in =                  NULL;
     static void *d_pixels_out =                 NULL;
+    static void *h_pinned_input =               NULL;
+    static void *h_pinned_output =              NULL;
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -378,10 +383,17 @@ void show_ui(ImGuiIO& io) {
     ImGui::Spacing();
 
     ImGui::Checkbox("Normalize image", &normalize);
-
     ImGui::Spacing();
     ImGui::Spacing();
-
+    ImGui::Checkbox("Invert image", &invert);
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Checkbox("Colour conversion", &conversion);
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Checkbox("Colour threshold", &threshold);
+    ImGui::Spacing();
+    ImGui::Spacing();
     ImGui::Checkbox("Tint image", &show_tint);
     ImGui::Spacing();
     ImGui::Spacing();
@@ -420,6 +432,9 @@ void show_ui(ImGuiIO& io) {
 
             extra_args.passes = static_cast<unsigned char>(passes);
             extra_args.normalize = normalize;
+            extra_args.invert = invert;
+            extra_args.conversion = conversion;
+            extra_args.threshold = threshold;
             extra_args.filter_strength = static_cast<char>(filter_strength);
             extra_args.dimension = static_cast<unsigned char>(filter_size);
             extra_args.blend_factor = blend_factor;

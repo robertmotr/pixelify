@@ -7,7 +7,8 @@
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
-                 Pixel<channels> *output, int width, int height, struct kernel_args extra) {
+                Pixel<channels> *output, int width, int height,
+                struct kernel_args extra) {
 
   const size_t src_pitch =                               width * sizeof(Pixel<channels>);
   const filter *h_filter =                               nullptr;
@@ -35,7 +36,10 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   } 
 
   cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
-  assert(blockSize != 0);
+  #ifdef _DEBUG
+    printf("block size: %d\n", blockSize);
+    assert(blockSize > 0);
+  #endif
   gridSize = (8 * height + blockSize - 1) / blockSize; 
 
   // create copy of input, output on pinned memory on host
@@ -211,6 +215,12 @@ __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels>
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
+  #ifdef _DEBUG
+    assert(tex_obj != 0);
+    assert(out != nullptr);
+    assert(filter != nullptr);
+  #endif
+
   extern __shared__ float smem[];
   for(int i = 0; i < filter->filter_dimension * filter->filter_dimension; i++) {
     smem[i] = filter->filter_data[i];
@@ -278,6 +288,12 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *largest,
                            bool normalize) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  #ifdef _DEBUG
+    assert(target != nullptr);
+    assert(smallest != nullptr);
+    assert(largest != nullptr);
+  #endif
   
   #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += blockDim.x * gridDim.x) {
