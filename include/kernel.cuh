@@ -15,6 +15,8 @@
 #define OP_THRESHOLD            4
 #define OP_COLOUR_CONVERSION    5
 
+#define MAX_FILTER_1D_SIZE      225
+
 #ifdef _DEBUG
     #define CUDA_CHECK_ERROR(errorMessage) do { \
         cudaError_t error = cudaGetLastError(); \
@@ -25,9 +27,11 @@
             exit(EXIT_FAILURE); \
         } \
     } while (0)
+#else 
+    #define CUDA_CHECK_ERROR(errorMessage) 
 #endif
 
-struct kernel_args {
+struct filter_args {
     bool                        normalize; // false means we clamp values to [0, 255] to be able to display them,
                                            // true means perform linear normalization instead
     bool                        invert;
@@ -122,9 +126,10 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
 template<unsigned int channels>
-__device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, const filter *filter, unsigned int mask, int width, 
+__device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, unsigned int mask, int width, 
                                             int height, int row, int col) {
-    extern __constant__ float const_filter[];
+    extern __constant__ float const_filter[MAX_FILTER_1D_SIZE];
+    extern __constant__ int   const_filter_dim;
 
     float sum = 0;
     int start_i = row - filter->filter_dimension / 2;
@@ -140,7 +145,7 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
             int filter_y = start_j + j;
 
             short member_value = get_texel<channels>(tex_obj, filter_x, filter_y, mask);
-            float filter_value = const_filter[i * filter->filter_dimension + j];
+            float filter_value = const_filter[i * const_filter_dim + j];
             sum += member_value * filter_value;
         }
     }
@@ -150,7 +155,7 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
 // shifts the colour of the given channel by the given percentage specified in extra
 // for example extra.red_shift = 50 means we increase the red channel by 50%
 // channel_value is the original value of the channel we are shifting
-__device__ __forceinline__ int shift_colours(int channel_value, struct kernel_args extra,
+__device__ __forceinline__ int shift_colours(int channel_value, struct filter_args extra,
                                             unsigned int channel) {
     if(channel == 0) {
         return channel_value * (100 + extra.red_shift) / 100;
@@ -168,27 +173,33 @@ __device__ __forceinline__ int shift_colours(int channel_value, struct kernel_ar
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
-                   Pixel<channels>* output, int width, int height, struct kernel_args extra);
+                   Pixel<channels>* output, int width, int height, struct filter_args
+                 extra);
 
 template<unsigned int channels>
 __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels> *out, int width, int height,
-                              const filter *filter, const struct kernel_args args);
+                              const filter *filter, const struct filter_args
+                             args);
 
 template<unsigned int channels>
 __global__ void shift_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
-                            struct kernel_args extra);
+                            struct filter_args
+                         extra);
 
 template<unsigned int channels>
 __global__ void brightness_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
-                                  struct kernel_args extra);
+                                  struct filter_args
+                                 extra);
 
 template<unsigned int channels>
 __global__ void tint_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
-                            struct kernel_args extra);
+                            struct filter_args
+                         extra);
                         
 template<unsigned int channels>
 __global__ void invert_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
-                              struct kernel_args extra);
+                              struct filter_args
+                             extra);
 
 template<unsigned int channels>
 __global__ void normalize(Pixel<channels> *image, int width, int height,
@@ -202,11 +213,11 @@ template __device__ short get_texel<3u>(const cudaTextureObject_t tex_obj,
 template __device__ short get_texel<4u>(const cudaTextureObject_t tex_obj,
                                                         int x, int y, unsigned int mask);       
 
-template __device__ __forceinline__ int apply_filter<3u>(const cudaTextureObject_t tex_obj, const filter *filter,
+template __device__ __forceinline__ int apply_filter<3u>(const cudaTextureObject_t tex_obj,
                                                         unsigned int mask, int width, int height, int row, int col);
 
-template __device__ __forceinline__ int apply_filter<4u>(const cudaTextureObject_t tex_obj, const filter *filter,
-                                                        unsigned int mask, int width, int height, int row, int col);
+template __device__ __forceinline__ int apply_filter<4u>(const cudaTextureObject_t tex_obj, unsigned int mask,
+                                                         int width, int height, int row, int col);
 
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
                                                     const Pixel<3u> *smallest, const Pixel<3u> *largest);

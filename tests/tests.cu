@@ -31,7 +31,7 @@ TEST(kernel_correctness, identity_filter) {
     Pixel<3> expected[9] = {0};
     memcpy(expected, input, sizeof(Pixel<3>) * 9);
 
-    struct kernel_args extra;
+    struct filter_args extra;
 
     extra.passes = 1;
     extra.dimension = 3;
@@ -82,7 +82,7 @@ TEST(kernel_correctness, identity_filter_channels) {
     Pixel<3> expected[16] = {0};
     memcpy(expected, input, sizeof(Pixel<3>) * 16);
 
-    struct kernel_args extra;
+    struct filter_args extra;
 
     extra.passes = 1;
     extra.dimension = 3;
@@ -121,7 +121,7 @@ TEST(kernel_correctness, simple_box_blur) {
         {24, 24, 24}, {39, 39, 39}, {28, 28, 28}
     };
 
-    struct kernel_args extra;
+    struct filter_args extra;
 
     extra.passes = 1;
     extra.dimension = 3;
@@ -289,7 +289,7 @@ TEST(normalization_correctness, identity_filter) {
     };
     Pixel<3> output[9]; 
     
-    struct kernel_args extra;
+    struct filter_args extra;
 
     extra.passes = 1;
     extra.dimension = 3;
@@ -334,7 +334,7 @@ TEST(image_processing_correctness, simple_case_w_normalization) {
         {15, 14, 12}, {255, 255, 255}, {21, 19, 16}
     };
 
-    struct kernel_args extra;
+    struct filter_args extra;
 
     extra.passes = 1;
     extra.dimension = 3;
@@ -446,7 +446,7 @@ TEST(image_processing_correctness, identity_filter) {
     Pixel<3> *pixels_in = raw_image_to_pixel<3>(image_data, width * height);
     Pixel<3> *pixels_out = new Pixel<3>[width * height];
 
-    struct kernel_args extra;
+    struct filter_args extra;
     extra.passes = 1;
     extra.dimension = 3;
     extra.filter_strength = 0;
@@ -513,7 +513,7 @@ TEST(image_processing_correctness, identity_filter_garden) {
     Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
     Pixel<4> *pixels_out = new Pixel<4>[width * height];
 
-    struct kernel_args extra;
+    struct filter_args extra;
     extra.passes = 1;
     extra.dimension = 3;
     extra.filter_strength = 0;
@@ -583,7 +583,7 @@ TEST(image_processing_correctness, identity_filter_helmet) {
     Pixel<4> *pixels_in = raw_image_to_pixel<4>(image_data, width * height);
     Pixel<4> *pixels_out = new Pixel<4>[width * height];
 
-    struct kernel_args extra;
+    struct filter_args extra;
     extra.passes = 1;
     extra.dimension = 3;
     extra.filter_strength = 0;

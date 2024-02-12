@@ -42,7 +42,7 @@ void render_gui_loop();
 
 // returns true on success and false on failure
 // calls run_kernel to process the original image into preview image using the filter + other changes
-bool render_applied_changes(const char* filter_name, struct kernel_args args, int width, int height, 
+bool render_applied_changes(const char* filter_name, struct filter_args args, int width, int height, 
                 GLuint *texture_preview, int channels, unsigned char **image_data_in, unsigned char **image_data_out, 
                 const char *image_filename, void *pixels_in, void *pixels_out);
 

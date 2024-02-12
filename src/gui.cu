@@ -16,11 +16,18 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
     // Check if the mouse is within the bounds of the image
     if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
 
-        ImVec2 mouse_pos = ImGui::GetMousePos();
-        ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y - 15) / height);    
+        ImGui::BeginTooltip();
+        ImGui::Text("Hold left-click to inspect the image");
+        ImGui::EndTooltip();
 
-        ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
-        ImageInspect::inspect(width, height, image_data, mouse_uv_coords, displayed_texture_size);
+        // check if user is holding left click
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            ImVec2 mouse_pos = ImGui::GetMousePos();
+            ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y - 15) / height);    
+
+            ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
+            ImageInspect::inspect(width, height, image_data, mouse_uv_coords, displayed_texture_size);
+        }
     }
     ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
 }
@@ -147,7 +154,7 @@ void show_ui(ImGuiIO& io) {
     static bool show_tint =                     false;
 
     // filter options
-    struct kernel_args                          extra_args;
+    struct filter_args                          extra_args;
     static bool normalize =                     false;
     static int passes =                         1;
     static int filter_size =                    3;
