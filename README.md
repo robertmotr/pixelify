@@ -9,13 +9,13 @@ Image processor that applies filters to images using CUDA.
 - add contrast, should be easy with CUB histogram
 - add gamma option
 - add zoom/pan tool
-- use graphics interoperability, i.e make cuda register from imgui texture instead of allocating again
 - profile texture/shared memory for filter and use whichever one is faster
 - add flip option
 
 # in progress:
+- speed up kernel by using cached constant memory for both the filter_dimension and filter_data
+- get rid of device_filter allocations because its useless now with constant memory
 - add invert image, threshold, RGB -> HSV etc
-- get other_kernel functionality working again
 - move allocating image data and stuff to opening input file to make rendering seem faster,
 plus fix segfault
 - realtime rendering if fast enough (maybe?)
@@ -24,6 +24,7 @@ plus fix segfault
 - add zoom in/zoom out/pan tool
 
 # done:
+- get other_kernel functionality working again
 - fix segfault from kernel formulas
 - fix kernel formulas not producing results that "look right"
 - add fits/xmpp data to image description
