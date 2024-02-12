@@ -54,7 +54,7 @@ struct kernel_args {
 // note that x and y are REVERSED in the tex2D function
 // so we have to call it with (y, x) instead of (x, y) (IMPORTANT)
 template<unsigned int channels>
-__device__ short get_texel(const cudaTextureObject_t tex_obj, 
+__device__ __forceinline__ short get_texel(const cudaTextureObject_t tex_obj, 
                                            int x, int y, unsigned int mask) {
     #ifdef _DEBUG
         assert(mask < channels);
@@ -124,7 +124,7 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
 template<unsigned int channels>
 __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, const filter *filter, unsigned int mask, int width, 
                                             int height, int row, int col) {
-    extern __shared__ float smem[];
+    extern __constant__ float const_filter[];
 
     float sum = 0;
     int start_i = row - filter->filter_dimension / 2;
@@ -140,7 +140,7 @@ __device__ __forceinline__ int apply_filter(const cudaTextureObject_t tex_obj, c
             int filter_y = start_j + j;
 
             short member_value = get_texel<channels>(tex_obj, filter_x, filter_y, mask);
-            float filter_value = smem[i * filter->filter_dimension + j];
+            float filter_value = const_filter[i * filter->filter_dimension + j];
             sum += member_value * filter_value;
         }
     }
@@ -175,8 +175,20 @@ __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels>
                               const filter *filter, const struct kernel_args args);
 
 template<unsigned int channels>
-__global__  void other_kernel(const cudaTextureObject_t& in, Pixel<channels> *out, int width, int height,
-                              unsigned char operation, struct kernel_args extra);
+__global__ void shift_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
+                            struct kernel_args extra);
+
+template<unsigned int channels>
+__global__ void brightness_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
+                                  struct kernel_args extra);
+
+template<unsigned int channels>
+__global__ void tint_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
+                            struct kernel_args extra);
+                        
+template<unsigned int channels>
+__global__ void invert_kernel(const cudaTextureObject_t in, Pixel<channels> *out, int width, int height,
+                              struct kernel_args extra);
 
 template<unsigned int channels>
 __global__ void normalize(Pixel<channels> *image, int width, int height,

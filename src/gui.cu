@@ -6,6 +6,8 @@
 #include "filter_impl.h"
 #include "kernel_formulas.h"
 
+#include <cuda_runtime.h>
+
 inline void display_image(const GLuint& texture, const int& width, const int& height, const unsigned char *image_data) {
     ImVec2 pos = ImGui::GetCursorScreenPos();  
     ImGui::Text("size = %d x %d", width, height);
@@ -52,6 +54,12 @@ inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const i
         if (ImGui::BeginTabItem("Settings")) {
             ImGui::Text("TODO: add settings");   // TODO
             ImGui::Text("But, to be honest, theres not much to add here.");
+            ImGui::EndTabItem();
+        }
+        ImGui::SetNextItemWidth(200.0f);
+        if(ImGui::BeginTabItem("Analytics")) {
+            ImGui::Text("TODO: add analytics");  // TODO
+            // add graphs, charts, etc
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -177,12 +185,7 @@ void show_ui(ImGuiIO& io) {
     static filter* selected_filter =            const_cast<filter*>(filters[current_filter_dropdown_idx]);   
     static void *pixels_in =                    NULL;
     static void *pixels_out =                   NULL;
-
-    // backend GPU stuff
-    static void *d_pixels_in =                  NULL;
-    static void *d_pixels_out =                 NULL;
-    static void *h_pinned_input =               NULL;
-    static void *h_pinned_output =              NULL;
+    // static vector<analytic> analytics;
 
     ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
@@ -242,8 +245,6 @@ void show_ui(ImGuiIO& io) {
                 pixels_out = (void*)px_out;
                 // convert image data to pixel array
                 imgui_get_pixels<3>(image_data, px_in, width * height);
-                // now copy over px_in to px_out
-                memcpy(px_out, px_in, width * height * sizeof(Pixel<3>));
             }  
             else if(channels == 4) {
                 Pixel<4> *px_in = new Pixel<4>[width * height];
@@ -252,8 +253,6 @@ void show_ui(ImGuiIO& io) {
                 pixels_out = (void*)px_out;
                 // convert image data to pixel array
                 imgui_get_pixels<4>(image_data, px_in, width * height);
-                // now copy over px_in to px_out
-                memcpy(px_out, px_in, width * height * sizeof(Pixel<4>));
             }
             else {
                 printf("Error: unsupported number of channels\n");
@@ -278,14 +277,27 @@ void show_ui(ImGuiIO& io) {
     ImGui::SameLine();
     if(ImGui::Button("Clear original image")) {
 
-        if(channels == 3 && pixels_in != NULL && pixels_out != NULL) {
-            delete[] (Pixel<3>*) pixels_in;
-            delete[] (Pixel<3>*) pixels_out;
+        if(channels == 3) {
+            if(pixels_in != NULL) {
+                delete[] (Pixel<3>*)pixels_in;
+                pixels_in = NULL;
+            }
+            if(pixels_out != NULL) {
+                delete[] (Pixel<3>*)pixels_out;
+                pixels_out = NULL;
+            }
         }
-        else if(channels == 4 && pixels_in != NULL && pixels_out != NULL) {
-            delete[] (Pixel<4>*) pixels_in;
-            delete[] (Pixel<4>*) pixels_out;
+        else if(channels == 4) {
+            if(pixels_in != NULL) {
+                delete[] (Pixel<4>*)pixels_in;
+                pixels_in = NULL;
+            }
+            if(pixels_out != NULL) {
+                delete[] (Pixel<4>*)pixels_out;
+                pixels_out = NULL;
+            }
         }
+
         stbi_image_free(image_data);
         stbi_image_free(image_data_out);
 
@@ -438,13 +450,14 @@ void show_ui(ImGuiIO& io) {
             extra_args.filter_strength = static_cast<char>(filter_strength);
             extra_args.dimension = static_cast<unsigned char>(filter_size);
             extra_args.blend_factor = blend_factor;
-            extra_args.tint[0] = static_cast<unsigned char>(tint_colour.x);
-            extra_args.tint[1] = static_cast<unsigned char>(tint_colour.y);
-            extra_args.tint[2] = static_cast<unsigned char>(tint_colour.z);
-            extra_args.tint[3] = static_cast<unsigned char>(tint_colour.w);
+            extra_args.tint[0] = tint_colour.x * 100;
+            extra_args.tint[1] = tint_colour.y * 100;
+            extra_args.tint[2] = tint_colour.z * 100;
+            extra_args.tint[3] = tint_colour.w * 100;
 
             // time render applied changes and put it in console
             auto start = std::chrono::high_resolution_clock::now();
+            ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
             if(render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
                                     &image_data, &image_data_out, input, pixels_in, pixels_out)) {
                 printf("Rendered changes successfully\n");
@@ -452,6 +465,7 @@ void show_ui(ImGuiIO& io) {
             else {
                 printf("Error rendering changes\n");
             }
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end - start;
             printf("Time taken to render changes: %f seconds\n", elapsed.count());
@@ -470,9 +484,10 @@ void show_ui(ImGuiIO& io) {
                 printf("Filter size: %d\n", extra_args.dimension);
                 printf("Blend factor: %f\n", extra_args.blend_factor);
                 printf("Tint colour: %d, %d, %d, %d\n", extra_args.tint[0], extra_args.tint[1], extra_args.tint[2], extra_args.tint[3]);
+
+                // print values of tint colour
+                printf("Tint colour: %f, %f, %f, %f\n", tint_colour.x, tint_colour.y, tint_colour.z, tint_colour.w);
             #endif // DEBUG
-
-
         }
     }
     ImGui::SameLine();
@@ -495,7 +510,7 @@ void show_ui(ImGuiIO& io) {
         brightness = 0;
         normalize = false;
         blend_factor = 0;
-        tint_colour = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        tint_colour = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
         show_tint = false;
     }
 

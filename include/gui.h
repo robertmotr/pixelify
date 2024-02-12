@@ -15,7 +15,6 @@
 
 #include <GLFW/glfw3.h>
 #include <GL/gl.h>
-#include <SDL2/SDL.h>
 #include "imgInspect.h"
 
 #include "kernel.cuh"
