@@ -15,7 +15,7 @@ Image processor that applies filters to images using CUDA.
 # in progress:
 - speed up kernel by using cached constant memory for both the filter_dimension and filter_data
 - get rid of device_filter allocations because its useless now with constant memory
-- add invert image, threshold, RGB -> HSV etc
+- add invert image, threshold
 - move allocating image data and stuff to opening input file to make rendering seem faster,
 plus fix segfault
 - realtime rendering if fast enough (maybe?)
