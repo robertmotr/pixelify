@@ -5,30 +5,33 @@
 #include "filters.h"
 #include <cuda_runtime.h>
 
-__constant__ float                const_filter[MAX_FILTER_1D_SIZE];
-__constant__ int                  const_filter_dim;
+__constant__ float                global_const_filter[MAX_FILTER_1D_SIZE];
+__constant__ unsigned char        global_const_filter_dim;
 
 template<unsigned int channels>
-void create_texture_object(void *pinned_input, int width, int height, size_t src_pitch, cudaArray_t &cu_array,
-                           cudaTextureObject_t &tex_obj) {
+void create_texture_object(void *pinned_input, int width, int height, size_t src_pitch, cudaArray_t* cu_array,
+                           cudaTextureObject_t* tex_obj) {
   cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc(8 * sizeof(short), 
                                                               8 * sizeof(short), 
                                                               8 * sizeof(short),
                                                               8 * sizeof(short), 
                                                               cudaChannelFormatKindSigned); 
 
-  cudaMallocArray(&cu_array, &channel_desc, width, height);
+  
+  Pixel<channels> *h_pinned_input = (Pixel<channels> *)pinned_input;
+  
+  cudaMallocArray(cu_array, &channel_desc, width, height);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("cuda malloc array");
 
-  cudaMemcpy2DToArray(cu_array, 0, 0, h_pinned_input, src_pitch, width * sizeof(Pixel<channels>), (size_t) height, cudaMemcpyHostToDevice);
+  cudaMemcpy2DToArray(*cu_array, 0, 0, h_pinned_input, src_pitch, width * sizeof(Pixel<channels>), (size_t) height, cudaMemcpyHostToDevice);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("2d array copy to device_input");
 
   struct cudaResourceDesc res_desc;
   memset(&res_desc, 0, sizeof(res_desc));
   res_desc.resType = cudaResourceTypeArray;
-  res_desc.res.array.array = cu_array;
+  res_desc.res.array.array = *cu_array;
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("resource desc");
 
@@ -43,10 +46,8 @@ void create_texture_object(void *pinned_input, int width, int height, size_t src
   CUDA_CHECK_ERROR("texture desc");
 
   // texture object
-  cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, NULL);
-  cudaDeviceSynchronize();
+  cudaCreateTextureObject(tex_obj, &res_desc, &tex_desc, NULL);
   CUDA_CHECK_ERROR("creating texture object");
-  // -- END TEXTURE SETUP --
 }
 
 template<unsigned int channels>
@@ -56,9 +57,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   const size_t src_pitch =                               width * sizeof(Pixel<channels>);
   const filter *h_filter =                               nullptr;
-  filter*                                                device_filter;
-  int*                                                   device_filter_data;
-  char*                                                  device_filter_name;
   int                                                    pixels = width * height;
   Pixel<channels>                                        *device_output;
   Pixel<channels>                                        *d_largest, *d_smallest;
@@ -102,11 +100,11 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // END MALLOCS
 
   // -- SETTING UP STUFF FOR TEXTURE -- 
-  create_texture_object(h_pinned_input, width, height, src_pitch, cu_array, tex_obj);
+  create_texture_object<channels>((void*)h_pinned_input, width, height, src_pitch, &cu_array, &tex_obj);
 
   // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
-  cudaMemcpyToSymbol(const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
-  cudaMemcpyToSymbol(const_filter_dim, &h_filter->filter_dimension, sizeof(int), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbol(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbol(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
   CUDA_CHECK_ERROR("copying filter to constant memory");
   // END FILTER SETUP
 
@@ -203,7 +201,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
   delete h_smallest;
   delete h_largest;
-  cudaFree(device_filter);
   cudaFree(d_smallest); cudaFree(d_largest);
   cudaFree(device_output); 
   // TODO: determine if this first run_kernel call and if so dont free device_output/device_input
@@ -219,30 +216,56 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   CUDA_CHECK_ERROR("freeing memory");
 }
 
+// applies the filter to the input image at the given row and column
+// returns sum of filter application
+template<unsigned int channels>
+__device__ __forceinline__ short apply_filter(const cudaTextureObject_t tex_obj, unsigned int mask, int width, 
+                                            int height, int row, int col) {
+    float *const_filter = global_const_filter;
+    unsigned char const_filter_dim = global_const_filter_dim;
+
+    float sum = 0;
+    int start_i = row - const_filter_dim;
+    int start_j = col - const_filter_dim;
+
+    // iterate over the filter
+    #pragma unroll
+    for (int i = 0; i < const_filter_dim; i++) {
+        #pragma unroll
+        for (int j = 0; j < const_filter_dim; j++) {
+
+            int filter_x = start_i + i;
+            int filter_y = start_j + j;
+
+            short member_value = get_texel<channels>(tex_obj, filter_x, filter_y, mask);
+            float filter_value = const_filter[i * const_filter_dim + j];
+            sum += member_value * filter_value;
+        }
+    }
+    return (short) sum;
+}
+
 template<unsigned int channels>
 __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels> *out, int width, int height,
                               const struct filter_args args) {
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  int total_threads = blockDim.x * gridDim.x;
-
   #ifdef _DEBUG
     assert(tex_obj != 0);
     assert(out != nullptr);
-    assert(filter != nullptr);
-  #endif
-
-  extern __constant__ float const_filter[MAX_FILTER_1D_SIZE];
-  extern __constant__ int   const_filter_dim;
+  #endif                      
+  
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  int total_threads = blockDim.x * gridDim.x;
 
   #pragma unroll
-  for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
+  for (int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
+
     int row = pixel_idx / width;
     int col = pixel_idx % width;
 
     #pragma unroll
     for(int ch = 0; ch < channels; ch++) {
-      out[pixel_idx].data[ch] = apply_filter<channels>(tex_obj, ch, width, height,
-                                                       row, col);
+      // out[pixel_idx].data[ch] = apply_filter<channels>(tex_obj, ch, width, height,
+      //                                                 row, col);
     }  
   } 
 }
@@ -368,11 +391,11 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
 
 // EXPLICIT INSTANTIATIONS:
 
-template void create_texture_object<3u>(void *pinned_input, int width, int height, size_t src_pitch, cudaArray_t &cu_array,
-                                        cudaTextureObject_t &tex_obj);
+template void create_texture_object<3u>(void *h_pinned_input, int width, int height, size_t src_pitch, cudaArray_t* cu_array,
+                                        cudaTextureObject_t* tex_obj);
 
-template void create_texture_object<4u>(void *pinned_input, int width, int height, size_t src_pitch, cudaArray_t &cu_array,
-                                        cudaTextureObject_t &tex_obj);    
+template void create_texture_object<4u>(void *h_pinned_input, int width, int height, size_t src_pitch, cudaArray_t* cu_array,
+                                        cudaTextureObject_t* tex_obj);    
 
 template void run_kernel(const char *filter_name, const Pixel<3u> *input,
                  Pixel<3u> *output, int width, int height, struct filter_args extra);
@@ -386,11 +409,17 @@ template __global__ void shift_kernel<3u>(const cudaTextureObject_t in, Pixel<3u
 template __global__ void shift_kernel<4u>(const cudaTextureObject_t in, Pixel<4u> *out, int width, int height,
                                           struct filter_args extra);
 
+template __device__ __forceinline__ short apply_filter<3u>(const cudaTextureObject_t tex_obj,
+                                                        unsigned int mask, int width, int height, int row, int col);
+
+template __device__ __forceinline__ short apply_filter<4u>(const cudaTextureObject_t tex_obj, unsigned int mask,
+                                                         int width, int height, int row, int col);
+
 template __global__ void filter_kernel<3u>(const cudaTextureObject_t tex_obj, Pixel<3u> *out, int width, int height,
-                                           const filter *filter, const struct filter_args args);
+                                           const struct filter_args args);
 
 template __global__ void filter_kernel<4u>(const cudaTextureObject_t tex_obj, Pixel<4u> *out, int width, int height,
-                                            const filter *filter, const struct filter_args args);       
+                                           const struct filter_args args);       
 
 template __global__ void brightness_kernel<3u>(const cudaTextureObject_t in, Pixel<3u> *out, int width, int height,
                                                struct filter_args extra);

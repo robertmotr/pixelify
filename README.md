@@ -11,6 +11,7 @@ Image processor that applies filters to images using CUDA.
 - add zoom/pan tool
 - profile texture/shared memory for filter and use whichever one is faster
 - add flip option
+- dynamically determine an optimized grid size based on GPU + image
 
 # in progress:
 - speed up kernel by using cached constant memory for both the filter_dimension and filter_data
