@@ -10,6 +10,27 @@ template<unsigned int channels>
 struct Pixel {
     short4 data;
 
+    __device__ __host__ __forceinline__ set(const unsigned int i, const short& val) {
+        #ifdef _DEBUG
+            if (i >= channels) {
+                printf("index out of bounds\n");
+                return -1;
+            }
+        #endif
+        if(i == 0) {
+            __stg(data.x, val);
+        } 
+        else if(i == 1) {
+            __stg(data.y, val);
+        }
+        else if(i == 2) {
+            __stg(data.z, val);
+        }
+        else {
+            __stg(data.w, val);
+        }
+    }
+
     __device__ __host__ __forceinline__ short* at(const unsigned int i) {
         #ifdef _DEBUG
             if (i >= channels) {
@@ -53,105 +74,70 @@ struct Pixel {
         }
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
+        friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
         os << "Pixel(";
         for (int i = 0; i < channels; ++i) {
-            os << pixel.data[i];
+            // Access components using .x, .y, .z, .w
+            if (i == 0) os << pixel.data.x;
+            else if (i == 1) os << ", " << pixel.data.y;
+            else if (i == 2) os << ", " << pixel.data.z;
+            else if (i == 3) os << ", " << pixel.data.w;
+
             if (i < channels - 1) {
                 os << ", ";
             }
         }
         os << ")";
         return os;
-    }    
+    }
 
     __host__ __device__
     bool operator==(const Pixel &other) const {
-        for (unsigned int i = 0; i < channels; i++) {
-            if (data[i] != other.data[i]) {
-                return false;
-            }
-        }
-        return true;
+        // Compare components using .x, .y, .z, .w
+        return data.x == other.data.x && data.y == other.data.y && data.z == other.data.z && data.w == other.data.w;
     }
 
-    // if channels == 3 set 4th byte to 255
-    // in constructor
+    // Constructor with variadic template
     template<typename... Args>
     __host__ __device__
     Pixel(Args... args) : data{static_cast<short>(args)...} {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
         if constexpr(sizeof...(Args) == 3) {
             // Set the 4th byte to 255
-            data[3] = 255;
+            data.w = 255;
         }
     }
+
+    // Constructor with initializer_list
     __host__ __device__
     Pixel(std::initializer_list<short> values) {
         // if values == 1 then set all channels to that value
         // iff channels == 4, otherwise set 4th byte to 255
         if (values.size() == 1) {
-            for (unsigned int i = 0; i < channels; i++) {
-                data[i] = *values.begin();
-            }
-            if constexpr(channels == 3) {
-                // Set the 4th byte to 255
-                data[3] = 255;
-            }
+            auto value = *values.begin();
+            data = make_short4(value, value, value, (channels == 3) ? 255 : value);
         } else {
-            unsigned int i = 0;
-            for (auto it = values.begin(); it != values.end(); it++) {
-                data[i] = *it;
-                i++;
-            }
+            auto it = values.begin();
+            data.x = *it++;
+            data.y = (it != values.end()) ? *it++ : 0;
+            data.z = (it != values.end()) ? *it++ : 0;
+            data.w = (it != values.end()) ? *it : (channels == 3) ? 255 : 0;
         }
     }
 
+    // Constructor with single short value
     __host__ __device__ 
     Pixel(short val) {
-        for (unsigned int i = 0; i < channels; i++) {
-            data[i] = val;
-        }
-        if constexpr(channels == 3) {
-            // Set the 4th byte to 255
-            data[3] = 255;
-        }
+        data = make_short4(val, val, val, (channels == 3) ? 255 : val);
     }
-
-    __host__ __device__
-    Pixel() : Pixel(0) {}
 };
-
-// dont use this doesnt work with imgui, kept this so tests are stable
-template<unsigned int channels>
-unsigned char* pixel_to_raw_image(const Pixel<channels> *input, unsigned int size) {
-    unsigned char *output = new unsigned char[channels * size];
-    for (unsigned int i = 0; i < size; i++) {
-        for (unsigned int j = 0; j < channels; j++) {
-            output[i * channels + j] = static_cast<unsigned char>(input[i].data[j]);
-        }
-    }
-    return output;
-}
-
-// dont use this doesnt work with imgui, kept this so tests are stable
-template<unsigned int channels>
-Pixel<channels>* raw_image_to_pixel(const unsigned char *input, unsigned int size) {
-    Pixel<channels> *output = new Pixel<channels>[size];
-    for (unsigned int i = 0; i < size; i++) {
-        for (unsigned int j = 0; j < channels; j++) {
-            output[i].data[j] = static_cast<short>(input[i * channels + j]);
-        }
-    }
-    return output;
-}
 
 // use these two below instead
 template<unsigned int channels>
 void imgui_get_raw_image(const Pixel<channels> *input, unsigned char *output, unsigned int size) {
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
-            output[i * INTERNAL_CHANNEL_SIZE + j] = static_cast<unsigned char>(input[i].data[j]);
+            output[i * INTERNAL_CHANNEL_SIZE + j] = static_cast<unsigned char>(input[i].at(j));
         }
         // if rgb set 4th byte to fully opaque
         if (channels == 3) {
@@ -164,7 +150,7 @@ template<unsigned int channels>
 void imgui_get_pixels(const unsigned char *input, Pixel<channels> *output, unsigned int size) {
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
-            output[i].data[j] = static_cast<short>(input[i * INTERNAL_CHANNEL_SIZE + j]);
+            output[i].set(j, static_cast<short>(input[i * INTERNAL_CHANNEL_SIZE + j]));
         }
     }
 }

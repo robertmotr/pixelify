@@ -245,7 +245,7 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> *device_inpu
             int filter_y = start_j + j;
 
             int idx = find_index(width, height, filter_x, filter_y);
-            short member_value = __ldg(&device_input[idx].data[mask]);
+            short member_value = __ldg(device_input[idx]->at(mask));
 
             float filter_value = const_filter[i * const_filter_dim + j];
             sum = __fmaf_rn(member_value, filter_value, sum);
@@ -271,8 +271,8 @@ __global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<ch
 
     #pragma unroll
     for(int ch = 0; ch < channels; ch++) {
-      out[pixel_idx].data[ch] = apply_filter<channels>(in, ch, width, height,
-                                                      row, col);
+      out[pixel_idx]->set(ch, apply_filter<channels>(in, ch, width, height,
+                                                      row, col)); 
     }  
   } 
 }
@@ -291,8 +291,8 @@ __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = d_pixels[pixel_idx].data[channel];
-      d_pixels[pixel_idx].data[channel] = shift_colours(channel_val, extra, channel);
+      short channel_val = d_pixels[pixel_idx]->at(channel);
+      d_pixels[pixel_idx].set(channel, shift_colours(channel_val, extra, channel));
     }
   }
 }
@@ -311,8 +311,8 @@ __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int heig
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = d_pixels[pixel_idx].data[channel];
-      d_pixels[pixel_idx].data[channel] = channel_val * (100 + extra.brightness) / 100;
+      short channel_val = d_pixels[pixel_idx].at(channel);
+      d_pixels[pixel_idx].set(channel, channel_val * (100 + extra.brightness) / 100);
     }
   }
 }
@@ -331,9 +331,9 @@ __global__ void tint_kernel(Pixel<channels> *d_pixels, int width, int height,
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = d_pixels[pixel_idx].data[channel];
-      d_pixels[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor)) * extra.tint[channel] + 
-                                      (float)(extra.blend_factor) * channel_val;
+      short channel_val = d_pixels[pixel_idx].at(channel);
+      d_pixels[pixel_idx].set(channel, (1 - (float)(extra.blend_factor)) * extra.tint[channel] + 
+                                      (float)(extra.blend_factor) * channel_val);
     }
   }
 }
@@ -352,8 +352,8 @@ __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = d_pixels[pixel_idx].data[channel];
-      d_pixels[pixel_idx].data[channel] = 255 - channel_val;
+      short channel_val = d_pixels[pixel_idx].at(channel);
+      d_pixels[pixel_idx].set(channel, 255 - channel_val);
     }
   }
 }
