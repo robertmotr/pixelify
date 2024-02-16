@@ -61,14 +61,14 @@ struct filter_args {
 // so we have to call it with (y, x) instead of (x, y) (IMPORTANT)
 template<unsigned int channels>
 __device__ __forceinline__ short get_texel(const cudaTextureObject_t tex_obj, 
-                                           int x, int y, unsigned int mask) {
+                                           int texel_idx, unsigned int mask) {
     #ifdef _DEBUG
         assert(mask < channels);
         assert(tex_obj != NULL);
     #endif
     
     // we have to reverse x and y because of the way tex2D works
-    short4 texel = tex2D<short4>(tex_obj, y, x);
+    short4 texel = tex1Dfetch<short4>(tex_obj, texel_idx);  
     if (mask == 0) {
         return texel.x;
     } else if (mask == 1) {
@@ -189,11 +189,9 @@ __global__ void normalize(Pixel<channels> *image, int width, int height,
                            bool normalize_or_clamp);
 
 // EXPLICIT INSTANTIATIONS
-template __device__ short get_texel<3u>(const cudaTextureObject_t tex_obj, 
-                                                        int x, int y, unsigned int mask);
+template __device__ short get_texel<3u>(const cudaTextureObject_t tex_obj, int texel_idx, unsigned int mask);
 
-template __device__ short get_texel<4u>(const cudaTextureObject_t tex_obj,
-                                                        int x, int y, unsigned int mask);       
+template __device__ short get_texel<4u>(const cudaTextureObject_t tex_obj, int texel_idx, unsigned int mask);       
 
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
                                                     const Pixel<3u> *smallest, const Pixel<3u> *largest);

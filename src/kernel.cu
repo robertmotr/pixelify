@@ -24,7 +24,7 @@ void create_texture_object(void *pinned_input, int width, int height, size_t src
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("cuda malloc array");
 
-  cudaMemcpy2DToArray(*cu_array, 0, 0, h_pinned_input, src_pitch, width * sizeof(Pixel<channels>), (size_t) height, cudaMemcpyHostToDevice);
+  cudaMemcpyToArray(*cu_array, 0, 0, h_pinned_input, width * height * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("2d array copy to device_input");
 
@@ -38,7 +38,6 @@ void create_texture_object(void *pinned_input, int width, int height, size_t src
   struct cudaTextureDesc tex_desc;
   memset(&tex_desc, 0, sizeof(tex_desc));
   tex_desc.addressMode[0] = cudaAddressModeBorder;
-  tex_desc.addressMode[1] = cudaAddressModeBorder;
   tex_desc.filterMode = cudaFilterModePoint;
   tex_desc.readMode = cudaReadModeElementType;
   tex_desc.normalizedCoords = 0;
@@ -125,7 +124,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     filter_kernel<channels><<<gridSize, blockSize>>>(tex_obj, device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("filter kernel");
-    cudaMemcpy2DToArray(cu_array, 0, 0, device_output, src_pitch, src_pitch, (size_t) height, cudaMemcpyDeviceToDevice);
+    cudaMemcpyToArray(cu_array, 0, 0, device_output, width * height * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
@@ -134,7 +133,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     shift_kernel<channels><<<gridSize, blockSize>>>(tex_obj, device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("shift colours");
-    cudaMemcpy2DToArray(cu_array, 0, 0, device_output, src_pitch, src_pitch, (size_t) height, cudaMemcpyDeviceToDevice);
+    cudaMemcpyToArray(cu_array, 0, 0, device_output, width * height * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
@@ -142,7 +141,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     tint_kernel<channels><<<gridSize, blockSize>>>(tex_obj, device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("tint");
-    cudaMemcpy2DToArray(cu_array, 0, 0, device_output, src_pitch, src_pitch, (size_t) height, cudaMemcpyDeviceToDevice);
+    cudaMemcpyToArray(cu_array, 0, 0, device_output, width * height * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
@@ -150,7 +149,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     brightness_kernel<channels><<<gridSize, blockSize>>>(tex_obj, device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("brightness");
-    cudaMemcpy2DToArray(cu_array, 0, 0, device_output, src_pitch, src_pitch, (size_t) height, cudaMemcpyDeviceToDevice);
+    cudaMemcpyToArray(cu_array, 0, 0, device_output, width * height * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
@@ -158,7 +157,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     invert_kernel<channels><<<gridSize, blockSize>>>(tex_obj, device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("invert");
-    cudaMemcpy2DToArray(cu_array, 0, 0, device_output, src_pitch, src_pitch, (size_t) height, cudaMemcpyDeviceToDevice);
+    cudaMemcpyToArray(cu_array, 0, 0, device_output, width * height * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
@@ -237,7 +236,9 @@ __device__ __forceinline__ short apply_filter(const cudaTextureObject_t tex_obj,
             int filter_x = start_i + i;
             int filter_y = start_j + j;
 
-            short member_value = get_texel<channels>(tex_obj, filter_x, filter_y, mask);
+            int idx = find_index(width, height, filter_x, filter_y);
+
+            short member_value = get_texel<channels>(tex_obj, idx, mask);
             float filter_value = const_filter[i * const_filter_dim + j];
             sum += member_value * filter_value;
         }
@@ -264,8 +265,8 @@ __global__ void filter_kernel(const cudaTextureObject_t tex_obj, Pixel<channels>
 
     #pragma unroll
     for(int ch = 0; ch < channels; ch++) {
-      // out[pixel_idx].data[ch] = apply_filter<channels>(tex_obj, ch, width, height,
-      //                                                 row, col);
+      out[pixel_idx].data[ch] = apply_filter<channels>(tex_obj, ch, width, height,
+                                                      row, col);
     }  
   } 
 }
@@ -288,7 +289,7 @@ __global__ void shift_kernel(const cudaTextureObject_t in, Pixel<channels> *out,
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = get_texel<channels>(in, row, col, channel);
+      short channel_val = get_texel<channels>(in, find_index(width, height, row, col), channel);
       out[pixel_idx].data[channel] = shift_colours(channel_val, extra, channel);
     }
   }
@@ -312,7 +313,7 @@ __global__ void brightness_kernel(const cudaTextureObject_t in, Pixel<channels> 
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = get_texel<channels>(in, row, col, channel);
+      short channel_val = get_texel<channels>(in, find_index(width, height, row, col), channel);
       out[pixel_idx].data[channel] = channel_val * (100 + extra.brightness) / 100;
     }
   }
@@ -336,7 +337,7 @@ __global__ void tint_kernel(const cudaTextureObject_t in, Pixel<channels> *out, 
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = get_texel<channels>(in, row, col, channel);
+      short channel_val = get_texel<channels>(in, find_index(width, height, row, col), channel);
       out[pixel_idx].data[channel] = (1 - (float)(extra.blend_factor)) * extra.tint[channel] + 
                                       (float)(extra.blend_factor) * channel_val;
     }
@@ -361,7 +362,7 @@ __global__ void invert_kernel(const cudaTextureObject_t in, Pixel<channels> *out
 
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = get_texel<channels>(in, row, col, channel);
+      short channel_val = get_texel<channels>(in, find_index(width, height, row, col), channel);
       out[pixel_idx].data[channel] = 255 - channel_val;
     }
   }
