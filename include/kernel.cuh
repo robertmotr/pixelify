@@ -59,27 +59,27 @@ struct filter_args {
 // mask is the channel we are interested in
 // note that x and y are REVERSED in the tex2D function
 // so we have to call it with (y, x) instead of (x, y) (IMPORTANT)
-template<unsigned int channels>
-__device__ __forceinline__ short get_texel(const cudaTextureObject_t tex_obj, 
-                                           int texel_idx, unsigned int mask) {
-    #ifdef _DEBUG
-        assert(mask < channels);
-        assert(tex_obj != NULL);
-    #endif
+// template<unsigned int channels>
+// __device__ __forceinline__ short get_texel(const cudaTextureObject_t tex_obj, 
+//                                            int texel_idx, unsigned int mask) {
+//     #ifdef _DEBUG
+//         assert(mask < channels);
+//         assert(tex_obj != NULL);
+//     #endif
     
-    // we have to reverse x and y because of the way tex2D works
-    short4 texel = tex1Dfetch<short4>(tex_obj, texel_idx);  
-    if (mask == 0) {
-        return texel.x;
-    } else if (mask == 1) {
-        return texel.y;
-    } else if (mask == 2) {
-        return texel.z;
-    } else if (mask == 3) {
-        return texel.w;
-    }
-    return INT_MIN; // error
-}
+//     // we have to reverse x and y because of the way tex2D works
+//     short4 texel = tex1Dfetch<short4>(tex_obj, texel_idx);  
+//     if (mask == 0) {
+//         return texel.x;
+//     } else if (mask == 1) {
+//         return texel.y;
+//     } else if (mask == 2) {
+//         return texel.z;
+//     } else if (mask == 3) {
+//         return texel.w;
+//     }
+//     return INT_MIN; // error
+// }
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
 __device__ __forceinline__ int find_index(int width, int height, int row, int column) {
@@ -108,9 +108,9 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
                                                     const Pixel<channels> *smallest, const Pixel<channels> *largest) {
     // normalize each respective channel
     for (int channel = 0; channel < channels; channel++) {
-        int min = smallest->data[channel];
-        int max = largest->data[channel];
-        int value = target[pixel_idx].data[channel];
+        int min = smallest->at(channel);
+        int max = largest->at(channel);
+        int value = target[pixel_idx]->at(channel);
 
         if(max == min) {
             max = (min + 1) % 255;
@@ -189,9 +189,9 @@ __global__ void normalize(Pixel<channels> *image, int width, int height,
                            bool normalize_or_clamp);
 
 // EXPLICIT INSTANTIATIONS
-template __device__ short get_texel<3u>(const cudaTextureObject_t tex_obj, int texel_idx, unsigned int mask);
+// template __device__ short get_texel<3u>(const cudaTextureObject_t tex_obj, int texel_idx, unsigned int mask);
 
-template __device__ short get_texel<4u>(const cudaTextureObject_t tex_obj, int texel_idx, unsigned int mask);       
+// template __device__ short get_texel<4u>(const cudaTextureObject_t tex_obj, int texel_idx, unsigned int mask);       
 
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
                                                     const Pixel<3u> *smallest, const Pixel<3u> *largest);

@@ -8,7 +8,50 @@
 
 template<unsigned int channels>
 struct Pixel {
-    short data[4];
+    short4 data;
+
+    __device__ __host__ __forceinline__ short* at(const unsigned int i) {
+        #ifdef _DEBUG
+            if (i >= channels) {
+                printf("index out of bounds\n");
+                return -1;
+            }
+        #endif
+        if(i == 0) {
+            return &data.x;
+        } 
+        else if(i == 1) {
+            return &data.y;
+        }
+        else if(i == 2) {
+            return &data.z;
+        }
+        else {
+            return &data.w;
+        }
+    }
+
+    __device__ __host__ __forceinline__ short at(const unsigned int i) {
+        #ifdef _DEBUG
+            if (i >= channels) {
+                printf("index out of bounds\n");
+                return -1;
+            }
+        #endif
+
+        if(i == 0) {
+            return data.x;
+        } 
+        else if(i == 1) {
+            return data.y;
+        }
+        else if(i == 2) {
+            return data.z;
+        }
+        else {
+            return data.w;
+        }
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
         os << "Pixel(";

@@ -62,8 +62,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   Pixel<channels>                                        *h_smallest, *h_largest;          
   int blockSize;
   int gridSize;
-  cudaArray_t cu_array;
-  cudaTextureObject_t tex_obj =                          0;
+  // cudaArray_t cu_array;
+  // cudaTextureObject_t tex_obj =                          0;
   h_smallest =                                           new Pixel<channels>(SHORT_MAX);
   h_largest =                                            new Pixel<channels>(SHORT_MIN);
 
@@ -76,7 +76,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   } 
 
   cudaDeviceGetAttribute(&blockSize, cudaDevAttrMaxThreadsPerBlock, 0);
-  gridSize = (8 * height + blockSize - 1) / blockSize; 
+  gridSize = (16 * height + blockSize - 1) / blockSize; 
 
   #ifdef _DEBUG
     printf("block size: %d\n", blockSize);
@@ -88,24 +88,20 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // create copy of input, output on pinned memory on host
   cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
   cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); 
-  cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
-  cudaDeviceSynchronize();
-  CUDA_CHECK_ERROR("copying input to pinned input");
+  cudaMemcpyAsync(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
 
   // MALLOCS ON DEVICE
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
-  cudaDeviceSynchronize();
-  CUDA_CHECK_ERROR("cuda mallocs for input, output, largest, smallest");
   // END MALLOCS
 
   #ifdef _DEBUG
     printf("size of image in bytes on h_pinned_input: %lu\n", pixels * sizeof(Pixel<channels>));
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
-    int maxSize = prop.maxTex
+    int maxSize = prop.maxTexture1D;
     printf("max size of 1d texture: %d\n", maxSize);
   #endif
 
@@ -113,17 +109,17 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // create_texture_object<channels>((void*)h_pinned_input, width, height, &cu_array, &tex_obj);
 
   // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
-  cudaMemcpyToSymbol(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
-  cudaMemcpyToSymbol(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
-  CUDA_CHECK_ERROR("copying filter to constant memory");
+  cudaMemcpyToSymbolAsync(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbolAsync(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
   // END FILTER SETUP
 
   // MEMCPYS FROM HOST TO DEVICE
-  cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+
   cudaDeviceSynchronize();
-  CUDA_CHECK_ERROR("cuda memcpys and mallocs");
+  CUDA_CHECK_ERROR("copying to device");
 
   // apply filter first if filter is not NULL
   // then apply everything else in the filter_args struct
@@ -136,8 +132,9 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
       filter_kernel<channels><<<gridSize, blockSize>>>(device_input, device_output, width, height, extra);
     }
     else {
-      filter_kernel<channels><<<gridSize, blockSize>>>(device_output, device_output, width, height, extra);
+      filter_kernel<channels><<<gridSize, blockSize>>>(device_input, device_output, width, height, extra);
     }
+    cudaMemcpyAsync(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("filter kernel pass");
   }
@@ -152,21 +149,18 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("tint");
     cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
   if(extra.brightness != 0) {
     brightness_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("brightness");
     cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
   if(extra.invert) {
     invert_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("invert");
     cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("2d array copy back to device_output");
   }
 
   // parallel reduction to find largest and smallest pixel values
@@ -180,8 +174,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // if d_largest or d_smallest are out of bounds
   // i.e outside of [0, 255] for any channel
   // then we need to normalize the image to bring it into valid bounds
-  cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_largest, d_largest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+  cudaMemcpyAsync(h_smallest, d_smallest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+  cudaMemcpyAsync(h_largest, d_largest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying back d_smallest and d_largest");
   
@@ -195,8 +189,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     }
   }
 
-  cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
+  cudaMemcpyAsync(h_pinned_output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+  cudaMemcpyAsync(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying back d_output to pinned output");
   
@@ -227,8 +221,15 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 template<unsigned int channels>
 __device__ __forceinline__ short apply_filter(const Pixel<channels> *device_input, unsigned int mask, int width, 
                                             int height, int row, int col) {
-    float *const_filter = global_const_filter;
-    unsigned char const_filter_dim = global_const_filter_dim;
+    #ifdef _DEBUG
+      assert(device_input != nullptr);
+      assert(mask < channels);
+      assert(find_index(width, height, row, col) >= 0);
+      assert(find_index(width, height, row, col) < width * height);
+    #endif
+      
+    const __restrict_arr float *const_filter = global_const_filter;
+    const __restrict_arr unsigned char const_filter_dim = global_const_filter_dim;
 
     float sum = 0;
     int start_i = row - const_filter_dim;
@@ -244,20 +245,19 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> *device_inpu
             int filter_y = start_j + j;
 
             int idx = find_index(width, height, filter_x, filter_y);
+            short member_value = __ldg(&device_input[idx].data[mask]);
 
-            short member_value = device_input[idx];
             float filter_value = const_filter[i * const_filter_dim + j];
-            sum += member_value * filter_value;
+            sum = __fmaf_rn(member_value, filter_value, sum);
         }
     }
     return (short) sum;
 }
 
 template<unsigned int channels>
-__global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, int width, int height,
+__global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<channels> *out, int width, int height,
                               const struct filter_args args) {
   #ifdef _DEBUG
-    assert(tex_obj != 0);
     assert(out != nullptr);
   #endif                      
   
@@ -266,8 +266,7 @@ __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
 
   #pragma unroll
   for (int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
-
-    int row = pixel_idx / width;
+    int row = pixel_idx * __fdividef(1.0f, width);
     int col = pixel_idx % width;
 
     #pragma unroll
@@ -285,8 +284,7 @@ __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
   int total_threads = blockDim.x * gridDim.x;
 
   #ifdef _DEBUG
-    assert(in != 0);
-    assert(out != nullptr);
+    assert(d_pixels != nullptr);
   #endif
 
   #pragma unroll
@@ -306,8 +304,7 @@ __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int heig
   int total_threads = blockDim.x * gridDim.x;
 
   #ifdef _DEBUG
-    assert(in != 0);
-    assert(out != nullptr);
+    assert(d_pixels != nullptr);
   #endif
 
   #pragma unroll
@@ -327,8 +324,7 @@ __global__ void tint_kernel(Pixel<channels> *d_pixels, int width, int height,
   int total_threads = blockDim.x * gridDim.x;
 
   #ifdef _DEBUG
-    assert(in != 0);
-    assert(out != nullptr);
+    assert(d_pixels != nullptr);
   #endif
 
   #pragma unroll
@@ -349,8 +345,7 @@ __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
   int total_threads = blockDim.x * gridDim.x;
 
   #ifdef _DEBUG
-    assert(in != 0);
-    assert(out != nullptr);
+    assert(d_pixels != nullptr);
   #endif
 
   #pragma unroll
@@ -358,15 +353,16 @@ __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
       short channel_val = d_pixels[pixel_idx].data[channel];
-      out[pixel_idx].data[channel] = 255 - channel_val;
+      d_pixels[pixel_idx].data[channel] = 255 - channel_val;
     }
   }
 }
 
 template<unsigned int channels>
 __global__ void normalize(Pixel<channels> *target, int width, int height,
-                           const Pixel<channels> *smallest, const Pixel<channels> *largest,
-                           bool normalize) {
+                          const Pixel<channels> __restrict_arr *smallest,
+                          const Pixel<channels> __restrict_arr *largest,
+                          bool normalize) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   #ifdef _DEBUG

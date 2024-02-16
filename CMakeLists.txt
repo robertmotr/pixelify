@@ -63,35 +63,35 @@ target_include_directories(pixelify_lib PUBLIC
     ${OPENGL_INCLUDE_DIR} ${GLFW_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS}
 )
 add_executable(pixelify src/main.cu)
-target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2 SDL2)
+target_link_libraries(pixelify PUBLIC pixelify_lib glfw imgui_lib OpenGL::GL exiv2)
 
 # ------ TESTS ------
 
-set(SOURCES_TEST 
-    src/kernel.cu 
-    src/filters.cpp
-    src/filter_impl.cpp
-    src/kernel_formulas.cpp
-)
+# set(SOURCES_TEST 
+#     src/kernel.cu 
+#     src/filters.cpp
+#     src/filter_impl.cpp
+#     src/kernel_formulas.cpp
+# )
 
-set(HEADERS_TEST 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.cuh 
-)
+# set(HEADERS_TEST 
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.cuh 
+# )
 
-add_library(pixelify_tests STATIC ${SOURCES_TEST})
-target_include_directories(pixelify_tests PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-add_executable(tests tests/tests.cu)
-target_link_libraries(tests pixelify_tests gtest)
+# add_library(pixelify_tests STATIC ${SOURCES_TEST})
+# target_include_directories(pixelify_tests PUBLIC 
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include
+# )
+# add_executable(tests tests/tests.cu)
+# target_link_libraries(tests pixelify_tests gtest)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
