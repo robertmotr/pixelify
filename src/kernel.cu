@@ -8,46 +8,6 @@
 __constant__ float                global_const_filter[MAX_FILTER_1D_SIZE];
 __constant__ unsigned char        global_const_filter_dim;
 
-// template<unsigned int channels>
-// void create_texture_object(void *pinned_input, int width, int height, cudaArray_t* cu_array,
-//                            cudaTextureObject_t* tex_obj) {
-//   cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc(8 * sizeof(short), 
-//                                                               8 * sizeof(short), 
-//                                                               8 * sizeof(short),
-//                                                               8 * sizeof(short), 
-//                                                               cudaChannelFormatKindSigned); 
-
-  
-//   Pixel<channels> *h_pinned_input = (Pixel<channels> *)pinned_input;
-  
-//   cudaMallocArray(cu_array, &channel_desc, width, height);
-//   cudaDeviceSynchronize();
-//   CUDA_CHECK_ERROR("cuda malloc array");
-
-//   cudaMemcpyToArray(*cu_array, 0, 0, h_pinned_input, width * height * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-//   cudaDeviceSynchronize();
-//   CUDA_CHECK_ERROR("2d array copy to device_input");
-
-//   struct cudaResourceDesc res_desc;
-//   memset(&res_desc, 0, sizeof(res_desc));
-//   res_desc.resType = cudaResourceTypeArray;
-//   res_desc.res.array.array = *cu_array;
-//   cudaDeviceSynchronize();
-//   CUDA_CHECK_ERROR("resource desc");
-
-//   struct cudaTextureDesc tex_desc;
-//   memset(&tex_desc, 0, sizeof(tex_desc));
-//   tex_desc.addressMode[0] = cudaAddressModeBorder;
-//   tex_desc.filterMode = cudaFilterModePoint;
-//   tex_desc.readMode = cudaReadModeElementType;
-//   tex_desc.normalizedCoords = 0;
-//   cudaDeviceSynchronize();
-//   CUDA_CHECK_ERROR("texture desc");
-
-//   // texture object
-//   cudaCreateTextureObject(tex_obj, &res_desc, &tex_desc, NULL);
-//   CUDA_CHECK_ERROR("creating texture object");
-// }
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
@@ -62,8 +22,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   Pixel<channels>                                        *h_smallest, *h_largest;          
   int blockSize;
   int gridSize;
-  // cudaArray_t cu_array;
-  // cudaTextureObject_t tex_obj =                          0;
   h_smallest =                                           new Pixel<channels>(SHORT_MAX);
   h_largest =                                            new Pixel<channels>(SHORT_MIN);
 
@@ -104,9 +62,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     int maxSize = prop.maxTexture1D;
     printf("max size of 1d texture: %d\n", maxSize);
   #endif
-
-  // // -- SETTING UP STUFF FOR TEXTURE -- 
-  // create_texture_object<channels>((void*)h_pinned_input, width, height, &cu_array, &tex_obj);
 
   // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
   cudaMemcpyToSymbolAsync(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
@@ -180,8 +135,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   CUDA_CHECK_ERROR("copying back d_smallest and d_largest");
   
   for(int ch = 0; ch < channels; ch++) {
-    if(h_smallest->data[ch] < 0 || h_smallest->data[ch] > 255 ||
-       h_largest->data[ch] < 0 || h_largest->data[ch] > 255) {
+    if(h_smallest->at(ch) < 0 || h_smallest->at(ch) > 255 ||
+       h_largest->at(ch) < 0 || h_largest->at(ch) > 255) {
         normalize<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest, extra.normalize);
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("normalize");
@@ -193,10 +148,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaMemcpyAsync(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying back d_output to pinned output");
-  
-  // cleanup
-  // cudaDestroyTextureObject(tex_obj);
-  // cudaFreeArray(cu_array);
 
   cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
   delete h_smallest;
@@ -219,7 +170,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
 template<unsigned int channels>
-__device__ __forceinline__ short apply_filter(const Pixel<channels> *device_input, unsigned int mask, int width, 
+__device__ __forceinline__ short apply_filter(const Pixel<channels> __restrict_arr *device_input, unsigned int mask, int width, 
                                             int height, int row, int col) {
     #ifdef _DEBUG
       assert(device_input != nullptr);
@@ -245,7 +196,7 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> *device_inpu
             int filter_y = start_j + j;
 
             int idx = find_index(width, height, filter_x, filter_y);
-            short member_value = __ldg(device_input[idx]->at(mask));
+            short member_value = __ldcs(device_input[idx].at_ptr(mask));
 
             float filter_value = const_filter[i * const_filter_dim + j];
             sum = __fmaf_rn(member_value, filter_value, sum);
@@ -271,7 +222,7 @@ __global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<ch
 
     #pragma unroll
     for(int ch = 0; ch < channels; ch++) {
-      out[pixel_idx]->set(ch, apply_filter<channels>(in, ch, width, height,
+      out[pixel_idx].set(ch, apply_filter<channels>(in, ch, width, height,
                                                       row, col)); 
     }  
   } 
@@ -279,7 +230,7 @@ __global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<ch
 
 template<unsigned int channels>
 __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
-                            struct filter_args extra) {
+                             const struct filter_args extra) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
@@ -291,7 +242,7 @@ __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
     #pragma unroll
     for(int channel = 0; channel < channels; channel++) {
-      short channel_val = d_pixels[pixel_idx]->at(channel);
+      short channel_val = d_pixels[pixel_idx].at(channel);
       d_pixels[pixel_idx].set(channel, shift_colours(channel_val, extra, channel));
     }
   }
@@ -299,7 +250,7 @@ __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
 
 template<unsigned int channels>
 __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int height,
-                                  struct filter_args extra) {
+                                  const struct filter_args extra) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
@@ -319,7 +270,7 @@ __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int heig
 
 template<unsigned int channels>
 __global__ void tint_kernel(Pixel<channels> *d_pixels, int width, int height,
-                            struct filter_args extra) {
+                            const struct filter_args extra) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
@@ -340,7 +291,7 @@ __global__ void tint_kernel(Pixel<channels> *d_pixels, int width, int height,
 
 template<unsigned int channels>
 __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
-                              struct filter_args extra) {
+                              const struct filter_args extra) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
 
@@ -381,13 +332,7 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
   }
 }
 
-// EXPLICIT INSTANTIATIONS:
-
-// template void create_texture_object<3u>(void *h_pinned_input, int width, int height, cudaArray_t* cu_array,
-//                                         cudaTextureObject_t* tex_obj);
-
-// template void create_texture_object<4u>(void *h_pinned_input, int width, int height, cudaArray_t* cu_array,
-//                                         cudaTextureObject_t* tex_obj);    
+// EXPLICIT INSTANTIATIONS: 
 
 template void run_kernel(const char *filter_name, const Pixel<3u> *input,
                  Pixel<3u> *output, int width, int height, struct filter_args extra);
@@ -396,16 +341,16 @@ template void run_kernel(const char *filter_name, const Pixel<4u> *input,
                  Pixel<4u> *output, int width, int height, struct filter_args extra);
 
 template __global__ void shift_kernel<3u>(Pixel<3u> *d_pixels, int width, int height,
-                                         struct filter_args extra);
+                                         const struct filter_args extra);
 
 template __global__ void shift_kernel<4u>(Pixel<4u> *d_pixels, int width, int height,
-                                          struct filter_args extra);
+                                          const struct filter_args extra);
 
 template __device__ __forceinline__ short apply_filter<3u>(const Pixel<3u> *device_input,
-                                                        unsigned int mask, int width, int height, int row, int col);
+                                                           unsigned int mask, int width, int height, int row, int col);
 
 template __device__ __forceinline__ short apply_filter<4u>(const Pixel<4u> *device_input, unsigned int mask,
-                                                         int width, int height, int row, int col);
+                                                           int width, int height, int row, int col);
 
 template __global__ void filter_kernel<3u>(const Pixel<3u> *d_in, Pixel<3u> *out, int width, int height,
                                            const struct filter_args args);
@@ -414,19 +359,19 @@ template __global__ void filter_kernel<4u>(const Pixel<4u> *d_in, Pixel<4u> *out
                                            const struct filter_args args);       
 
 template __global__ void brightness_kernel<3u>(Pixel<3u> *d_pixels, int width, int height,
-                                               struct filter_args extra);
+                                               const struct filter_args extra);
 
 template __global__ void brightness_kernel<4u>(Pixel<4u> *d_pixels, int width, int height,
-                                                struct filter_args extra);        
+                                                const struct filter_args extra);        
 
 template __global__ void tint_kernel<3u>(Pixel<3u> *d_pixels, int width, int height,
-                                        struct filter_args extra);  
+                                        const struct filter_args extra);  
                                       
 template __global__ void tint_kernel<4u>(Pixel<4u> *d_pixels, int width, int height,
-                                         struct filter_args extra);
+                                         const struct filter_args extra);
 
 template __global__ void invert_kernel<3u>(Pixel<3u> *d_pixels, int width, int height,
-                                           struct filter_args extra);
+                                           const struct filter_args extra);
 
 template __global__ void invert_kernel<4u>(Pixel<4u> *d_pixels, int width, int height,
-                                            struct filter_args extra);      
+                                            const struct filter_args extra);      
