@@ -16,7 +16,7 @@ struct min_op {
     Pixel<channels> operator()(const Pixel<channels>& a, const Pixel<channels>& b) const {
         Pixel<channels> result;
         for (int i = 0; i < channels; i++) {
-            result.data[i] = min(a.data[i], b.data[i]);
+            result.set(i, min(a.at(i), b.at(i)));
         }
         return result;
     }
@@ -28,7 +28,7 @@ struct max_op {
     Pixel<channels> operator()(const Pixel<channels>& a, const Pixel<channels>& b) const {
         Pixel<channels> result;
         for (int i = 0; i < channels; i++) {
-            result.data[i] = max(a.data[i], b.data[i]);
+            result.set(i, max(a.at(i), b.at(i)));
         }
         return result;
     }
@@ -80,6 +80,4 @@ void image_reduction(const Pixel<channels> *d_input, Pixel<channels> *d_result, 
 
     cudaFree(d_temp_storage);
 }
-
-
 #endif // __REDUCE__H

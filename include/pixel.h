@@ -32,13 +32,14 @@ struct Pixel {
         }
     }
 
-    __device__ __host__ __forceinline__ short* at_ptr(const unsigned int i) {
+    __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds\n");
-                return -1;
+                return nullptr;
             }
         #endif
+
         if(i == 0) {
             return &data.x;
         } 
@@ -53,13 +54,15 @@ struct Pixel {
         }
     }
 
-    __device__ __host__ __forceinline__ short* at_ptr(const unsigned int i) const {
+
+    __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) const {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds\n");
                 return nullptr;
             }
         #endif
+
         if(i == 0) {
             return &data.x;
         } 
