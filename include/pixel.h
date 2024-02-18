@@ -57,7 +57,7 @@ struct Pixel {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds\n");
-                return -1;
+                return nullptr;
             }
         #endif
         if(i == 0) {
