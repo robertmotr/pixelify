@@ -17,7 +17,7 @@ Image processor that applies filters to images using CUDA.
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
-- add zoom in/zoom out/pan tool
+- add zoom in/zoom out/pan tool + texture map
 
 # done:
 - profile texture/shared/constant memory for filter and use whichever one is faster
