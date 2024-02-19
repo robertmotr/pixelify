@@ -14,17 +14,16 @@ Image processor that applies filters to images using CUDA.
 - dynamically determine an optimized grid size based on GPU + image
 
 # in progress:
-- speed up kernel by using cached constant memory for both the filter_dimension and filter_data
-- get rid of device_filter allocations because its useless now with constant memory
 - add invert image, threshold
-- move allocating image data and stuff to opening input file to make rendering seem faster,
-plus fix segfault
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
 - add zoom in/zoom out/pan tool
 
 # done:
+- move allocating image data and stuff to opening input file to make rendering seem faster,
+- speed up kernel by using cached constant memory for both the filter_dimension and filter_data
+- get rid of device_filter allocations because its useless now with constant memory
 - get other_kernel functionality working again
 - fix segfault from kernel formulas
 - fix kernel formulas not producing results that "look right"

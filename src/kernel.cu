@@ -8,7 +8,6 @@
 __constant__ float                global_const_filter[MAX_FILTER_1D_SIZE];
 __constant__ unsigned char        global_const_filter_dim;
 
-
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,
                 Pixel<channels> *output, int width, int height,
@@ -47,15 +46,19 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
   cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); 
   cudaMemcpyAsync(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
+  #ifdef _DEBUG
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("pinned memory");  
+  #endif
 
   // MALLOCS ON DEVICE
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
-  // END MALLOCS
-
   #ifdef _DEBUG
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("mallocs on device");
     printf("size of image in bytes on h_pinned_input: %lu\n", pixels * sizeof(Pixel<channels>));
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
@@ -63,10 +66,11 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     printf("max size of 1d texture: %d\n", maxSize);
   #endif
 
-  // HANDLE MALLOC AND MEMCPY FOR FILTER ONLY
+  // copying filter data to constant memory
   cudaMemcpyToSymbolAsync(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
   cudaMemcpyToSymbolAsync(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
-  // END FILTER SETUP
+  cudaDeviceSynchronize();
+  CUDA_CHECK_ERROR("copying to constant memory");
 
   // MEMCPYS FROM HOST TO DEVICE
   cudaMemcpyAsync(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
@@ -103,23 +107,20 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     tint_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("tint");
-    cudaDeviceSynchronize();
   }
   if(extra.brightness != 0) {
     brightness_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("brightness");
-    cudaDeviceSynchronize();
   }
   if(extra.invert) {
     invert_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("invert");
-    cudaDeviceSynchronize();
   }
 
-  // parallel reduction to find largest and smallest pixel values
-  // for each channel respectively
+  parallel reduction to find largest and smallest pixel values
+  for each channel respectively
   image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
   image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
 
@@ -196,10 +197,10 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> __restrict_a
             int filter_y = start_j + j;
 
             int idx = find_index(width, height, filter_x, filter_y);
-            short member_value = __ldcs(device_input[idx].at_ptr(mask));
+            short member_value = __ldcs(device_input[idx].at_ptr(mask)); // fast load using constant memory
 
             float filter_value = const_filter[i * const_filter_dim + j];
-            sum = __fmaf_rn(member_value, filter_value, sum);
+            sum = __fmaf_rn(member_value, filter_value, sum); // fast multiply and add
         }
     }
     return (short) sum;
@@ -217,7 +218,7 @@ __global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<ch
 
   #pragma unroll
   for (int pixel_idx = tid; pixel_idx < width * height; pixel_idx += total_threads) {
-    int row = pixel_idx * __fdividef(1.0f, width);
+    int row = pixel_idx * __fdividef(1.0f, width); // fast divide by width
     int col = pixel_idx % width;
 
     #pragma unroll

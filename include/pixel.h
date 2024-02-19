@@ -11,7 +11,7 @@ template<unsigned int channels>
 struct Pixel {
     short4 data;
 
-    __device__ __host__ __forceinline__ void set(const unsigned int i, const short& val) {
+    __device__ __host__ __forceinline__ void set(const unsigned int i, const short val) {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds\n");
@@ -53,7 +53,6 @@ struct Pixel {
             return &data.w;
         }
     }
-
 
     __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) const {
         #ifdef _DEBUG
@@ -121,6 +120,7 @@ struct Pixel {
         }
     }
 
+    // used for googletests
     friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
         os << "Pixel(";
         for (int i = 0; i < channels; ++i) {
@@ -149,7 +149,7 @@ struct Pixel {
     Pixel(Args... args) : data{static_cast<short>(args)...} {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
         if constexpr(sizeof...(Args) == 3) {
-            // Set the 4th byte to 255
+            // Set the 4th byte to 255 if channels == 3
             data.w = 255;
         }
     }
@@ -159,15 +159,18 @@ struct Pixel {
     Pixel(std::initializer_list<short> values) {
         // if values == 1 then set all channels to that value
         // iff channels == 4, otherwise set 4th byte to 255
-        if (values.size() == 1) {
-            auto value = *values.begin();
-            data = make_short4(value, value, value, (channels == 3) ? 255 : value);
-        } else {
-            auto it = values.begin();
-            data.x = *it++;
-            data.y = (it != values.end()) ? *it++ : 0;
-            data.z = (it != values.end()) ? *it++ : 0;
-            data.w = (it != values.end()) ? *it : (channels == 3) ? 255 : 0;
+        auto i = values.begin();
+        if(channels == 3) {
+            data.x = *i;
+            data.y = *(i++);
+            data.z = *(i++);
+            data.w = 255;
+        }
+        else {
+            data.x = *i;
+            data.y = *(i++);
+            data.z = *(i++);
+            data.w = *(i++);
         }
     }
 
@@ -177,7 +180,6 @@ struct Pixel {
     }
 };
 
-// use these two below instead
 template<unsigned int channels>
 void imgui_get_raw_image(const Pixel<channels> *input, unsigned char *output, unsigned int size) {
     for (unsigned int i = 0; i < size; i++) {
