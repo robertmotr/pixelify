@@ -6,30 +6,56 @@
 #include "filter_impl.h"
 #include "kernel_formulas.h"
 
+#include <GL/gl.h>  // or #include <GL/glew.h>
+#include "tex_inspect_opengl.h"
+#include "imgui_tex_inspect.h"
+#include "imgui_tex_inspect_internal.h"
+
 #include <cuda_runtime.h>
 
-inline void display_image(const GLuint& texture, const int& width, const int& height, const unsigned char *image_data) {
-    ImVec2 pos = ImGui::GetCursorScreenPos();  
+inline void display_image(const GLuint& texture, const int& width, const int& height,
+                          const unsigned char *image_data) {
+
     ImGui::Text("size = %d x %d", width, height);
-    // ImVec2 mouseUVCoord = (io.MousePos - rc.Min) / rc.GetSize();    
     ImGuiIO& io = ImGui::GetIO();
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    if(ImGuiTexInspect::BeginInspectorPanel("##IMAGE", (void*)(intptr_t)texture, ImVec2(width, height), 
+                                            ImGuiTexInspect::InspectorFlags_FillHorizontal | ImGuiTexInspect::InspectorFlags_FillVertical)) {
+        ImGuiTexInspect::DrawAnnotations(ImGuiTexInspect::ValueText(ImGuiTexInspect::ValueText::BytesDec));
+    }   
+    ImGuiTexInspect::EndInspectorPanel();
+    struct ImGuiTexInspect::Context *ctx = ImGuiTexInspect::GetContext();
+    struct ImGuiTexInspect::Inspector *inspector = ctx->CurrentInspector;
+
     // Check if the mouse is within the bounds of the image
-    if (ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + width, pos.y + height))) {
+    if (ImGui::IsMouseHoveringRect(pos, inspector->PanelSize)) {
 
         ImGui::BeginTooltip();
-        ImGui::Text("Hold left-click to inspect the image");
+        ImGui::Text("Hold left-click to inspect the image.\nYou can also zoom in/out and pan the image.");
         ImGui::EndTooltip();
 
-        // check if user is holding left click
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        // check if user is holding left ctrl key
+        if(io.KeyCtrl) {
             ImVec2 mouse_pos = ImGui::GetMousePos();
-            ImVec2 mouse_uv_coords = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y - 15) / height);    
 
-            ImVec2 displayed_texture_size = ImGui::GetItemRectSize();
-            ImageInspect::inspect(width, height, image_data, mouse_uv_coords, displayed_texture_size);
+            ImVec2 panpos = inspector->PanPos;
+            ImVec2 scale = inspector->Scale;
+            ImVec2 topleft = inspector->PanelTopLeftPixel;
+            ImVec2 panelsize = inspector->PanelSize;
+            ImVec2 viewsize = inspector->ViewSize;
+            ImVec2 viewsizeuv = inspector->ViewSizeUV;
+
+            // Calculate the UV coordinates corresponding to the mouse position
+            ImVec2 uv = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y) / height);
+
+            // Calculate the texel coordinates based on the inspector state
+            ImVec2 texel_coordinates = ImVec2((uv.x - panpos.x) / scale.x, (uv.y - panpos.y) / scale.y);
+
+            // Now you can use texel_coordinates to inspect the image or perform any other actions
+            // For example, you might want to pass texel_coordinates to your ImageInspect::inspect function
+            ImageInspect::inspect(width, height, image_data, texel_coordinates, viewsize);
         }
     }
-    ImGui::Image((void*)(intptr_t)texture, ImVec2(width, height));
 }
 
 
@@ -209,7 +235,8 @@ void show_ui(ImGuiIO& io) {
     ImVec2 parent_cursor_start = ImGui::GetCursorPos();
     ImGui::BeginChild("Main panel", main_panel_size, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysHorizontalScrollbar);
     ImGui::SetNextItemWidth(200.0f);
-    display_tab_bar(show_original, show_preview, width, height, texture_orig, texture_preview, image_data, image_data_out);
+    display_tab_bar(show_original, show_preview, width, height, texture_orig,
+                    texture_preview, image_data, image_data_out);
     ImGui::EndChild();
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y));
     ImGui::BeginChild("Side panel 1", side_panel_1_size, true);

@@ -95,6 +95,7 @@ void render_gui_loop() {
     //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
+
     // Create window with graphics context
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode *mode = glfwGetVideoMode(monitor);
@@ -105,17 +106,28 @@ void render_gui_loop() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSwapInterval(1); // Enable vsync
 
+    ImGuiTexInspect::Init();
+    ImGuiTexInspect::CreateContext();
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    
+    bool err = glewInit() != GLEW_OK;
+    if(err) {
+        std::cout << "Failed to initialize GLEW" << std::endl;
+        return;
+    }
+
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-
+    
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGuiTexInspect::ImplOpenGL3_Init(glsl_version);
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -156,7 +168,8 @@ void render_gui_loop() {
         }
         glfwSwapBuffers(window);
     }
-    // Cleanup
+    // // Cleanup
+    ImGuiTexInspect::ImplOpenGl3_Shutdown();//TEX_INSPECT_CHANGE
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

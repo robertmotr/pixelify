@@ -49,7 +49,7 @@ struct filter_args {
 };
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
-__device__ __forceinline__ int find_index(int width, int height, int row, int column) {
+__host__ __device__ __forceinline__ int find_index(int width, int height, int row, int column) {
     if (row >= 0 && row < height && column >= 0 && column < width) {
         return row * width + column;
     }
@@ -59,7 +59,7 @@ __device__ __forceinline__ int find_index(int width, int height, int row, int co
 
 // Clamps pixels to [0, 255] range in order to be represented in a png file
 template<unsigned int channels>
-__device__ __forceinline__ void clamp_pixels(Pixel<channels> *target, int pixel_idx) {
+__host__ __device__ __forceinline__ void clamp_pixels(Pixel<channels> *target, int pixel_idx) {
     for (int channel = 0; channel < channels; channel++) {
         if (target[pixel_idx].at(channel) < 0) {
             target[pixel_idx].set(channel, 0);
@@ -71,8 +71,8 @@ __device__ __forceinline__ void clamp_pixels(Pixel<channels> *target, int pixel_
 
 // smallest and largest hold the smallest and largest pixel values for each channel
 template <unsigned int channels>
-__device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pixel_idx, 
-                                                    const Pixel<channels> *smallest, const Pixel<channels> *largest) {
+__host__ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pixel_idx, 
+                                                         const Pixel<channels> *smallest, const Pixel<channels> *largest) {
     // normalize each respective channel
     for (int channel = 0; channel < channels; channel++) {
         short min = smallest->at(channel);
@@ -95,7 +95,7 @@ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pix
 // shifts the colour of the given channel by the given percentage specified in extra
 // for example extra.red_shift = 50 means we increase the red channel by 50%
 // channel_value is the original value of the channel we are shifting
-__device__ __forceinline__ short shift_colours(int channel_value, struct filter_args extra,
+__host__ __device__ __forceinline__ short shift_colours(int channel_value, struct filter_args extra,
                                             unsigned int channel) {
     if(channel == 0) {
         return channel_value * (100 + extra.red_shift) / 100;
@@ -116,10 +116,6 @@ __device__ __forceinline__ short shift_colours(int channel_value, struct filter_
 template<unsigned int channels>
 __device__ __forceinline__ short apply_filter(const Pixel<channels> *in, unsigned int mask, int width, 
                                             int height, int row, int col);
-
-template<unsigned int channels>
-void create_texture_object(void *pinned_input, int width, int height, size_t src_pitch, cudaArray_t* cu_array,
-                           cudaTextureObject_t* tex_obj);
 
 template<unsigned int channels>
 void run_kernel(const char *filter_name, const Pixel<channels> *input,

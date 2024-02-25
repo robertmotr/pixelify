@@ -6,13 +6,12 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_tex_inspect.h" //TEX_INSPECT_CHANGE
+#include "imgui_tex_inspect_internal.h"
+#include "tex_inspect_opengl.h"  //TEX_INSPECT_CHANGE
 #include "ImGuiFileDialog.h"
 
-#define GL_SILENCE_DEPRECATION
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <GLES2/gl2.h>
-#endif
-
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <GL/gl.h>
 #include "imgInspect.h"
@@ -25,6 +24,7 @@
 #include <vector>
 #include <iostream>
 #include <exiv2/exiv2.hpp>
+
 void free_image(unsigned char **image_data);
 
 bool load_texture_from_data(int out_channels, int out_width, int out_height, GLuint *out_texture, const unsigned char *image_data);
