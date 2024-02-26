@@ -13,6 +13,7 @@ Image processor that applies filters to images using CUDA.
 - dynamically determine an optimized grid size based on GPU + image
 
 # in progress:
+- redo all tests to fix bugs and have safety
 - add invert image, threshold
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
