@@ -31,7 +31,7 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
                                                                    inspector->ViewTopLeftPixel.y + inspector->ViewSize.y))) {
 
     ImGui::BeginTooltip();
-    ImGui::Text("Hold left-click to inspect the image.\nYou can also zoom in/out and pan the image.");
+    ImGui::Text("Hold left Ctrl to inspect the image.\nYou can also zoom in/out and pan the image.");
     ImGui::EndTooltip();
 
         // check if user is holding left ctrl key
@@ -40,8 +40,6 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
             ImVec2 mousePosTexel = inspector->PixelsToTexels * mousePos;
             ImVec2 mousePosUV = mousePosTexel / ImVec2(width, height);
 
-
-            // Now you can use mousePosUV directly for UV coordinates
             ImageInspect::inspect(width, height, image_data, mousePosUV, ImVec2(width, height));
         }
     }
