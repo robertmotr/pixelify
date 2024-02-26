@@ -25,6 +25,11 @@
 #include <iostream>
 #include <exiv2/exiv2.hpp>
 
+namespace ImGuiTexInspect{
+struct Context;
+struct Inspector;
+}
+
 void free_image(unsigned char **image_data);
 
 bool load_texture_from_data(int out_channels, int out_width, int out_height, GLuint *out_texture, const unsigned char *image_data);

@@ -45,7 +45,6 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
     }
 }
 
-
 inline void display_tab_bar(bool& original_loaded, bool& preview_loaded, const int& width, const int& height, 
                             const GLuint& texture_orig, const GLuint& texture_preview, const unsigned char *image_orig, 
                             const unsigned char *image_preview) { 

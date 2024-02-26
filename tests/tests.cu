@@ -59,7 +59,62 @@ TEST(KernelHelpers, clamp_pixels) {
 }
 
 TEST(KernelHelpers, shift_colours) {
+    Pixel<3> pixels[16] = {
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
+    };
+
+    Pixel<3> pixels_expected[16] = {
+        {0, 0, 255}, {255, 255, 255}, {0, 0, 255}, {255, 255, 255},
+        {0, 0, 255}, {255, 255, 255}, {0, 0, 255}, {255, 255, 255},
+        {0, 0, 255}, {255, 255, 255}, {0, 0, 255}, {255, 255, 255},
+        {0, 0, 255}, {255, 255, 255}, {0, 0, 255}, {255, 255, 255}
+    };
+
+    Pixel<3> *d_pixels;
+    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
+    cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+
+    struct filter_args args;
+    args.alpha_shift = 0;
+    args.red_shift = 0;
+    args.green_shift = 0;
+    args.blue_shift = 255;
+
+    shift_kernel<3><<<1, 1024>>>(d_pixels, 4, 4, args);
+
+    cudaMemcpy(pixels, d_pixels, 16 * sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+
+    for(int i = 0; i < 16; i++) {
+        ASSERT_EQ(pixels[i], pixels_expected[i]) << "Mismatch at index " << i;
+    }
 }
+
+TEST(KernelHelpers, brightness_kernel_test);
+TEST(KernelHelpers, tint_kernel_test);
+TEST(KernelHelpers, invert_kernel_test);
+TEST(Reduction, three_channels);
+TEST(Reduction, four_channels);
+TEST(Reduction, mountain_with_python_script);
+TEST(FilterKernel, identity_3);
+TEST(FilterKernel, identity_4);
+TEST(FilterKernel, identity_mountain);
+TEST(FilterKernel, identity_garden);
+TEST(FilterKernel, identity_helmet);
+TEST(FilterKernel, identity_phone);
+TEST(FilterKernel, sharpen_3);
+TEST(FilterKernel, sharpen_4);
+TEST(FilterKernel, blur_3);
+TEST(FilterKernel, blur_4);
+
+TEST(RunKernel, identity_3);
+TEST(RunKernel, identity_4);
+TEST(RunKernel, identity_mountain);
+TEST(RunKernel, identity_garden);
+TEST(RunKernel, identity_helmet);
+TEST(RunKernel, identity_phone);
 
 int main(int argc, char **argv) {
     setenv("current_dir", getenv("PWD"), 1);
