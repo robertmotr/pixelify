@@ -27,33 +27,22 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
     struct ImGuiTexInspect::Context *ctx = ImGuiTexInspect::GetContext();
     struct ImGuiTexInspect::Inspector *inspector = ctx->CurrentInspector;
 
-    // Check if the mouse is within the bounds of the image
-    if (ImGui::IsMouseHoveringRect(pos, inspector->PanelSize)) {
+    if (ImGui::IsMouseHoveringRect(inspector->ViewTopLeftPixel, ImVec2(inspector->ViewTopLeftPixel.x + inspector->ViewSize.x, 
+                                                                   inspector->ViewTopLeftPixel.y + inspector->ViewSize.y))) {
 
-        ImGui::BeginTooltip();
-        ImGui::Text("Hold left-click to inspect the image.\nYou can also zoom in/out and pan the image.");
-        ImGui::EndTooltip();
+    ImGui::BeginTooltip();
+    ImGui::Text("Hold left-click to inspect the image.\nYou can also zoom in/out and pan the image.");
+    ImGui::EndTooltip();
 
         // check if user is holding left ctrl key
         if(io.KeyCtrl) {
-            ImVec2 mouse_pos = ImGui::GetMousePos();
+            ImVec2 mousePos = ImGui::GetMousePos();
+            ImVec2 mousePosTexel = inspector->PixelsToTexels * mousePos;
+            ImVec2 mousePosUV = mousePosTexel / ImVec2(width, height);
 
-            ImVec2 panpos = inspector->PanPos;
-            ImVec2 scale = inspector->Scale;
-            ImVec2 topleft = inspector->PanelTopLeftPixel;
-            ImVec2 panelsize = inspector->PanelSize;
-            ImVec2 viewsize = inspector->ViewSize;
-            ImVec2 viewsizeuv = inspector->ViewSizeUV;
 
-            // Calculate the UV coordinates corresponding to the mouse position
-            ImVec2 uv = ImVec2((mouse_pos.x - pos.x) / width, (mouse_pos.y - pos.y) / height);
-
-            // Calculate the texel coordinates based on the inspector state
-            ImVec2 texel_coordinates = ImVec2((uv.x - panpos.x) / scale.x, (uv.y - panpos.y) / scale.y);
-
-            // Now you can use texel_coordinates to inspect the image or perform any other actions
-            // For example, you might want to pass texel_coordinates to your ImageInspect::inspect function
-            ImageInspect::inspect(width, height, image_data, texel_coordinates, viewsize);
+            // Now you can use mousePosUV directly for UV coordinates
+            ImageInspect::inspect(width, height, image_data, mousePosUV, ImVec2(width, height));
         }
     }
 }
