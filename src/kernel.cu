@@ -21,8 +21,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   Pixel<channels>                                        *h_smallest, *h_largest;          
   int blockSize;
   int gridSize;
-  h_smallest =                                           new Pixel<channels>(SHORT_MAX);
-  h_largest =                                            new Pixel<channels>(SHORT_MIN);
+  h_smallest =                                           new Pixel<channels>{SHORT_MAX};
+  h_largest =                                            new Pixel<channels>{SHORT_MIN};
 
   if(strcmp(filter_name, "NULL") != 0) {         
     h_filter = create_filter(filter_name, extra.dimension, extra.filter_strength);
@@ -180,8 +180,8 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> __restrict_a
       assert(find_index(width, height, row, col) < width * height);
     #endif
       
-    const __restrict_arr float *const_filter = global_const_filter;
-    const __restrict_arr unsigned char const_filter_dim = global_const_filter_dim;
+    const __restrict_arr volatile float *const_filter = global_const_filter;
+    const __restrict_arr volatile unsigned char const_filter_dim = global_const_filter_dim;
 
     float sum = 0;
     int start_i = row - const_filter_dim;
@@ -350,8 +350,8 @@ template __global__ void shift_kernel<4u>(Pixel<4u> *d_pixels, int width, int he
 template __device__ __forceinline__ short apply_filter<3u>(const Pixel<3u> *device_input,
                                                            unsigned int mask, int width, int height, int row, int col);
 
-template __device__ __forceinline__ short apply_filter<4u>(const Pixel<4u> *device_input, unsigned int mask,
-                                                           int width, int height, int row, int col);
+template __device__ __forceinline__ short apply_filter<4u>(const Pixel<4u> *device_input, 
+                                                           unsigned int mask, int width, int height, int row, int col);
 
 template __global__ void filter_kernel<3u>(const Pixel<3u> *d_in, Pixel<3u> *out, int width, int height,
                                            const struct filter_args args);
@@ -375,4 +375,4 @@ template __global__ void invert_kernel<3u>(Pixel<3u> *d_pixels, int width, int h
                                            const struct filter_args extra);
 
 template __global__ void invert_kernel<4u>(Pixel<4u> *d_pixels, int width, int height,
-                                            const struct filter_args extra);      
+                                           const struct filter_args extra);      

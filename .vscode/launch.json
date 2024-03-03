@@ -8,7 +8,7 @@
             "name": "CUDA C++: Launch",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/pixelify",
+            "program": "${workspaceFolder}/build/tests",
         },
         {
             "name": "CUDA C++: Attach",

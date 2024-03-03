@@ -71,7 +71,7 @@ __host__ __device__ __forceinline__ void clamp_pixels(Pixel<channels> *target, i
 
 // smallest and largest hold the smallest and largest pixel values for each channel
 template <unsigned int channels>
-__host__ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target, int pixel_idx, 
+__host__ __device__ __forceinline__ void  normalize_pixel(Pixel<channels> *target, int pixel_idx, 
                                                          const Pixel<channels> *smallest, const Pixel<channels> *largest) {
     // normalize each respective channel
     for (int channel = 0; channel < channels; channel++) {
@@ -80,6 +80,11 @@ __host__ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target
         short value = target[pixel_idx].at(channel);
 
         if(max == min) {
+            #ifdef _DEBUG
+                printf("Triggered max == min in normalize_pixel\n");
+                printf("Max: %d, Min: %d\n", max, min);
+            #endif
+
             max = (min + 1) % 255;
             min = (min - 1) % 255;
             if(min < 0) min += 255;
@@ -88,7 +93,8 @@ __host__ __device__ __forceinline__ void normalize_pixel(Pixel<channels> *target
         // this shouldnt happen in real life, so we'll just ignore it
         // although i am unsure if this is the best way to handle this
 
-        target[pixel_idx].set(channel, (short) (value - min) * 255 / (max - min));
+        target[pixel_idx].set(channel, (short)(((value - min) * 255) / (max - min)));
+
     }
 }
 
@@ -127,7 +133,7 @@ __global__ void filter_kernel(const Pixel<channels> *in, Pixel<channels> *out, i
                               const struct filter_args args);
 
 template<unsigned int channels>
-__global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height, const struct filter_arg extra);
+__global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height, const struct filter_args extra);
 
 template<unsigned int channels>
 __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int height, const struct filter_args extra);

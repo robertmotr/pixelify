@@ -119,25 +119,7 @@ struct Pixel {
             return data.w;
         }
     }
-
-    // used for googletests
-    friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
-        os << "Pixel(";
-        for (int i = 0; i < channels; ++i) {
-            // Access components using .x, .y, .z, .w
-            if (i == 0) os << pixel.data.x;
-            else if (i == 1) os << ", " << pixel.data.y;
-            else if (i == 2) os << ", " << pixel.data.z;
-            else if (i == 3) os << ", " << pixel.data.w;
-
-            if (i < channels - 1) {
-                os << ", ";
-            }
-        }
-        os << ")";
-        return os;
-    }
-
+    
     __host__ __device__
     bool operator==(const Pixel &other) const {
         return data.x == other.data.x && data.y == other.data.y && data.z == other.data.z && data.w == other.data.w;
@@ -153,24 +135,32 @@ struct Pixel {
             data.w = 255;
         }
     }
-
-    // Constructor with initializer_list
-    __host__ __device__
+    
+    __host__ __device__ 
     Pixel(std::initializer_list<short> values) {
-        // if values == 1 then set all channels to that value
-        // iff channels == 4, otherwise set 4th byte to 255
         auto i = values.begin();
-        if(channels == 3) {
-            data.x = *i;
-            data.y = *(i++);
-            data.z = *(i++);
-            data.w = 255;
+        unsigned long size = values.size();
+
+        if (size == 1) {
+            // If there's only one value, set all channels to that value
+            short singleValue = *i;
+            data = make_short4(singleValue, singleValue, singleValue, (channels == 3) ? 255 : singleValue);
         }
-        else {
+        else if (size == channels) {
+            // If there are as many values as channels, set each channel individually
             data.x = *i;
-            data.y = *(i++);
-            data.z = *(i++);
-            data.w = *(i++);
+            data.y = *(++i);
+            data.z = *(++i);
+            data.w = (channels == 3) ? 255 : *(++i);
+        } else {
+            // Handle the case where the number of values doesn't match the number of channels
+            // For simplicity, this example sets all channels to 0 in case of mismatch
+            #ifdef _DEBUG
+                printf("Number of values doesn't match the number of channels for pixel initializer list\n");
+                printf("Number of values: %lu, Number of channels: %d\n", size, channels);
+                printf("Error at line: %d\n", __LINE__);
+            #endif
+            data = make_short4(0, 0, 0, 255);
         }
     }
 
