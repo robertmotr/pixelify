@@ -9,6 +9,9 @@
 
 #define OUT_OF_BOUNDS           -1
 
+#define SHORT_MIN               -32768
+#define SHORT_MAX               32767
+
 #define MAX_FILTER_DIMENSION    15
 #define MAX_FILTER_1D_SIZE      (MAX_FILTER_DIMENSION * MAX_FILTER_DIMENSION)
 
@@ -115,6 +118,8 @@ __host__ __device__ __forceinline__ short shift_colours(int channel_value, struc
     else if(channel == 3) {
         return channel_value * (100 + extra.alpha_shift) / 100;
     }
+
+    return SHORT_MIN; // on error
 }
 
 // applies the filter to the input image at the given row and column

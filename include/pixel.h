@@ -125,16 +125,25 @@ struct Pixel {
         return data.x == other.data.x && data.y == other.data.y && data.z == other.data.z && data.w == other.data.w;
     }
 
-    // Constructor with variadic template
     template<typename... Args>
     __host__ __device__
-    Pixel(Args... args) : data{static_cast<short>(args)...} {
+    Pixel(Args... args) {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
-        if constexpr(sizeof...(Args) == 3) {
-            // Set the 4th byte to 255 if channels == 3
-            data.w = 255;
+        
+        if constexpr(sizeof...(Args) >= 1) {
+            data.x = std::get<0>(std::make_tuple(args...));
+        }
+        if constexpr(sizeof...(Args) >= 2) {
+            data.y = std::get<1>(std::make_tuple(args...));
+        }
+        if constexpr(sizeof...(Args) >= 3) {
+            data.z = std::get<2>(std::make_tuple(args...));
+        }
+        if constexpr(sizeof...(Args) == 4) {
+            data.w = std::get<3>(std::make_tuple(args...));
         }
     }
+
     
     __host__ __device__ 
     Pixel(std::initializer_list<short> values) {

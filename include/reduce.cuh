@@ -2,6 +2,7 @@
 #define __REDUCE__H
 
 #include "pixel.h"
+#define THRUST_IGNORE_CUB_VERSION_CHECK
 #include <cub/device/device_reduce.cuh>
 
 #define MAX_REDUCE true

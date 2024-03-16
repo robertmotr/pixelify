@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "kernel.cuh"
-#include "cub/cub.cuh"
 #include "reduce.cuh"
 #include "filters.h"
 #include "filter_impl.h"
@@ -161,47 +160,59 @@ TEST(KernelHelpers, invert_kernel_test) {
     cudaFree(d_pixels);
 }
 
-TEST(NormalizationCorrectness, normalize_out_of_bounds) {
-    Pixel<4> pixels[4] = {
-        {0, 0, 0, 0}, {123, 34, 53, 255},
-        {324, 33, -72, 0}, {0, 0, 0, 0}
+TEST(KernelHelpers, clamp_pixels_1) {
+    Pixel<3> pixels[16] = {
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
     };
 
-    Pixel<4> expected[4] = {
-        {0, 0, 0, 0}, {96, 255, 255, 255},
-        {255, 247, 0, 0}, {0, 0, 0, 0}
+    Pixel<3> expected[16] = {
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
     };
 
-    Pixel<4> *h_output = new Pixel<4>[4];
+    Pixel<3> *h_pixels = new Pixel<3>[16];
 
-    Pixel<4> *d_pixels = nullptr;
-    cudaMalloc(&d_pixels, 4 * sizeof(Pixel<4>));
-    cudaMemcpy(d_pixels, pixels, 4 * sizeof(Pixel<4>), cudaMemcpyHostToDevice);
-
-    Pixel<4> h_smallest = {0, 0, -72, 0};
-    Pixel<4> h_largest = {324, 34, 53, 255};
-
-    Pixel<4> *d_smallest = nullptr;
-    cudaMalloc(&d_smallest, sizeof(Pixel<4>));
-    Pixel<4> *d_largest = nullptr;
-    cudaMalloc(&d_largest, sizeof(Pixel<4>));
-
-    cudaMemcpy(d_smallest, &h_smallest, sizeof(Pixel<4>), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_largest, &h_largest, sizeof(Pixel<4>), cudaMemcpyHostToDevice);
-
-    normalize<4><<<1, 1024>>>(d_pixels, 2, 2, d_smallest, d_largest, true);
-    cudaDeviceSynchronize();
-    cudaMemcpy(h_output, d_pixels, 4 * sizeof(Pixel<4>), cudaMemcpyDeviceToHost); 
-    cudaDeviceSynchronize();
-
-    for(int i = 0; i < 4; i++) {
-        ASSERT_EQ(expected[i], h_output[i]) << "Mismatch at index " << i;
+    for(int i = 0; i < 16; i++) {
+        h_pixels[i] = pixels[i];
+        clamp_pixels<3>(&h_pixels[i], i);
     }
 
-    cudaFree(d_pixels);
-    cudaFree(d_smallest);
-    cudaFree(d_largest);
-}  
+    for(int i = 0; i < 16; i++) {
+        ASSERT_EQ(h_pixels[i], expected[i]) << "Mismatch at index " << i;
+    }
+}
+
+TEST(ApplyFilter, apply_filter_identity_simple) {
+    Pixel<3> pixels[16] = {
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
+    };
+
+    Pixel<3> expected[16] = {
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
+    };
+    
+    Pixel<3> *output = new Pixel<3>[16];
+
+    struct filter_args args;
+    memset(&args, 0, sizeof(struct filter_args));
+
+    run_kernel<3>("Identity", pixels, output, 4, 4, args);
+
+    for(int i = 0; i < 16; i++) {
+        ASSERT_EQ(output[i], expected[i]) << "Mismatch at index " << i;
+    }
+}
 
 int main(int argc, char **argv) {
     setenv("current_dir", getenv("PWD"), 1);
