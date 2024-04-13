@@ -504,9 +504,11 @@ void show_ui(ImGuiIO& io) {
                 printf("Filter size: %d\n", extra_args.dimension);
                 printf("Blend factor: %f\n", extra_args.blend_factor);
                 printf("Tint colour: %d, %d, %d, %d\n", extra_args.tint[0], extra_args.tint[1], extra_args.tint[2], extra_args.tint[3]);
-
                 // print values of tint colour
                 printf("Tint colour: %f, %f, %f, %f\n", tint_colour.x, tint_colour.y, tint_colour.z, tint_colour.w);
+                printf("Invert: %d\n", extra_args.invert);
+                printf("Conversion: %d\n", extra_args.conversion);
+                printf("Threshold: %d\n", extra_args.threshold);
             #endif // DEBUG
         }
     }
