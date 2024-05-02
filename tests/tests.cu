@@ -206,8 +206,9 @@ TEST(ApplyFilter, apply_filter_identity_simple) {
 
     filter_args args;
     memset(&args, 0, sizeof(filter_args));
+    args.dimension = 3;
 
-    // run_kernel<3>("Identity", pixels, output, 4, 4, args);
+    run_kernel<3>("Identity", pixels, output, 4, 4, args);
 }
 
 int main(int argc, char **argv) {

@@ -32,7 +32,6 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
     }
     // if we can match a basic filter to strength + dimension
     // return it, otherwise we create our own
-
     else if(basic_filter->filter_dimension == filter_dimension &&
             filter_strength == 0) {
         #ifdef _DEBUG
