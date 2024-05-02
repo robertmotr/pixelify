@@ -150,6 +150,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying back d_output to pinned output");
 
+  // CLEANUP
+
   cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
   delete h_smallest;
   delete h_largest;
