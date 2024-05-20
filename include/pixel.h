@@ -14,110 +14,31 @@ struct Pixel {
     __device__ __host__ __forceinline__ void set(const unsigned int i, const short val) {
         #ifdef _DEBUG
             if (i >= channels) {
-                printf("index out of bounds\n");
+                std::cout << "index out of bounds" << std::endl;
                 return;
             }
         #endif
-        if(i == 0) {
-            data.x = val;
-        } 
-        else if(i == 1) {
-            data.y = val;
-        }
-        else if(i == 2) {
-            data.z = val;
-        }
-        else {
-            data.w = val;
-        }
-    }
-
-    __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) {
-        #ifdef _DEBUG
-            if (i >= channels) {
-                printf("index out of bounds\n");
-                return nullptr;
-            }
-        #endif
-
-        if(i == 0) {
-            return &data.x;
-        } 
-        else if(i == 1) {
-            return &data.y;
-        }
-        else if(i == 2) {
-            return &data.z;
-        }
-        else {
-            return &data.w;
-        }
+        (&data.x)[i] = val;
     }
 
     __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) const {
         #ifdef _DEBUG
             if (i >= channels) {
-                printf("index out of bounds\n");
+                std::cout << "index out of bounds" << std::endl;
                 return nullptr;
             }
         #endif
-
-        if(i == 0) {
-            return &data.x;
-        } 
-        else if(i == 1) {
-            return &data.y;
-        }
-        else if(i == 2) {
-            return &data.z;
-        }
-        else {
-            return &data.w;
-        }
-    }
-
-    __device__ __host__ __forceinline__ short at(const unsigned int i) {
-        #ifdef _DEBUG
-            if (i >= channels) {
-                printf("index out of bounds\n");
-                return -1;
-            }
-        #endif
-
-        if(i == 0) {
-            return data.x;
-        } 
-        else if(i == 1) {
-            return data.y;
-        }
-        else if(i == 2) {
-            return data.z;
-        }
-        else {
-            return data.w;
-        }
+        return (&data.x)[i];
     }
 
     __device__ __host__ __forceinline__ short at(const unsigned int i) const {
         #ifdef _DEBUG
             if (i >= channels) {
-                printf("index out of bounds\n");
+                std::cout << "index out of bounds" << std::endl;
                 return -1;
             }
         #endif
-
-        if(i == 0) {
-            return data.x;
-        } 
-        else if(i == 1) {
-            return data.y;
-        }
-        else if(i == 2) {
-            return data.z;
-        }
-        else {
-            return data.w;
-        }
+        return (&data.x)[i];
     }
     
     __host__ __device__
@@ -126,24 +47,16 @@ struct Pixel {
     }
 
     template<typename... Args>
-    __host__ __device__
-    Pixel(Args... args) {
+    __host__ __device__ Pixel(Args... args) {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
-        
-        if constexpr(sizeof...(Args) >= 1) {
-            data.x = std::get<0>(std::make_tuple(args...));
+        short vals[] = {args...};
+        for (unsigned int i = 0; i < sizeof...(Args); ++i) {
+            (&data.x)[i] = vals[i];
         }
-        if constexpr(sizeof...(Args) >= 2) {
-            data.y = std::get<1>(std::make_tuple(args...));
-        }
-        if constexpr(sizeof...(Args) >= 3) {
-            data.z = std::get<2>(std::make_tuple(args...));
-        }
-        if constexpr(sizeof...(Args) == 4) {
-            data.w = std::get<3>(std::make_tuple(args...));
+        if (sizeof...(Args) < 4) {
+            data.w = (channels == 3) ? 255 : vals[sizeof...(Args) - 1];
         }
     }
-
     
     __host__ __device__ 
     Pixel(std::initializer_list<short> values) {

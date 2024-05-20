@@ -9,13 +9,6 @@ find_package(GLEW REQUIRED)
 find_package(exiv2 REQUIRED)
 enable_testing()
 
-# replace this with your GPU's compute capability
-# mine is 61 on a GTX 1060
-# https://en.wikipedia.org/wiki/CUDA#GPUs_supported
-set(CMAKE_CUDA_ARCHITECTURES 61)
-set(CMAKE_CUDA_STANDARD 14)
-set(CMAKE_CXX_STANDARD 17)
-
 # Set include directories for OpenGL
 include_directories(${OPENGL_INCLUDE_DIR})
 

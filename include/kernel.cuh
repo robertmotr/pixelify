@@ -47,8 +47,8 @@ struct filter_args {
     char                        brightness;
     // chosen by colour picker
     unsigned char tint[4] =     {0, 0, 0, 0}; // [red, green, blue, alpha]
-    float                       blend_factor;
-    unsigned char               passes;
+    float                       blend_factor; // how much of the tint to apply [0, 1]
+    unsigned char               passes; // how many times to apply the filter
 };
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
@@ -84,8 +84,8 @@ __host__ __device__ __forceinline__ void  normalize_pixel(Pixel<channels> *targe
 
         if(max == min) {
             #ifdef _DEBUG
-                printf("Triggered max == min in normalize_pixel\n");
-                printf("Max: %d, Min: %d\n", max, min);
+                std::cout << "Triggered max == min in normalize_pixel\n" << std::endl;
+                std::cout << "Max: " << max << ", Min: " << min << std::endl;
             #endif
 
             max = (min + 1) % 255;
