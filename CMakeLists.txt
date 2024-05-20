@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(pixelify LANGUAGES CXX CUDA)
-enable_language(CUDA CXX)
 include(CTest)
 include(GoogleTest REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -14,6 +13,8 @@ enable_testing()
 # mine is 61 on a GTX 1060
 # https://en.wikipedia.org/wiki/CUDA#GPUs_supported
 set(CMAKE_CUDA_ARCHITECTURES 61)
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 # Set include directories for OpenGL
 include_directories(${OPENGL_INCLUDE_DIR})
@@ -49,6 +50,7 @@ target_include_directories(imgui_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgInspect 
 )
 target_compile_options(imgui_lib PRIVATE -DIMGUI_IMPL_OPENGL_LOADER_GLEW)
 
@@ -62,12 +64,13 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgInspect
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/stb
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     ${OPENGL_INCLUDE_DIR} ${GLFW_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS}
 )
-
 
 add_executable(pixelify src/main.cu)
 target_include_directories(pixelify PRIVATE ${INCLUDE_DIRS})
