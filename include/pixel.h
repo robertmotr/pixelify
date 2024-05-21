@@ -14,31 +14,71 @@ struct Pixel {
     __device__ __host__ __forceinline__ void set(const unsigned int i, const short val) {
         #ifdef _DEBUG
             if (i >= channels) {
-                std::cout << "index out of bounds" << std::endl;
+                printf("index out of bounds, i is %d, channels is %d\n", i, channels);
+                printf("at line %d\n", __LINE__);
                 return;
             }
         #endif
-        (&data.x)[i] = val;
+        switch (i) {
+            case 0:
+                data.x = val;
+                break;
+            case 1:
+                data.y = val;
+                break;
+            case 2:
+                data.z = val;
+                break;
+            case 3:
+                data.w = val;
+                break;
+            default:
+                break;
+        }
     }
 
     __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) const {
         #ifdef _DEBUG
             if (i >= channels) {
-                std::cout << "index out of bounds" << std::endl;
+                printf("index out of bounds, i is %d, channels is %d\n", i, channels);
+                printf("at line %d\n", __LINE__);
                 return nullptr;
             }
         #endif
-        return (&data.x)[i];
+        switch (i) {
+            case 0:
+                return &data.x;
+            case 1:
+                return &data.y;
+            case 2:
+                return &data.z;
+            case 3:
+                return &data.w;
+            default:
+                return nullptr;
+        }
     }
 
     __device__ __host__ __forceinline__ short at(const unsigned int i) const {
         #ifdef _DEBUG
             if (i >= channels) {
-                std::cout << "index out of bounds" << std::endl;
+                printf("index out of bounds, i is %d, channels is %d\n", i, channels);
+                printf("at line %d\n", __LINE__);
                 return -1;
             }
         #endif
-        return (&data.x)[i];
+        switch (i) {
+            case 0:
+                return data.x;
+            case 1:
+                return data.y;
+            case 2:
+                return data.z;
+            case 3:
+                return data.w;
+            default:
+                return -1;
+        }
     }
     
     __host__ __device__
@@ -51,7 +91,22 @@ struct Pixel {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
         short vals[] = {args...};
         for (unsigned int i = 0; i < sizeof...(Args); ++i) {
-            (&data.x)[i] = vals[i];
+            switch (i) {
+                case 0:
+                    data.x = vals[i];
+                    break;
+                case 1:
+                    data.y = vals[i];
+                    break;
+                case 2:
+                    data.z = vals[i];
+                    break;
+                case 3:
+                    data.w = vals[i];
+                    break;
+                default:
+                    break;
+            }
         }
         if (sizeof...(Args) < 4) {
             data.w = (channels == 3) ? 255 : vals[sizeof...(Args) - 1];

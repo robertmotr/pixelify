@@ -2,15 +2,6 @@
 #include "stb/stb_image.h"
 #include "stb/stb_image_write.h"
 
-#include "filters.h"
-#include "filter_impl.h"
-#include "kernel_formulas.h"
-
-#include <GL/gl.h>  // or #include <GL/glew.h>
-#include "tex_inspect_opengl.h"
-#include "imgui_tex_inspect.h"
-#include "imgui_tex_inspect_internal.h"
-
 #include <cuda_runtime.h>
 
 inline void display_image(const GLuint& texture, const int& width, const int& height,

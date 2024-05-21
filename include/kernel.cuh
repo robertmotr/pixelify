@@ -7,8 +7,6 @@
 #include "filter_impl.h"
 #include "pixel.h"
 
-#define OUT_OF_BOUNDS           -1
-
 #define SHORT_MIN               -32768
 #define SHORT_MAX               32767
 
@@ -30,29 +28,9 @@
     #define CUDA_CHECK_ERROR(errorMessage) 
 #endif
 
-struct filter_args {
-    bool                        normalize; // false means we clamp values to [0, 255] to be able to display them,
-                                           // true means perform linear normalization instead
-    bool                        invert; // invert the image i.e 255 - pixel_value
-    bool                        threshold; // threshold the image i.e if pixel_value > 127 then pixel_value = 255 else pixel_value = 0
-    bool                        conversion; // convert the image to grayscale using the formula: 0.299 * red + 0.587 * green + 0.114 * blue
-    // values below are expected to be in [-100, 100] range
-    // 0 means do nothing, 0 < x < 100 means increase values by x%, 0 > x > -100 means decrease values by x%
-    unsigned char               filter_strength; // how much of the filter to apply [0, 100]
-    unsigned char               dimension; // filter dimension
-    char                        red_shift;       
-    char                        green_shift; 
-    char                        blue_shift; 
-    char                        alpha_shift; 
-    char                        brightness;
-    // chosen by colour picker
-    unsigned char tint[4] =     {0, 0, 0, 0}; // [red, green, blue, alpha]
-    float                       blend_factor; // how much of the tint to apply [0, 1]
-    unsigned char               passes; // how many times to apply the filter
-};
-
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
-__host__ __device__ __forceinline__ int find_index(int width, int height, int row, int column) {
+__forceinline__ __device__ __host__
+int find_index(int width, int height, int row, int column) {
     if (row >= 0 && row < height && column >= 0 && column < width) {
         return row * width + column;
     }
@@ -84,8 +62,8 @@ __host__ __device__ __forceinline__ void  normalize_pixel(Pixel<channels> *targe
 
         if(max == min) {
             #ifdef _DEBUG
-                std::cout << "Triggered max == min in normalize_pixel\n" << std::endl;
-                std::cout << "Max: " << max << ", Min: " << min << std::endl;
+                printf("Triggered max == min in normalize_pixel\n");
+                printf("Max: %d, Min: %d\n", max, min);
             #endif
 
             max = (min + 1) % 255;

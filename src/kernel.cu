@@ -1,5 +1,4 @@
 #include "kernel.cuh"
-#include "reduce.cuh"
 #include "pixel.h"
 #include "filter_impl.h"
 #include "filters.h"
@@ -121,8 +120,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   // parallel reduction to find largest and smallest pixel values
   // for each channel respectively
-  image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
-  image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
+  // image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
+  // image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
 
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("reduction");

@@ -20,6 +20,7 @@
 #include "pixel.h"
 #include "filters.h"
 #include "filter_impl.h"
+#include "kernel_formulas.h"
 
 #include <vector>
 #include <iostream>

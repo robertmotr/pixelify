@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "kernel.cuh"
-#include "reduce.cuh"
 #include "filters.h"
 #include "filter_impl.h"
 

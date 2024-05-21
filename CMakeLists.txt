@@ -9,8 +9,14 @@ find_package(GLEW REQUIRED)
 find_package(exiv2 REQUIRED)
 enable_testing()
 
-# Set include directories for OpenGL
+# set include directories for OpenGL
 include_directories(${OPENGL_INCLUDE_DIR})
+
+# set architecture flags
+# this depends on your GPU
+# see link below
+# https://developer.nvidia.com/cuda-gpus
+set(CMAKE_CUDA_ARCHITECTURES 61)
 
 set(SOURCES 
     src/main.cu
@@ -93,7 +99,6 @@ set(HEADERS_TEST
     ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/reduce.cuh 
 )
 
 add_library(pixelify_tests STATIC ${SOURCES_TEST})
