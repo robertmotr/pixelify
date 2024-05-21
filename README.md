@@ -14,6 +14,7 @@ Image processor that applies filters to images using CUDA.
 
 # in progress:
 - redo all tests to fix bugs and have safety
+- stop using CUB for image reductions and just write kernel myself
 - add invert image, threshold
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
@@ -35,4 +36,3 @@ Image processor that applies filters to images using CUDA.
 - set filter size slider to be dependent on filter selected, i.e identity can only have 3x3 
 - optimize kernels to get ~200ms runtime preferably even lower (update: getting consistently sub 20ms which is fantastic)
 - imgui implementation 
-- test cases for all cases 
