@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.22)
 
 project(pixelify LANGUAGES CXX CUDA)
 include(CTest)
@@ -8,6 +8,9 @@ find_package(glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(exiv2 REQUIRED)
 enable_testing()
+
+set(CMAKE_CXX_COMPILER "/usr/bin/g++")
+set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 
 # set include directories for OpenGL
 include_directories(${OPENGL_INCLUDE_DIR})
