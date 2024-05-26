@@ -2,10 +2,10 @@ FROM rocker/cuda
 
 RUN apt-get update && \
     apt-get install -y \
+        cuda \ 
         cmake \
-        cuda \
-        xserver-xorg \ 
-        ubuntu-drivers-common \ 
+        xserver-xorg \
+        ubuntu-drivers-common \
         apt-utils \
         git \
         build-essential \
@@ -13,6 +13,7 @@ RUN apt-get update && \
         libglew-dev \
         libexiv2-dev \
         libgtest-dev \
+        nvidia-container-toolkit \ 
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -25,4 +26,14 @@ RUN rm -rf build && mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=Debug .. && \
     make -j$(nproc)
 
-CMD ["./build/pixelify"]
+ARG uid=1000
+RUN useradd -m -s /bin/bash -u $uid developer
+
+RUN mkdir -p /etc/sudoers.d
+RUN echo 'developer ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/developer
+
+USER developer
+ENV HOME /home/developer
+ENV DISPLAY :1
+
+CMD ["build/pixelify"]

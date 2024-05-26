@@ -9,9 +9,6 @@ find_package(GLEW REQUIRED)
 find_package(exiv2 REQUIRED)
 enable_testing()
 
-set(CMAKE_CXX_COMPILER "/usr/bin/g++")
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
-
 # set architecture flags
 # this depends on your GPU
 # see link below
