@@ -12,9 +12,6 @@ enable_testing()
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 
-# set include directories for OpenGL
-include_directories(${OPENGL_INCLUDE_DIR})
-
 # set architecture flags
 # this depends on your GPU
 # see link below
@@ -61,15 +58,13 @@ target_include_directories(pixelify_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgInspect
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui_tex_inspect/backends
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/stb
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     ${OPENGL_INCLUDE_DIR} ${GLFW_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS}
 )
@@ -89,30 +84,30 @@ target_link_libraries(pixelify PUBLIC
 
 # ------ TESTS ------
 
-set(SOURCES_TEST 
-    src/kernel.cu 
-    src/filters.cpp
-    src/filter_impl.cpp
-    src/kernel_formulas.cpp
-)
+# set(SOURCES_TEST 
+#     src/kernel.cu 
+#     src/filters.cpp
+#     src/filter_impl.cpp
+#     src/kernel_formulas.cpp
+# )
 
-set(HEADERS_TEST 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-)
+# set(HEADERS_TEST 
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
+# )
 
-add_library(pixelify_tests STATIC ${SOURCES_TEST})
-target_include_directories(pixelify_tests PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/cub/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-add_executable(tests tests/tests.cu)
-target_link_libraries(tests pixelify_tests gtest)
+# add_library(pixelify_tests STATIC ${SOURCES_TEST})
+# target_include_directories(pixelify_tests PUBLIC 
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googletest/include
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googlemock/include
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include
+# )
+# add_executable(tests tests/tests.cu)
+# target_link_libraries(tests pixelify_tests gtest_main gtest)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

@@ -89,29 +89,39 @@ struct Pixel {
     template<typename... Args>
     __host__ __device__ Pixel(Args... args) {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
-        short vals[] = {args...};
-        for (unsigned int i = 0; i < sizeof...(Args); ++i) {
-            switch (i) {
-                case 0:
-                    data.x = vals[i];
-                    break;
-                case 1:
-                    data.y = vals[i];
-                    break;
-                case 2:
-                    data.z = vals[i];
-                    break;
-                case 3:
-                    data.w = vals[i];
-                    break;
-                default:
-                    break;
+    
+        if constexpr (sizeof...(Args) > 0) {
+            short vals[] = {static_cast<short>(args)...};
+            for (unsigned int i = 0; i < sizeof...(Args); ++i) {
+                switch (i) {
+                    case 0:
+                        data.x = vals[i];
+                        break;
+                    case 1:
+                        data.y = vals[i];
+                        break;
+                    case 2:
+                        data.z = vals[i];
+                        break;
+                    case 3:
+                        data.w = vals[i];
+                        break;
+                    default:
+                        break;
+                }
             }
-        }
-        if (sizeof...(Args) < 4) {
-            data.w = (channels == 3) ? 255 : vals[sizeof...(Args) - 1];
+            if (sizeof...(Args) < 4) {
+                data.w = (channels == 3) ? 255 : vals[sizeof...(Args) - 1];
+            }
+        } else {
+            // default values if no arguments are provided
+            data.x = 0;
+            data.y = 0;
+            data.z = 0;
+            data.w = (channels == 3) ? 255 : 0;
         }
     }
+
     
     __host__ __device__ 
     Pixel(std::initializer_list<short> values) {

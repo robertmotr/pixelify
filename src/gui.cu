@@ -1,7 +1,14 @@
 #include "gui.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 #include "stb/stb_image.h"
 #include "stb/stb_image_write.h"
 
+#pragma GCC diagnostic pop
+
+#include <memory>
 #include <cuda_runtime.h>
 
 inline void display_image(const GLuint& texture, const int& width, const int& height,
@@ -154,15 +161,15 @@ void show_ui(ImGuiIO& io) {
     // to determine which tab is shown
     static bool show_original =                 false;
     static bool show_preview =                  false;
-    static bool show_tint =                     false;
+    static bool show_tint =                     false; // the fuck is this again?
 
     // filter options
     struct filter_args                          extra_args;
-    static bool normalize =                     false;
-    static int passes =                         1;
-    static int filter_size =                    3;
-    static int filter_strength =                0;
-    static int red_strength =                   0;
+    static bool normalize =                     false;  // image normalization 
+    static int passes =                         1; // filter passes
+    static int filter_size =                    3; // 3x3, 5x5, etc
+    static int filter_strength =                0; 
+    static int red_strength =                   0; // for colour shifting
     static int green_strength =                 0;
     static int blue_strength =                  0;
     static int alpha_strength =                 0;
@@ -174,9 +181,9 @@ void show_ui(ImGuiIO& io) {
     static bool threshold =                     false;
 
     // image details stuff
-    static char input[256] =                    "";
-    static char output[256] =                   "";
-    static Exiv2::Image::UniquePtr              image;
+    static std::string input =                  "";
+    static std::string output =                 "";
+    static std::unique_ptr<Exiv2::Image>        image = nullptr;
     static std::string                          exif_data_str;
     static std::string                          iptc_data_str;
     static std::string                          xmp_data_str;
@@ -217,7 +224,7 @@ void show_ui(ImGuiIO& io) {
     ImGui::EndChild();
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y));
     ImGui::BeginChild("Side panel 1", side_panel_1_size, true);
-    ImGui::InputTextWithHint("Input file path", "Absolute path of your input image", input, IM_ARRAYSIZE(input));
+    ImGui::InputTextWithHint("Input file path", "Absolute path of your input image", input.data(), IM_ARRAYSIZE(input.c_str()));
     ImGui::Spacing();
 
     if (ImGui::Button("Select input file")) {
@@ -231,19 +238,19 @@ void show_ui(ImGuiIO& io) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
             std::string file_path = ImGuiFileDialog::Instance()->GetCurrentPath();
-            sprintf(input, "%s", file_path_name.c_str());
+            input = file_path_name;
         }
         ImGuiFileDialog::Instance()->Close();
     }
     ImGui::SameLine();
     // process file path image if user clicks button
     if(ImGui::Button("Open input file")) {
-        if(load_texture_from_file(input, &texture_orig, &image_data, &width, &height, &channels) == false) {
+        if(load_texture_from_file(input.c_str(), &texture_orig, &image_data, &width, &height, &channels) == false) {
             ImGui::OpenPopup("Error loading image");
             show_original = false;
         } else {
 
-            image_data_out = stbi_load(input, &width, &height, &channels, 4);
+            image_data_out = stbi_load(input.c_str(), &width, &height, &channels, 4);
             if(image_data_out == NULL) {
                 printf("Error loading copy of image\n");
                 return;
@@ -336,7 +343,7 @@ void show_ui(ImGuiIO& io) {
 
     ImGui::Spacing();
     ImGui::Spacing();
-    ImGui::InputTextWithHint("##output", "Absolute path for your output image", output, IM_ARRAYSIZE(output));
+    ImGui::InputTextWithHint("##output", "Absolute path for your output image", output.data(), IM_ARRAYSIZE(output.c_str()));
     ImGui::SameLine();
     ImGui::Spacing();
     ImGui::Spacing();
@@ -470,7 +477,7 @@ void show_ui(ImGuiIO& io) {
             auto start = std::chrono::high_resolution_clock::now();
             ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
             if(render_applied_changes(selected_filter->filter_name, extra_args, width, height, &texture_preview, channels,
-                                    &image_data, &image_data_out, input, pixels_in, pixels_out)) {
+                                    &image_data, &image_data_out, input.c_str(), pixels_in, pixels_out)) {
                 printf("Rendered changes successfully\n");
             }
             else {
@@ -538,7 +545,7 @@ void show_ui(ImGuiIO& io) {
         ImGui::Text("Height: %d", height);
         ImGui::Text("Channels: %d", channels);
         ImGui::Text("File size: %d bytes", width * height * channels);
-        ImGui::Text("File path: %s", input);
+        ImGui::Text("File path: %s", input.c_str());
         ImGui::Text("EXIF data: ");
         ImGui::Text("%s", exif_data_str.c_str());
         ImGui::Text("IPTC data: ");

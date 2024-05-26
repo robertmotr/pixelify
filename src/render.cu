@@ -2,10 +2,15 @@
 #include "kernel.cuh"
 #include "pixel.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
+
+#pragma GCC diagnostic pop
 
 // normally its kind of pointless to implement a function like this but
 // stb_image requires header defines to be in the same file as the implementation
