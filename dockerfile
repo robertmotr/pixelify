@@ -1,39 +1,39 @@
-FROM rocker/cuda
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 RUN apt-get update && \
-    apt-get install -y \
-        cuda \ 
-        cmake \
-        xserver-xorg \
-        ubuntu-drivers-common \
-        apt-utils \
-        git \
+    apt-get install -y --no-install-recommends \
         build-essential \
+        xauth \ 
+        xorg \
+        xserver-xorg \
+        cmake \
+        git \
+        wget \
+        unzip \
+        pkg-config \
+        libx11-dev \
+        libxi-dev \
+        libgl1-mesa-dev \
+        libglu1-mesa-dev \
         libglfw3-dev \
         libglew-dev \
         libexiv2-dev \
-        libgtest-dev \
-        nvidia-container-toolkit \ 
-        && \
-    rm -rf /var/lib/apt/lists/*
+        && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update -y && apt-get upgrade -y 
+# install googletest
+RUN git clone https://github.com/google/googletest.git /usr/src/googletest \
+    && cd /usr/src/googletest \
+    && cmake . \
+    && make -j$(nproc) \
+    && make install
 
-COPY . /app
-WORKDIR /app
+WORKDIR /usr/src/app
 
+COPY . .
+
+# build pixelify
 RUN rm -rf build && mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=Debug .. && \
     make -j$(nproc)
 
-ARG uid=1000
-RUN useradd -m -s /bin/bash -u $uid developer
-
-RUN mkdir -p /etc/sudoers.d
-RUN echo 'developer ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/developer
-
-USER developer
-ENV HOME /home/developer
-ENV DISPLAY :1
-
-CMD ["build/pixelify"]
+#ENTRYPOINT [ "./build/pixelify" ]
