@@ -27,7 +27,7 @@ RUN apt-get update && \
 # install googletest
 RUN git submodule update --init --recursive \
     && git submodule update --remote --merge \
-    && cd /app/external/googletest \
+    && cd external/googletest \
     && cmake . \
     && make -j$(nproc) \
     && make install \ 

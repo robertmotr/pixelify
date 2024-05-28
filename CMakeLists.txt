@@ -81,30 +81,30 @@ target_link_libraries(pixelify PUBLIC
 
 # ------ TESTS ------
 
-# set(SOURCES_TEST 
-#     src/kernel.cu 
-#     src/filters.cpp
-#     src/filter_impl.cpp
-#     src/kernel_formulas.cpp
-# )
+set(SOURCES_TEST 
+    src/kernel.cu 
+    src/filters.cpp
+    src/filter_impl.cpp
+    src/kernel_formulas.cpp
+)
 
-# set(HEADERS_TEST 
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
-# )
+set(HEADERS_TEST 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel.cuh
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filters.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_impl.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel_formulas.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/pixel.h
+)
 
-# add_library(pixelify_tests STATIC ${SOURCES_TEST})
-# target_include_directories(pixelify_tests PUBLIC 
-#     ${CMAKE_CURRENT_SOURCE_DIR}/external
-#     ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googletest/include
-#     ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googlemock/include
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include
-# )
-# add_executable(tests tests/tests.cu)
-# target_link_libraries(tests pixelify_tests gtest_main gtest)
+add_library(pixelify_tests STATIC ${SOURCES_TEST})
+target_include_directories(pixelify_tests PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googletest/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googlemock/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+add_executable(tests tests/tests.cu)
+target_link_libraries(tests pixelify_tests gtest_main gtest)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

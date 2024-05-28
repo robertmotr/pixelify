@@ -7,8 +7,8 @@
 #include "filter_impl.h"
 #include "pixel.h"
 
-#define MAX_REDUCE              TRUE
-#define MIN_REDUCE              FALSE
+#define MAX_REDUCE              true
+#define MIN_REDUCE              false
 
 #define SHORT_MIN               -32768
 #define SHORT_MAX               32767
@@ -100,22 +100,6 @@ __host__ __device__ __forceinline__ short shift_colours(int channel_value, struc
     return SHORT_MIN; // on error
 }
 
-template<unsigned int channels> 
-__forceinline__ __device__ 
-Pixel<channels> warp_reduce_pixels(Pixel<channels> pixel, bool reduce_type) {
-    for(int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
-        for(int channel = 0; channel < channels; channel++) {
-            if(reduce_type == MAX_REDUCE) {
-                pixel.set(channel, max(pixel.at(channel), __shfl_down_sync(0xFFFFFFFF, pixel.at(channel), offset)));
-            } else {       // MIN_REDUCE
-                pixel.set(channel, min(pixel.at(channel), __shfl_down_sync(0xFFFFFFFF, pixel.at(channel), offset)));
-            }
-        }
-    }
-    return pixel;
-}
-
-
 template<unsigned int channels>
 __device__ __forceinline__ short apply_filter(const Pixel<channels> *in, unsigned int mask, int width, 
                                             int height, int row, int col);
@@ -153,7 +137,7 @@ template<unsigned int channels> __forceinline__ __device__
 Pixel<channels> block_reduce_pixels(Pixel<channels> pixel, bool reduce_type);
 
 template<unsigned int channels>
-void image_reduction<channels>(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, 
+void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, 
                                bool reduce_type, int block_size); 
 
 // EXPLICIT INSTANTIATIONS    

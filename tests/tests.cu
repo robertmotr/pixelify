@@ -14,6 +14,9 @@
 
 #pragma GCC diagnostic pop
 
+constexpr unsigned int channels = 3; 
+using PixelType = Pixel<channels>;
+
 const filter** filters = init_filters();
 
 void print_to(const Pixel<3>& pixel, ::std::ostream* os) {
@@ -24,6 +27,94 @@ void print_to(const Pixel<3>& pixel, ::std::ostream* os) {
 void print_to(const Pixel<4>& pixel, ::std::ostream* os) {
     // recall pixels have short4
     *os << "(" << pixel.data.x << ", " << pixel.data.y << ", " << pixel.data.z << ", " << pixel.data.w << ")";
+}
+
+// Helper function to initialize an array of pixels
+void init_image(PixelType* image, int pixels, bool random = false) {
+    for (int i = 0; i < pixels; ++i) {
+        for (int channel = 0; channel < channels; ++channel) {
+            image[i].set(channel, random ? rand() % 256 : i % 256);
+        }
+    }
+}
+
+// CPU reduction function for verification
+template <unsigned int channels>
+Pixel<channels> cpu_image_reduction(const Pixel<channels> *image, int pixels, bool reduce_type) {
+    Pixel<channels> result;
+    for (int channel = 0; channel < channels; ++channel) {
+        if (reduce_type == MAX_REDUCE) {
+            result.set(channel, SHORT_MAX);
+        } else {
+            result.set(channel, SHORT_MIN);
+        }
+    }
+
+    for (int i = 0; i < pixels; ++i) {
+        for (int channel = 0; channel < channels; ++channel) {
+            if (reduce_type == MAX_REDUCE) {
+                result.set(channel, max(result.at(channel), image[i].at(channel)));
+            } else {
+                result.set(channel, min(result.at(channel), image[i].at(channel)));
+            }
+        }
+    }
+    return result;
+}
+
+class ImageReductionTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Initialize test data
+        pixels = 1024;
+        image = new PixelType[pixels];
+        init_image(image, pixels);
+
+        cudaMalloc(&d_image, pixels * sizeof(PixelType));
+        cudaMalloc(&d_result, sizeof(PixelType));
+
+        cudaMemcpy(d_image, image, pixels * sizeof(PixelType), cudaMemcpyHostToDevice);
+    }
+
+    void TearDown() override {
+        // Cleanup
+        delete[] image;
+        cudaFree(d_image);
+        cudaFree(d_result);
+    }
+
+    int pixels;
+    PixelType *image;
+    PixelType *d_image;
+    PixelType *d_result;
+};
+
+// Test for MAX_REDUCE
+TEST_F(ImageReductionTest, MaxReduce) {
+    image_reduction<channels>(d_image, d_result, pixels, MAX_REDUCE);
+
+    PixelType h_result;
+    cudaMemcpy(&h_result, d_result, sizeof(PixelType), cudaMemcpyDeviceToHost);
+
+    PixelType expected = cpu_image_reduction(image, pixels, MAX_REDUCE);
+
+    for (int channel = 0; channel < channels; ++channel) {
+        EXPECT_EQ(h_result.at(channel), expected.at(channel)) << "Mismatch in channel " << channel;
+    }
+}
+
+// Test for MIN_REDUCE
+TEST_F(ImageReductionTest, MinReduce) {
+    image_reduction<channels>(d_image, d_result, pixels, MIN_REDUCE);
+
+    PixelType h_result;
+    cudaMemcpy(&h_result, d_result, sizeof(PixelType), cudaMemcpyDeviceToHost);
+
+    PixelType expected = cpu_image_reduction(image, pixels, MIN_REDUCE);
+
+    for (int channel = 0; channel < channels; ++channel) {
+        EXPECT_EQ(h_result.at(channel), expected.at(channel)) << "Mismatch in channel " << channel;
+    }
 }
 
 TEST(KernelHelpers, find_index) {
