@@ -42,8 +42,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   #endif
 
   // create copy of input, output on pinned memory on host
-  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault);
-  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocDefault); 
+  cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
+  cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); 
   cudaMemcpyAsync(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   #ifdef _DEBUG
     cudaDeviceSynchronize();
@@ -66,15 +66,15 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   #endif
 
   // copying filter data to constant memory
-  cudaMemcpyToSymbolAsync(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
-  cudaMemcpyToSymbolAsync(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbol(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbol(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying to constant memory");
 
   // MEMCPYS FROM HOST TO DEVICE
-  cudaMemcpyAsync(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  cudaMemcpyAsync(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  cudaMemcpyAsync(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
 
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying to device");
@@ -86,67 +86,52 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     #ifdef _DEBUG
       printf("applying filter_kernel on pass %d\n", pass);
     #endif
-    if(pass == 0) {
-      filter_kernel<channels><<<gridSize, blockSize>>>(device_input, device_output, width, height, extra);
-    }
-    else {
-      filter_kernel<channels><<<gridSize, blockSize>>>(device_input, device_output, width, height, extra);
-    }
-    cudaMemcpyAsync(device_input, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
-    cudaDeviceSynchronize();
+    filter_kernel<channels><<<gridSize, blockSize>>>(device_input, device_output, width, height, extra);
     CUDA_CHECK_ERROR("filter kernel pass");
   }
   // then apply everything else in the filter_args struct
   if(extra.alpha_shift != 0 || extra.red_shift != 0 || extra.green_shift != 0 || extra.blue_shift != 0) {
     shift_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("shift colours");
   }
   if(extra.tint[0] != 0 || extra.tint[1] != 0 || extra.tint[2] != 0 || extra.tint[3] != 0) {
     tint_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("tint");
   }
   if(extra.brightness != 0) {
     brightness_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("brightness");
   }
   if(extra.invert) {
     invert_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, extra);
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("invert");
   }
 
   // parallel reduction to find largest and smallest pixel values
   // for each channel respectively
-  // image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
-  // image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
+  image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
+  image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
 
-  cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("reduction");
 
   // if d_largest or d_smallest are out of bounds
   // i.e outside of [0, 255] for any channel
   // then we need to normalize the image to bring it into valid bounds
-  cudaMemcpyAsync(h_smallest, d_smallest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  cudaMemcpyAsync(h_largest, d_largest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
+  cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_largest, d_largest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   CUDA_CHECK_ERROR("copying back d_smallest and d_largest");
   
   for(int ch = 0; ch < channels; ch++) {
     if(h_smallest->at(ch) < 0 || h_smallest->at(ch) > 255 ||
        h_largest->at(ch) < 0 || h_largest->at(ch) > 255) {
         normalize<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest, extra.normalize);
-        cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("normalize");
         break;
     }
   }
 
-  cudaMemcpyAsync(h_pinned_output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
-  cudaMemcpyAsync(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
-  cudaDeviceSynchronize();
+  cudaMemcpy(output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+  cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   CUDA_CHECK_ERROR("copying back d_output to pinned output");
 
   // CLEANUP
@@ -316,6 +301,7 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
                           const Pixel<channels> __restrict_arr *smallest,
                           const Pixel<channels> __restrict_arr *largest,
                           bool normalize) {
+
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   #ifdef _DEBUG
@@ -332,6 +318,53 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
       clamp_pixels<channels>(target, pixel_idx);
     }
   }
+}
+
+template<unsigned int channels>
+__forceinline__ __device__ Pixel<channels> warp_reduce_pixels(Pixel<channels> pixel, bool reduce_type) {
+  #pragma unroll
+  for(int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+    #pragma unroll
+    for(int channel = 0; channel < channels; channel++) {
+      if(reduce_type == MAX_REDUCE) {
+        pixel.set(channel, max(pixel.at(channel), __shfl_down_sync(0xFFFFFFFF, pixel.at(channel), offset)));
+      } else {       // MIN_REDUCE
+        pixel.set(channel, min(pixel.at(channel), __shfl_down_sync(0xFFFFFFFF, pixel.at(channel), offset)));
+      }
+    }
+  }
+  return pixel;
+}
+
+template<unsigned int channels>
+__forceinline__ __device__ Pixel<channels> block_reduce_pixels(Pixel<channels> pixel, bool reduce_type) {
+  static __shared__ Pixel<channels> shared_pixels[32];
+  int tid = threadIdx.x;
+  int warp_id = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+
+  shared_pixels[tid] = pixel;
+  __syncthreads();
+
+  #pragma unroll
+  for(int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+    #pragma unroll
+    for(int channel = 0; channel < channels; channel++) {
+      if(reduce_type == MAX_REDUCE) {
+        shared_pixels[tid].set(channel, max(shared_pixels[tid].at(channel), shared_pixels[tid + offset].at(channel)));
+      } else {       // MIN_REDUCE
+        shared_pixels[tid].set(channel, min(shared_pixels[tid].at(channel), shared_pixels[tid + offset].at(channel)));
+      }
+    }
+  }
+  __syncthreads();
+
+  if(lane == 0) {
+    shared_pixels[warp_id] = warp_reduce_pixels<channels>(shared_pixels[warp_id], reduce_type);
+  }
+  __syncthreads();
+
+  return shared_pixels[0];
 }
 
 // EXPLICIT INSTANTIATIONS: 
@@ -377,3 +410,17 @@ template __global__ void invert_kernel<3u>(Pixel<3u> *d_pixels, int width, int h
 
 template __global__ void invert_kernel<4u>(Pixel<4u> *d_pixels, int width, int height,
                                            const struct filter_args extra);      
+
+template __forceinline__ __device__ Pixel<3u> warp_reduce_pixels(Pixel<3u> pixel, bool reduce_type);
+
+template __forceinline__ __device__ Pixel<4u> warp_reduce_pixels(Pixel<4u> pixel, bool reduce_type);
+
+template __forceinline__ __device__ Pixel<3u> block_reduce_pixels(Pixel<3u> pixel, bool reduce_type);
+
+template __forceinline__ __device__ Pixel<4u> block_reduce_pixels(Pixel<4u> pixel, bool reduce_type);
+
+template void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *dst_pixel, 
+                                             int pixels, bool reduce_type);
+
+template void image_reduction<4u>(const Pixel<4u> *d_image, Pixel<4u> *dst_pixel,
+                                              int pixels, bool reduce_type);  

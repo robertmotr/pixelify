@@ -7,26 +7,26 @@
 #include "filter_impl.h"
 #include "pixel.h"
 
+#define MAX_REDUCE              TRUE
+#define MIN_REDUCE              FALSE
+
 #define SHORT_MIN               -32768
 #define SHORT_MAX               32767
 
 #define MAX_FILTER_DIMENSION    15
 #define MAX_FILTER_1D_SIZE      (MAX_FILTER_DIMENSION * MAX_FILTER_DIMENSION)
 
-#ifdef _DEBUG
-    #define CUDA_CHECK_ERROR(errorMessage) do { \
-        cudaError_t error = cudaGetLastError(); \
-        if (error != cudaSuccess) { \
-            fprintf(stderr, "CUDA error at %s:%d - %s\n", \
-                    __FILE__, __LINE__, cudaGetErrorString(error)); \
-            fprintf(stderr, "    %s\n", errorMessage); \
-            exit(EXIT_FAILURE); \
-        } \
-    } while (0)
-#else 
-    // do nothing
-    #define CUDA_CHECK_ERROR(errorMessage) 
-#endif
+#define WARP_SIZE               32 // 32 threads per warp on most modern GPUs   
+
+#define CUDA_CHECK_ERROR(errorMessage) do { \
+    cudaError_t error = cudaGetLastError(); \
+    if (error != cudaSuccess) { \
+        fprintf(stderr, "CUDA error at %s:%d - %s\n", \
+                __FILE__, __LINE__, cudaGetErrorString(error)); \
+        fprintf(stderr, "    %s\n", errorMessage); \
+        exit(EXIT_FAILURE); \
+    } \
+} while (0)
 
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
 __forceinline__ __device__ __host__
@@ -100,8 +100,22 @@ __host__ __device__ __forceinline__ short shift_colours(int channel_value, struc
     return SHORT_MIN; // on error
 }
 
-// applies the filter to the input image at the given row and column
-// returns sum of filter application
+template<unsigned int channels> 
+__forceinline__ __device__ 
+Pixel<channels> warp_reduce_pixels(Pixel<channels> pixel, bool reduce_type) {
+    for(int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+        for(int channel = 0; channel < channels; channel++) {
+            if(reduce_type == MAX_REDUCE) {
+                pixel.set(channel, max(pixel.at(channel), __shfl_down_sync(0xFFFFFFFF, pixel.at(channel), offset)));
+            } else {       // MIN_REDUCE
+                pixel.set(channel, min(pixel.at(channel), __shfl_down_sync(0xFFFFFFFF, pixel.at(channel), offset)));
+            }
+        }
+    }
+    return pixel;
+}
+
+
 template<unsigned int channels>
 __device__ __forceinline__ short apply_filter(const Pixel<channels> *in, unsigned int mask, int width, 
                                             int height, int row, int col);
@@ -132,8 +146,17 @@ __global__ void normalize(Pixel<channels> *image, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *biggest,
                            bool normalize_or_clamp);
 
-// EXPLICIT INSTANTIATIONS    
+template<unsigned int channels> __forceinline__ __device__ 
+Pixel<channels> warp_reduce_pixels(Pixel<channels> pixel, bool reduce_type);
 
+template<unsigned int channels> __forceinline__ __device__
+Pixel<channels> block_reduce_pixels(Pixel<channels> pixel, bool reduce_type);
+
+template<unsigned int channels>
+void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *dst_pixel, 
+                         int pixels, bool reduce_type); 
+
+// EXPLICIT INSTANTIATIONS    
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
                                                     const Pixel<3u> *smallest, const Pixel<3u> *largest);
 template __device__ __forceinline__ void normalize_pixel<4u>(Pixel<4u> *target, int pixel_idx,
