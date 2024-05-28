@@ -308,6 +308,9 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
     assert(target != nullptr);
     assert(smallest != nullptr);
     assert(largest != nullptr);
+    printf("smallest: %d %d %d %d\n", smallest->at(0), smallest->at(1), smallest->at(2), smallest->at(3));
+    printf("largest: %d %d %d %d\n", largest->at(0), largest->at(1), largest->at(2), largest->at(3));
+    printf("Normalize: %d\n", normalize);
   #endif
   
   #pragma unroll
@@ -320,6 +323,11 @@ __global__ void normalize(Pixel<channels> *target, int width, int height,
   }
 }
 
+/*
+Warp reduction helper for finding the largest and smallest pixel values
+Used in block_reduce_pixels
+See shuffle down instructions on CUDA manual for more information
+*/
 template<unsigned int channels>
 __forceinline__ __device__ Pixel<channels> warp_reduce_pixels(Pixel<channels> pixel, bool reduce_type) {
   #pragma unroll
@@ -336,6 +344,10 @@ __forceinline__ __device__ Pixel<channels> warp_reduce_pixels(Pixel<channels> pi
   return pixel;
 }
 
+/*
+Block reduction function for finding the largest and smallest pixel values
+Used in image_reduction kernel
+*/
 template<unsigned int channels>
 __forceinline__ __device__ Pixel<channels> block_reduce_pixels(Pixel<channels> pixel, bool reduce_type) {
   static __shared__ Pixel<channels> shared_pixels[32];
@@ -365,6 +377,67 @@ __forceinline__ __device__ Pixel<channels> block_reduce_pixels(Pixel<channels> p
   __syncthreads();
 
   return shared_pixels[0];
+}
+
+/*
+Image reduction kernel for finding the largest and smallest pixel values
+*/
+template<unsigned int channels>
+__global__ void image_reduction_kernel(const Pixel<channels> *d_image, Pixel<channels> *dst_pixel, int pixels, bool reduce_type) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  int stride = blockDim.x * gridDim.x;
+
+  Pixel<channels> pixel = {SHORT_MIN} ? reduce_type == MAX_REDUCE : {SHORT_MAX};
+
+  if(tid < pixels) {
+    pixel = d_image[tid];
+  }
+  else {
+    #pragma unroll
+    for(int channel = 0; channel < channels; channel++) {
+      pixel.set(channel, reduce_type == MAX_REDUCE ? SHORT_MIN : SHORT_MAX);
+    }
+  }
+
+  Pixel<channels> block_result = block_reduce_pixels<channels>(pixel, reduce_type);
+
+  if(threadIdx.x == 0) {
+    dst_pixel[blockIdx.x] = block_result;
+  }
+}
+
+template<unsigned int channels>
+void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, bool reduce_type, int block_size = 1024) {
+    int grid_size = (pixels + block_size - 1) / block_size;
+    image_reduction_kernel<channels><<<grid_size, block_size>>>(d_image, d_result, pixels, reduce_type);
+
+    // perform reduction across blocks on the host
+    Pixel<channels> *h_result = new Pixel<channels>[grid_size];
+    cudaMemcpy(h_result, d_result, grid_size * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+
+    Pixel<channels> final_result;
+    #pragma unroll
+    for (int channel = 0; channel < channels; ++channel) {
+        if (reduce_type == MAX_REDUCE) {
+            final_result.set(channel, SHORT_MIN);
+        } else {
+            final_result.set(channel, SHORT_MAX);
+        }
+    }
+
+    for (int i = 0; i < grid_size; ++i) {
+        #pragma unroll
+        for (int channel = 0; channel < channels; ++channel) {
+            if (reduce_type == MAX_REDUCE) {
+                final_result.set(channel, max(final_result.at(channel), h_result[i].at(channel)));
+            } else {
+                final_result.set(channel, min(final_result.at(channel), h_result[i].at(channel)));
+            }
+        }
+    }
+
+    cudaMemcpy(d_result, &final_result, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
+    delete[] h_result;
 }
 
 // EXPLICIT INSTANTIATIONS: 
@@ -419,8 +492,6 @@ template __forceinline__ __device__ Pixel<3u> block_reduce_pixels(Pixel<3u> pixe
 
 template __forceinline__ __device__ Pixel<4u> block_reduce_pixels(Pixel<4u> pixel, bool reduce_type);
 
-template void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *dst_pixel, 
-                                             int pixels, bool reduce_type);
+template void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *d_result, int pixels, bool reduce_type, int block_size = 1024);
 
-template void image_reduction<4u>(const Pixel<4u> *d_image, Pixel<4u> *dst_pixel,
-                                              int pixels, bool reduce_type);  
+template void image_reduction<4u>(const Pixel<4u> *d_image, Pixel<4u> *d_result, int pixels, bool reduce_type, int block_size = 1024);  

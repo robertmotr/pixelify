@@ -153,8 +153,8 @@ template<unsigned int channels> __forceinline__ __device__
 Pixel<channels> block_reduce_pixels(Pixel<channels> pixel, bool reduce_type);
 
 template<unsigned int channels>
-void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *dst_pixel, 
-                         int pixels, bool reduce_type); 
+void image_reduction<channels>(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, 
+                               bool reduce_type, int block_size); 
 
 // EXPLICIT INSTANTIATIONS    
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 

@@ -1,5 +1,9 @@
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
+WORKDIR /usr/src/app
+
+COPY . .
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -21,15 +25,13 @@ RUN apt-get update && \
         && rm -rf /var/lib/apt/lists/*
 
 # install googletest
-RUN git clone https://github.com/google/googletest.git /usr/src/googletest \
-    && cd /usr/src/googletest \
+RUN git submodule update --init --recursive \
+    && git submodule update --remote --merge \
+    && cd /app/external/googletest \
     && cmake . \
     && make -j$(nproc) \
-    && make install
-
-WORKDIR /usr/src/app
-
-COPY . .
+    && make install \ 
+    && cd /usr/src/app
 
 # build pixelify
 RUN rm -rf build && mkdir build && cd build && \
