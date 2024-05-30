@@ -109,9 +109,9 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   // parallel reduction to find largest and smallest pixel values
   // for each channel respectively
-  image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
-  image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
-
+  image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE, 1024);
+  image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE, 1024);
+  // block size should be 1024 for optimal performance
   CUDA_CHECK_ERROR("reduction");
 
   // if d_largest or d_smallest are out of bounds
@@ -120,13 +120,13 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   cudaMemcpy(h_largest, d_largest, sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   CUDA_CHECK_ERROR("copying back d_smallest and d_largest");
-  
+
   for(int ch = 0; ch < channels; ch++) {
     if(h_smallest->at(ch) < 0 || h_smallest->at(ch) > 255 ||
-       h_largest->at(ch) < 0 || h_largest->at(ch) > 255) {
-        normalize<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest, extra.normalize);
-        CUDA_CHECK_ERROR("normalize");
-        break;
+      h_largest->at(ch) < 0 || h_largest->at(ch) > 255) {
+          normalize_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest, extra.normalize);
+          CUDA_CHECK_ERROR("normalize");
+          break;
     }
   }
 
@@ -136,10 +136,12 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 
   // CLEANUP
 
-  cudaFreeHost(h_pinned_input); cudaFreeHost(h_pinned_output);
+  cudaFreeHost(h_pinned_input);
+  cudaFreeHost(h_pinned_output);
   delete h_smallest;
   delete h_largest;
-  cudaFree(d_smallest); cudaFree(d_largest);
+  cudaFree(d_smallest);
+  cudaFree(d_largest);
   cudaFree(device_output); 
   // TODO: determine if this first run_kernel call and if so dont free device_output/device_input
   // we can reuse device_output/device_input for the next call because when we process the image
@@ -192,6 +194,7 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> __restrict_a
     return (short) sum;
 }
 
+// main kernel that applies the filter to the input image
 template<unsigned int channels>
 __global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<channels> *out, int width, int height,
                               const struct filter_args args) {
@@ -215,6 +218,7 @@ __global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<ch
   } 
 }
 
+// shifts the colours of the input image as cuda kernel
 template<unsigned int channels>
 __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
                              const struct filter_args extra) {
@@ -235,6 +239,7 @@ __global__ void shift_kernel(Pixel<channels> *d_pixels, int width, int height,
   }
 }
 
+// applies the brightness filter to the input image as cuda kernel
 template<unsigned int channels>
 __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int height,
                                   const struct filter_args extra) {
@@ -255,6 +260,7 @@ __global__ void brightness_kernel(Pixel<channels> *d_pixels, int width, int heig
   }
 }
 
+// applies the tint filter to the input image as cuda kernel
 template<unsigned int channels>
 __global__ void tint_kernel(Pixel<channels> *d_pixels, int width, int height,
                             const struct filter_args extra) {
@@ -276,6 +282,7 @@ __global__ void tint_kernel(Pixel<channels> *d_pixels, int width, int height,
   }
 }
 
+// inverts the input image as cuda kernel
 template<unsigned int channels>
 __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
                               const struct filter_args extra) {
@@ -296,8 +303,9 @@ __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
   }
 }
 
+// normalizes the input image to the range [0, 255] as cuda kernel
 template<unsigned int channels>
-__global__ void normalize(Pixel<channels> *target, int width, int height,
+__global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
                           const Pixel<channels> __restrict_arr *smallest,
                           const Pixel<channels> __restrict_arr *largest,
                           bool normalize) {
@@ -385,9 +393,8 @@ Image reduction kernel for finding the largest and smallest pixel values
 template<unsigned int channels>
 __global__ void image_reduction_kernel(const Pixel<channels> *d_image, Pixel<channels> *dst_pixel, int pixels, bool reduce_type) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  int stride = blockDim.x * gridDim.x;
 
-  Pixel<channels> pixel = {SHORT_MIN} ? reduce_type == MAX_REDUCE : {SHORT_MAX};
+  Pixel<channels> pixel = (reduce_type == MAX_REDUCE) ? Pixel<channels>{SHORT_MIN} : Pixel<channels>{SHORT_MAX};
 
   if(tid < pixels) {
     pixel = d_image[tid];
@@ -407,7 +414,7 @@ __global__ void image_reduction_kernel(const Pixel<channels> *d_image, Pixel<cha
 }
 
 template<unsigned int channels>
-void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, bool reduce_type, int block_size = 1024) {
+void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, bool reduce_type, int block_size) {
     int grid_size = (pixels + block_size - 1) / block_size;
     image_reduction_kernel<channels><<<grid_size, block_size>>>(d_image, d_result, pixels, reduce_type);
 
@@ -460,6 +467,16 @@ template __device__ __forceinline__ short apply_filter<3u>(const Pixel<3u> *devi
 template __device__ __forceinline__ short apply_filter<4u>(const Pixel<4u> *device_input, 
                                                            unsigned int mask, int width, int height, int row, int col);
 
+template __global__ void normalize_kernel<3u>(Pixel<3u> *target, int width, int height,
+                          const Pixel<3u> __restrict_arr *smallest,
+                          const Pixel<3u> __restrict_arr *largest,
+                          bool normalize);
+
+template __global__ void normalize_kernel<4u>(Pixel<4u> *target, int width, int height,
+                          const Pixel<4u> __restrict_arr *smallest,
+                          const Pixel<4u> __restrict_arr *largest,
+                          bool normalize);        
+
 template __global__ void filter_kernel<3u>(const Pixel<3u> *d_in, Pixel<3u> *out, int width, int height,
                                            const struct filter_args args);
 
@@ -492,6 +509,6 @@ template __forceinline__ __device__ Pixel<3u> block_reduce_pixels(Pixel<3u> pixe
 
 template __forceinline__ __device__ Pixel<4u> block_reduce_pixels(Pixel<4u> pixel, bool reduce_type);
 
-template void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *d_result, int pixels, bool reduce_type, int block_size = 1024);
+template void image_reduction<3u>(const Pixel<3u> *d_image, Pixel<3u> *d_result, int pixels, bool reduce_type, int block_size);
 
-template void image_reduction<4u>(const Pixel<4u> *d_image, Pixel<4u> *d_result, int pixels, bool reduce_type, int block_size = 1024);  
+template void image_reduction<4u>(const Pixel<4u> *d_image, Pixel<4u> *d_result, int pixels, bool reduce_type, int block_size);  

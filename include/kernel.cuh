@@ -126,7 +126,7 @@ template<unsigned int channels>
 __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height, const struct filter_args extra);
 
 template<unsigned int channels>
-__global__ void normalize(Pixel<channels> *image, int width, int height,
+__global__ void normalize_kernel(Pixel<channels> *image, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *biggest,
                            bool normalize_or_clamp);
 

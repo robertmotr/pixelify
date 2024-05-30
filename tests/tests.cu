@@ -14,9 +14,6 @@
 
 #pragma GCC diagnostic pop
 
-constexpr unsigned int channels = 3; 
-using PixelType = Pixel<channels>;
-
 const filter** filters = init_filters();
 
 void print_to(const Pixel<3>& pixel, ::std::ostream* os) {
@@ -30,10 +27,11 @@ void print_to(const Pixel<4>& pixel, ::std::ostream* os) {
 }
 
 // Helper function to initialize an array of pixels
-void init_image(PixelType* image, int pixels, bool random = false) {
+template<unsigned int channels>
+void init_image(Pixel<channels> *d_image, int pixels) {
     for (int i = 0; i < pixels; ++i) {
         for (int channel = 0; channel < channels; ++channel) {
-            image[i].set(channel, random ? rand() % 256 : i % 256);
+            d_image[i].set(channel, rand() % 256);
         }
     }
 }
@@ -60,61 +58,6 @@ Pixel<channels> cpu_image_reduction(const Pixel<channels> *image, int pixels, bo
         }
     }
     return result;
-}
-
-class ImageReductionTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // Initialize test data
-        pixels = 1024;
-        image = new PixelType[pixels];
-        init_image(image, pixels);
-
-        cudaMalloc(&d_image, pixels * sizeof(PixelType));
-        cudaMalloc(&d_result, sizeof(PixelType));
-
-        cudaMemcpy(d_image, image, pixels * sizeof(PixelType), cudaMemcpyHostToDevice);
-    }
-
-    void TearDown() override {
-        // Cleanup
-        delete[] image;
-        cudaFree(d_image);
-        cudaFree(d_result);
-    }
-
-    int pixels;
-    PixelType *image;
-    PixelType *d_image;
-    PixelType *d_result;
-};
-
-// Test for MAX_REDUCE
-TEST_F(ImageReductionTest, MaxReduce) {
-    image_reduction<channels>(d_image, d_result, pixels, MAX_REDUCE);
-
-    PixelType h_result;
-    cudaMemcpy(&h_result, d_result, sizeof(PixelType), cudaMemcpyDeviceToHost);
-
-    PixelType expected = cpu_image_reduction(image, pixels, MAX_REDUCE);
-
-    for (int channel = 0; channel < channels; ++channel) {
-        EXPECT_EQ(h_result.at(channel), expected.at(channel)) << "Mismatch in channel " << channel;
-    }
-}
-
-// Test for MIN_REDUCE
-TEST_F(ImageReductionTest, MinReduce) {
-    image_reduction<channels>(d_image, d_result, pixels, MIN_REDUCE);
-
-    PixelType h_result;
-    cudaMemcpy(&h_result, d_result, sizeof(PixelType), cudaMemcpyDeviceToHost);
-
-    PixelType expected = cpu_image_reduction(image, pixels, MIN_REDUCE);
-
-    for (int channel = 0; channel < channels; ++channel) {
-        EXPECT_EQ(h_result.at(channel), expected.at(channel)) << "Mismatch in channel " << channel;
-    }
 }
 
 TEST(KernelHelpers, find_index) {
@@ -283,6 +226,82 @@ TEST(KernelHelpers, clamp_pixels_1) {
     }
 }
 
+TEST(KernelHelpers, block_reduce_simple) {
+
+}
+
+TEST(KernelHelpers, block_reduce_randomized) {
+
+}
+
+TEST(KernelHelpers, block_reduce_max) {
+
+}
+
+TEST(KernelHelpers, block_reduce_min) {
+
+}
+
+TEST(KernelHelpers, warp_reduce_simple) {
+
+}
+
+TEST(KernelHelpers, warp_reduce_randomized) {
+
+}
+
+TEST(OtherKernels, image_reduction_simple) {
+    Pixel<3> pixels[16] = {
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
+        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
+    };
+
+    Pixel<3> expected_max = {255, 255, 255};
+    Pixel<3> expected_min = {0, 0, 0};
+
+    Pixel<3> real_max, real_min;
+    real_max = {SHORT_MIN, SHORT_MIN, SHORT_MIN};
+    real_min = {SHORT_MAX, SHORT_MAX, SHORT_MAX}; 
+
+    Pixel<3> *d_pixels;
+    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
+    cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+
+    image_reduction<3>(d_pixels, &real_max, 16, MAX_REDUCE, 1024);
+    image_reduction<3>(d_pixels, &real_min, 16, MIN_REDUCE, 1024);
+
+    ASSERT_EQ(real_max, expected_max);
+    ASSERT_EQ(real_min, expected_min);
+
+    cudaFree(d_pixels);
+}
+
+TEST(OtherKernels, image_reduction_randomized) {
+    Pixel<3> pixels[16];
+    init_image<3>(pixels, 16);
+
+    Pixel<3> expected_max = cpu_image_reduction<3>(pixels, 16, MAX_REDUCE);
+    Pixel<3> expected_min = cpu_image_reduction<3>(pixels, 16, MIN_REDUCE);
+
+    Pixel<3> real_max, real_min;
+    real_max = {SHORT_MIN, SHORT_MIN, SHORT_MIN};
+    real_min = {SHORT_MAX, SHORT_MAX, SHORT_MAX}; 
+
+    Pixel<3> *d_pixels;
+    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
+    cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+
+    image_reduction<3>(d_pixels, &real_max, 16, MAX_REDUCE, 1024);
+    image_reduction<3>(d_pixels, &real_min, 16, MIN_REDUCE, 1024);
+
+    ASSERT_EQ(real_max, expected_max);
+    ASSERT_EQ(real_min, expected_min);
+
+    cudaFree(d_pixels);
+}
+
 TEST(ApplyFilter, apply_filter_identity_simple) {
     Pixel<3> pixels[16] = {
         {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
@@ -305,6 +324,10 @@ TEST(ApplyFilter, apply_filter_identity_simple) {
     args.dimension = 3;
 
     run_kernel<3>("Identity", pixels, output, 4, 4, args);
+
+    for(int i = 0; i < 16; i++) {
+        ASSERT_EQ(output[i], expected[i]) << "Mismatch at index " << i;
+    }
 }
 
 int main(int argc, char **argv) {
