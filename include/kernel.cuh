@@ -130,15 +130,12 @@ __global__ void normalize_kernel(Pixel<channels> *image, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *biggest,
                            bool normalize_or_clamp);
 
-template<unsigned int channels> __forceinline__ __device__ 
-Pixel<channels> warp_reduce_pixels(Pixel<channels> pixel, bool reduce_type);
-
-template<unsigned int channels> __forceinline__ __device__
-Pixel<channels> block_reduce_pixels(Pixel<channels> pixel, bool reduce_type);
+template <unsigned int blockSize, unsigned int channels>
+__device__ void warp_reduce_pixels(volatile Pixel<channels> *sdata, unsigned int tid, bool reduce_type);
 
 template<unsigned int channels>
 void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, 
-                               bool reduce_type, int block_size); 
+                               bool reduce_type); 
 
 // EXPLICIT INSTANTIATIONS    
 template __device__ __forceinline__ void normalize_pixel<3u>(Pixel<3u> *target, int pixel_idx, 
