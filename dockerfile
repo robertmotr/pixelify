@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.5.0-devel-ubuntu22.04
 
 WORKDIR /usr/src/app
 
@@ -23,6 +23,7 @@ RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearm
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        valgrind \
         nvidia-container-toolkit \
         build-essential \
         xauth \ 

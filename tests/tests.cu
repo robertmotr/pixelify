@@ -237,8 +237,12 @@ TEST(OtherKernels, image_reduction_simple) {
     std::cout << "before cudamalloc" << std::endl;
 
     Pixel<3> *d_pixels = nullptr;
+    std::cout << "did we get here?" << std::endl;
     cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
+    CUDA_CHECK_ERROR("malloc");
+    std::cout << "maybe the malloc is crashing" << std::endl;
     cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+    CUDA_CHECK_ERROR("memcpy");
 
     std::cout << "after cudamalloc" << std::endl;
 

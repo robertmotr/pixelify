@@ -76,6 +76,23 @@
         "cfenv": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "strstream": "cpp",
+        "csetjmp": "cpp",
+        "buffer": "cpp",
+        "executor": "cpp",
+        "internet": "cpp",
+        "io_context": "cpp",
+        "netfwd": "cpp",
+        "propagate_const": "cpp",
+        "socket": "cpp",
+        "synchronized_value": "cpp",
+        "timer": "cpp",
+        "rope": "cpp",
+        "slist": "cpp",
+        "ranges": "cpp",
+        "shared_mutex": "cpp",
+        "text_encoding": "cpp",
+        "valarray": "cpp"
     }
 }

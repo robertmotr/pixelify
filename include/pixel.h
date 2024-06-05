@@ -145,23 +145,30 @@ struct Pixel {
         return data.x == other.data.x && data.y == other.data.y && data.z == other.data.z && data.w == other.data.w;
     }
 
-    // Constructor for any number of arguments
+    // Constructor for variadic arguments
     template<typename... Args>
     __host__ __device__ Pixel(Args... args) {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
 
-        short vals[sizeof...(Args)] = { static_cast<short>(args)... };
-        int num_args = sizeof...(Args);
+        if constexpr (sizeof...(Args) > 0) {
+            short vals[] = { static_cast<short>(args)... };
+            int num_args = sizeof...(Args);
 
-        data.x = (num_args > 0) ? vals[0] : 0;
-        data.y = (num_args > 1) ? vals[1] : 0;
-        data.z = (num_args > 2) ? vals[2] : 0;
-        data.w = (channels == 3) ? 255 : ((num_args > 3) ? vals[3] : 0);
+            data.x = (num_args > 0) ? vals[0] : 0;
+            data.y = (num_args > 1) ? vals[1] : 0;
+            data.z = (num_args > 2) ? vals[2] : 0;
+            data.w = (channels == 3) ? 255 : ((num_args > 3) ? vals[3] : 0);
+        } else {
+            // Handle the zero-arguments case
+            data.x = 0;
+            data.y = 0;
+            data.z = 0;
+            data.w = (channels == 3) ? 255 : 0;
+        }
     }
 
     // Constructor for initializer list
-    __host__ __device__
-    Pixel(std::initializer_list<short> values) {
+    __host__ __device__ Pixel(std::initializer_list<short> values) {
         auto i = values.begin();
         unsigned long size = values.size();
 
@@ -170,6 +177,10 @@ struct Pixel {
         data.z = (size > 2) ? *(i + 2) : 0;
         data.w = (channels == 3) ? 255 : ((size > 3) ? *(i + 3) : 0);
     }
+
+    // Default constructor
+    __host__ __device__ 
+    Pixel() : data({0, 0, 0, (channels == 3) ? 255 : 0}) {}
 
     // Constructor for single value
     __host__ __device__ 
