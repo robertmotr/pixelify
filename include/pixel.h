@@ -11,7 +11,9 @@ template<unsigned int channels>
 struct Pixel {
     short4 data;
 
-    __device__ __host__ __forceinline__ void set(const unsigned int i, const short val) {
+    // Sets the value of the pixel at index i to val 
+    __device__ __host__ __forceinline__
+    void set(const unsigned int i, const short val) {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds, i is %d, channels is %d\n", i, channels);
@@ -37,7 +39,37 @@ struct Pixel {
         }
     }
 
-    __device__ __host__ __forceinline__ const short* at_ptr(const unsigned int i) const {
+    // Sets the value of the pixel at index i to val (volatile version)
+    __device__ __host__ __forceinline__
+    void set(const unsigned int i, const short val) volatile {
+        #ifdef _DEBUG
+            if (i >= channels) {
+                printf("index out of bounds, i is %d, channels is %d\n", i, channels);
+                printf("at line %d\n", __LINE__);
+                return;
+            }
+        #endif
+        switch (i) {
+            case 0:
+                data.x = val;
+                break;
+            case 1:
+                data.y = val;
+                break;
+            case 2:
+                data.z = val;
+                break;
+            case 3:
+                data.w = val;
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Returns a pointer to the pixel at index i
+    __device__ __host__ __forceinline__ 
+    const short* at_ptr(const unsigned int i) const {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds, i is %d, channels is %d\n", i, channels);
@@ -59,7 +91,33 @@ struct Pixel {
         }
     }
 
-    __device__ __host__ __forceinline__ short at(const unsigned int i) const {
+    // Returns the value of the pixel at index i (const version)
+    __device__ __host__ __forceinline__ 
+    short at(const unsigned int i) const {
+        #ifdef _DEBUG
+            if (i >= channels) {
+                printf("index out of bounds, i is %d, channels is %d\n", i, channels);
+                printf("at line %d\n", __LINE__);
+                return -1;
+            }
+        #endif
+        switch (i) {
+            case 0:
+                return data.x;
+            case 1:
+                return data.y;
+            case 2:
+                return data.z;
+            case 3:
+                return data.w;
+            default:
+                return -1;
+        }
+    }
+
+    // Returns the value of the pixel at index i (volatile version)
+    __device__ __host__ __forceinline__ 
+    short at(const unsigned int i) const volatile {
         #ifdef _DEBUG
             if (i >= channels) {
                 printf("index out of bounds, i is %d, channels is %d\n", i, channels);
@@ -81,11 +139,13 @@ struct Pixel {
         }
     }
     
+    // Operator overload for comparing equality
     __host__ __device__
     bool operator==(const Pixel &other) const {
         return data.x == other.data.x && data.y == other.data.y && data.z == other.data.z && data.w == other.data.w;
     }
 
+    // Constructor for any number of arguments
     template<typename... Args>
     __host__ __device__ Pixel(Args... args) {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
@@ -122,7 +182,7 @@ struct Pixel {
         }
     }
 
-    
+    // Constructor for initializer list
     __host__ __device__ 
     Pixel(std::initializer_list<short> values) {
         auto i = values.begin();
@@ -151,12 +211,14 @@ struct Pixel {
         }
     }
 
+    // Constructor for single value
     __host__ __device__ 
     Pixel(short val) {
         data = make_short4(val, val, val, (channels == 3) ? 255 : val);
     }
 };
 
+// Sets output to the value of input which is a Pixel array of size size
 template<unsigned int channels>
 void imgui_get_raw_image(const Pixel<channels> *input, unsigned char *output, unsigned int size) {
     for (unsigned int i = 0; i < size; i++) {
@@ -170,6 +232,7 @@ void imgui_get_raw_image(const Pixel<channels> *input, unsigned char *output, un
     }
 }
 
+// Sets output to the value of input which is a primitive RGBA array of size size
 template<unsigned int channels>
 void imgui_get_pixels(const unsigned char *input, Pixel<channels> *output, unsigned int size) {
     for (unsigned int i = 0; i < size; i++) {

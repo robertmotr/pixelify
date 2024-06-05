@@ -28,6 +28,26 @@
     } \
 } while (0)
 
+// https://stackoverflow.com/questions/20497209/getting-cuda-error-declaration-is-incompatible-with-previous-variable-name
+template <class T>
+struct SharedMemory {
+    __device__ inline operator T *() {
+        extern __shared__ short4 __smem[];
+        return (T *)__smem;
+    }
+
+    __device__ inline operator T *() volatile {
+        extern __shared__ short4 __smem[];
+        return (T *)__smem;
+    }
+
+    __device__ inline operator const T *() const {
+        extern __shared__ short4 __smem[];
+        return (T *)__smem;
+    }
+};
+
+
 // Returns a 1D indexing of a 2D array index, returns -1 if out of bounds
 __forceinline__ __device__ __host__
 int find_index(int width, int height, int row, int column) {
@@ -130,8 +150,11 @@ __global__ void normalize_kernel(Pixel<channels> *image, int width, int height,
                            const Pixel<channels> *smallest, const Pixel<channels> *biggest,
                            bool normalize_or_clamp);
 
-template <unsigned int blockSize, unsigned int channels>
-__device__ void warp_reduce_pixels(volatile Pixel<channels> *sdata, unsigned int tid, bool reduce_type);
+template<typename T>
+__forceinline__ __device__ T warp_reduce_min(T val);
+
+template<typename T>
+__forceinline__ __device__ T warp_reduce_min(T val);
 
 template<unsigned int channels>
 void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, 

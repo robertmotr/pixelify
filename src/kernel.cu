@@ -331,131 +331,150 @@ __global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
   }
 }
 
-// Warp reduction helper for finding the largest and smallest pixel values
-template <unsigned int blockSize, unsigned int channels>
-__device__ void warp_reduce_pixels(volatile Pixel<channels> *sdata, unsigned int tid, bool reduce_type) {
-    // we use conditional statements to avoid ancillary instructions and thus improve performance
-    if (blockSize >= 64) {
-        for (int ch = 0; ch < channels; ch++) {
-            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + 32].at(ch)) : 
-                                                            min(sdata[tid].at(ch), sdata[tid + 32].at(ch)));
-        }
-    }
-    if (blockSize >= 32) {
-        for (int ch = 0; ch < channels; ch++) {
-            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + 16].at(ch)) : 
-                                                            min(sdata[tid].at(ch), sdata[tid + 16].at(ch)));
-        }
-    }
-    if (blockSize >= 16) {
-        for (int ch = 0; ch < channels; ch++) {
-            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + 8].at(ch)) : 
-                                                            min(sdata[tid].at(ch), sdata[tid + 8].at(ch)));
-        }
-    }
-    if (blockSize >= 8) {
-        for (int ch = 0; ch < channels; ch++) {
-            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + 4].at(ch)) : 
-                                                            min(sdata[tid].at(ch), sdata[tid + 4].at(ch)));
-        }
-    }
-    if (blockSize >= 4) {
-        for (int ch = 0; ch < channels; ch++) {
-            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + 2].at(ch)) : 
-                                                            min(sdata[tid].at(ch), sdata[tid + 2].at(ch)));
-        }
-    }
-    if (blockSize >= 2) {
-        for (int ch = 0; ch < channels; ch++) {
-            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + 1].at(ch)) : 
-                                                            min(sdata[tid].at(ch), sdata[tid + 1].at(ch)));
-        }
-    }
-}
+// utility functions for finding the largest and smallest pixel values
+// this assumes we have compute capability > 6 because shuffle down instructions are relatively new
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 600
+#error "This code requires a GPU with compute capability of 6.0 or higher. Shuffle down instructions are not yet supported."
+#elif defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  template<typename T>
+  __forceinline__ __device__ T warp_reduce_max(T val) {
+    val = __reduce_max_sync(0xFFFFFFFF, val);
+    return val;
+  }
 
+  template<typename T>
+  __forceinline__ __device__ T warp_reduce_min(T val) {
+    val = __reduce_min_sync(0xFFFFFFFF, val);
+    return val;
+  }
+#else
+  template<typename T>
+  __forceinline__ __device__ T warp_reduce_max(T val) {
+      for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+          val = max(val, __shfl_down_sync(0xFFFFFFFF, val, offset));
+      }
+      return val;
+  }
+
+  template<typename T>
+  __forceinline__ __device__ T warp_reduce_min(T val) {
+      for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+          val = min(val, __shfl_down_sync(0xFFFFFFFF, val, offset));
+      }
+      return val;
+  }
+#endif
 
 // Image reduction kernel for finding the largest and smallest pixel values
-template<unsigned int channels, unsigned int blockSize>
+template<unsigned int channels>
 __global__ void image_reduction_kernel(const Pixel<channels> *d_image, Pixel<channels> *d_out, int pixels, bool reduce_type) {
-  extern __shared__ Pixel<channels> sdata[];
-  unsigned int tid = threadIdx.x;
-  unsigned int i = blockIdx.x * (blockSize * 2) + tid;
-  unsigned int gridSize = blockSize * 2 * gridDim.x;
+    // shared memory for storing intermediate results
+    Pixel<channels> *sdata = SharedMemory<Pixel<channels>>();
 
-  // initialize shared memory
-  sdata[tid] = (reduce_type == MAX_REDUCE) ? Pixel<channels>{SHORT_MIN} : Pixel<channels>{SHORT_MAX};
+    unsigned int tid = threadIdx.x;
+    unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-
-  // load two pixels per thread from global memory
-  #pragma unroll
-  while (i < pixels) {
-    #pragma unroll
-    for(int ch = 0; ch < channels; ch++) {
-      sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), d_image[i].at(ch)) : 
-                                                      min(sdata[tid].at(ch), d_image[i].at(ch)));
-    }
-    if (i + blockSize < pixels) {
-      #pragma unroll
-      for(int ch = 0; ch < channels; ch++) {
-        sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), d_image[i + blockSize].at(ch)) : 
-                                                        min(sdata[tid].at(ch), d_image[i + blockSize].at(ch)));
-      }
-    }
-    i += gridSize; 
-  }
-  __syncthreads(); // ensure all threads have loaded their data
-
-  // conditional reductions for larger blocks
-  // continue reducing pixels in shared memory and sync after each step
-  #pragma unroll
-  for(int s = blockSize / 2; s > 32; s >>= 1) {
-    if (tid < s) {
-      #pragma unroll
-      for(int ch = 0; ch < channels; ch++) {
-        sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? max(sdata[tid].at(ch), sdata[tid + s].at(ch)) : 
-                                                        min(sdata[tid].at(ch), sdata[tid + s].at(ch)));
-      }
+    // load data into shared memory
+    if(index < pixels) {
+        sdata[tid] = d_image[index];
+    } else {
+        #pragma unroll
+        for(int ch = 0; ch < channels; ch++) {
+            sdata[tid].set(ch, (reduce_type == MAX_REDUCE) ? SHORT_MIN : SHORT_MAX);
+        }
     }
     __syncthreads();
-  }
 
-  if (tid < 32) {
-    warp_reduce_pixels<blockSize, channels>(sdata, tid, reduce_type);
-  }
-  
-  if (tid == 0) {
+    // perform reduction in shared memory
+    // since blockDim.x will be a multiple by 2 we can use right shift to speed up division by 2
     #pragma unroll
-    for(int ch = 0; ch < channels; ch++) {
-      d_out[blockIdx.x]->set(ch, sdata[0].at(ch));
+    for(unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+      if (tid < s) {
+        #pragma unroll
+        for(unsigned int ch = 0; ch < channels; ch++) {
+          short current = sdata[tid].at(ch);
+          short compare = sdata[tid + s].at(ch);
+          if(reduce_type == MAX_REDUCE) {
+            sdata[tid].set(ch, max(current, compare));
+          }
+          else {          //MIN_REDUCE
+            sdata[tid].set(ch, min(current, compare));
+          }
+        }
+      }
+      __syncthreads();
     }
-  }
+
+    // warp reduction within block
+    // ensure at least 2 warps per block and we're in first 32 threads of a block
+    if(blockDim.x >= 64 && tid < 32) {
+      // marked as volatile to prevent compiler optimizations
+      volatile Pixel<channels> *sdata_volatile = sdata;
+      #pragma unroll
+      for(unsigned int ch = 0; ch < channels; ch++) {
+        short val = sdata_volatile[tid].at(ch);
+        if(reduce_type == MAX_REDUCE) {
+          val = warp_reduce_max(val);
+        }
+        else {          //MIN_REDUCE
+          val = warp_reduce_min(val);
+        }
+        sdata_volatile[tid].set(ch, val);
+      }
+    }
+
+    if (tid == 0) {
+        d_out[blockIdx.x] = sdata[0];
+    }
+
 }
 
 // Host function for performing image reduction
 template <unsigned int channels>
 void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, bool reduce_type) {
-  int blockSize = 1024;
-  int gridSize = (pixels + blockSize * 2 - 1) / (blockSize * 2);
+    int blockSize = 1024;
+    int gridSize = (pixels + blockSize - 1) / blockSize;
 
-  // debugging output
-  #ifdef _DEBUG
-    printf("block size: %d\n", blockSize);
-    printf("grid size: %d\n", gridSize);
-    assert(blockSize > 0);
-    assert(gridSize > 0);
-  #endif
+    #ifdef _DEBUG
+      printf("block size: %d\n", blockSize);
+      printf("grid size: %d\n", gridSize);
+      assert(blockSize > 0);
+      assert(gridSize > 0);
+    #endif
 
-  image_reduction_kernel<channels, 1024><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(d_image, d_result, pixels, reduce_type);
-  cudaDeviceSynchronize();
-  CUDA_CHECK_ERROR("first non-recursive reduction");
-
-  // call the kernel recursively 
-  if (gridSize > 1) {
     Pixel<channels> *d_intermediate;
     cudaMalloc(&d_intermediate, gridSize * sizeof(Pixel<channels>));
-    image_reduction<channels>(d_result, d_intermediate, gridSize, reduce_type);
+
+    // First level of reduction
+    image_reduction_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(
+        d_image, d_intermediate, pixels, reduce_type);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("First level reduction");
+
+    // recursively reduce until we have only one pixel left
+    unsigned char iterations = 0;
+    while (gridSize > 1) {
+
+        #ifdef _DEBUG
+          printf("---DEBUG INFO FOR REDUCTION---\n");
+          printf("iteration: %d\n", iterations);
+          printf("grid size: %d\n", gridSize);
+          printf("block size: %d\n", blockSize);
+        #endif
+
+        int new_pixels = gridSize;
+        gridSize = (new_pixels + blockSize - 1) / blockSize;
+        image_reduction_kernel<channels><<<blockSize, gridSize, blockSize * sizeof(Pixel<channels>)>>>
+          (d_intermediate, d_intermediate, new_pixels, reduce_type);
+
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR("Recursive reduction on iteration " + std::to_string(iterations));
+        iterations++;
+    }
+
+    // copy the final result back to the original pointer
+    cudaMemcpy(d_result, d_intermediate, sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaFree(d_intermediate);
-  }
 }
 
 // EXPLICIT INSTANTIATIONS: 
