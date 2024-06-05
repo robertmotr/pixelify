@@ -149,66 +149,26 @@ struct Pixel {
     template<typename... Args>
     __host__ __device__ Pixel(Args... args) {
         static_assert(sizeof...(Args) <= 4, "Too many arguments for Pixel constructor");
-    
-        if constexpr (sizeof...(Args) > 0) {
-            short vals[] = {static_cast<short>(args)...};
-            for (unsigned int i = 0; i < sizeof...(Args); ++i) {
-                switch (i) {
-                    case 0:
-                        data.x = vals[i];
-                        break;
-                    case 1:
-                        data.y = vals[i];
-                        break;
-                    case 2:
-                        data.z = vals[i];
-                        break;
-                    case 3:
-                        data.w = vals[i];
-                        break;
-                    default:
-                        break;
-                }
-            }
-            if (sizeof...(Args) < 4) {
-                data.w = (channels == 3) ? 255 : vals[sizeof...(Args) - 1];
-            }
-        } else {
-            // default values if no arguments are provided
-            data.x = 0;
-            data.y = 0;
-            data.z = 0;
-            data.w = (channels == 3) ? 255 : 0;
-        }
+
+        short vals[sizeof...(Args)] = { static_cast<short>(args)... };
+        int num_args = sizeof...(Args);
+
+        data.x = (num_args > 0) ? vals[0] : 0;
+        data.y = (num_args > 1) ? vals[1] : 0;
+        data.z = (num_args > 2) ? vals[2] : 0;
+        data.w = (channels == 3) ? 255 : ((num_args > 3) ? vals[3] : 0);
     }
 
     // Constructor for initializer list
-    __host__ __device__ 
+    __host__ __device__
     Pixel(std::initializer_list<short> values) {
         auto i = values.begin();
         unsigned long size = values.size();
 
-        if (size == 1) {
-            // If there's only one value, set all channels to that value
-            short singleValue = *i;
-            data = make_short4(singleValue, singleValue, singleValue, (channels == 3) ? 255 : singleValue);
-        }
-        else if (size == channels) {
-            // If there are as many values as channels, set each channel individually
-            data.x = *i;
-            data.y = *(++i);
-            data.z = *(++i);
-            data.w = (channels == 3) ? 255 : *(++i);
-        } else {
-            // Handle the case where the number of values doesn't match the number of channels
-            // For simplicity, this example sets all channels to 0 in case of mismatch
-            #ifdef _DEBUG
-                printf("Number of values doesn't match the number of channels for pixel initializer list\n");
-                printf("Number of values: %lu, Number of channels: %d\n", size, channels);
-                printf("Error at line: %d\n", __LINE__);
-            #endif
-            data = make_short4(0, 0, 0, 255);
-        }
+        data.x = (size > 0) ? *i : 0;
+        data.y = (size > 1) ? *(i + 1) : 0;
+        data.z = (size > 2) ? *(i + 2) : 0;
+        data.w = (channels == 3) ? 255 : ((size > 3) ? *(i + 3) : 0);
     }
 
     // Constructor for single value

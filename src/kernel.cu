@@ -475,6 +475,7 @@ void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, 
     // copy the final result back to the original pointer
     cudaMemcpy(d_result, d_intermediate, sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
     cudaFree(d_intermediate);
+    CUDA_CHECK_ERROR("Final reduction cleanup");
 }
 
 // EXPLICIT INSTANTIATIONS: 
