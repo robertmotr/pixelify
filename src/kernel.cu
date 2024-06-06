@@ -464,11 +464,11 @@ void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, 
 
         int new_pixels = gridSize;
         gridSize = (new_pixels + blockSize - 1) / blockSize;
-        image_reduction_kernel<channels><<<blockSize, gridSize, blockSize * sizeof(Pixel<channels>)>>>
+        image_reduction_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>
           (d_intermediate, d_intermediate, new_pixels, reduce_type);
 
         cudaDeviceSynchronize();
-        CUDA_CHECK_ERROR("Recursive reduction on iteration " + std::to_string(iterations));
+        CUDA_CHECK_ERROR("Recursive reduction step failed");
         iterations++;
     }
 

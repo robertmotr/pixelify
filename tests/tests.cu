@@ -42,9 +42,9 @@ Pixel<channels> cpu_image_reduction(const Pixel<channels> *image, int pixels, bo
     Pixel<channels> result;
     for (int channel = 0; channel < channels; ++channel) {
         if (reduce_type == MAX_REDUCE) {
-            result.set(channel, SHORT_MAX);
-        } else {
             result.set(channel, SHORT_MIN);
+        } else {
+            result.set(channel, SHORT_MAX);
         }
     }
 
@@ -130,6 +130,7 @@ TEST(KernelHelpers, shift_colours) {
     for(int i = 0; i < 16; i++) {
         ASSERT_EQ(pixels[i], expected[i]) << "Mismatch at index " << i;
     }
+
     cudaFree(d_pixels);
 }
 
@@ -218,12 +219,14 @@ TEST(KernelHelpers, clamp_pixels_1) {
 
     for(int i = 0; i < 16; i++) {
         h_pixels[i] = pixels[i];
-        clamp_pixels<3>(&h_pixels[i], i);
+        clamp_pixels<3>(h_pixels, i);
     }
 
     for(int i = 0; i < 16; i++) {
         ASSERT_EQ(h_pixels[i], expected[i]) << "Mismatch at index " << i;
     }
+
+    delete[] h_pixels;
 }
 
 TEST(OtherKernels, image_reduction_simple) {
@@ -234,30 +237,20 @@ TEST(OtherKernels, image_reduction_simple) {
         {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
     };
 
-    std::cout << "before cudamalloc" << std::endl;
-
     Pixel<3> *d_pixels = nullptr;
-    std::cout << "did we get here?" << std::endl;
-    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
+    cudaMalloc(&d_pixels, 16 * sizeof(short4));
     CUDA_CHECK_ERROR("malloc");
-    std::cout << "maybe the malloc is crashing" << std::endl;
     cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
     CUDA_CHECK_ERROR("memcpy");
-
-    std::cout << "after cudamalloc" << std::endl;
 
     Pixel<3> *d_expected_max, *d_expected_min;
     Pixel<3> *h_expected_max, *h_expected_min;
     cudaMalloc(&d_expected_max, sizeof(Pixel<3>));
     cudaMalloc(&d_expected_min, sizeof(Pixel<3>));
 
-    std::cout << "this means we havent gotten to cpu image reduction yet" << std::endl;
-
     // assert cpu image reduction is correct
     Pixel<3> expected_max = cpu_image_reduction<3>(pixels, 16, MAX_REDUCE);
     Pixel<3> expected_min = cpu_image_reduction<3>(pixels, 16, MIN_REDUCE);
-
-    std::cout << "see if we made it here PART 1" << std::endl;
 
     image_reduction<3>(d_pixels, d_expected_max, 16, MAX_REDUCE);
     image_reduction<3>(d_pixels, d_expected_min, 16, MIN_REDUCE);
@@ -268,17 +261,15 @@ TEST(OtherKernels, image_reduction_simple) {
     cudaMemcpy(h_expected_max, d_expected_max, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_expected_min, d_expected_min, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
 
-    std::cout << "see if we made it here PART 2" << std::endl;
-
     for(int i = 0; i < 3; i++) {
         ASSERT_EQ(h_expected_max->at(i), 255);
         ASSERT_EQ(h_expected_min->at(i), 0);
     }
 
-    ASSERT_EQ(*h_expected_max, expected_max);
-    ASSERT_EQ(*h_expected_min, expected_min);
-
-    std::cout << "see if we made it here PART 3" << std::endl;
+    for(int i = 0; i < 3; i++) {
+        ASSERT_EQ(h_expected_max->at(i), expected_max.at(i));
+        ASSERT_EQ(h_expected_min->at(i), expected_min.at(i));
+    }
 
     cudaFree(d_pixels);
     cudaFree(d_expected_max);
@@ -294,11 +285,7 @@ TEST(OtherKernels, image_reduction_randomized) {
     Pixel<3> expected_max = cpu_image_reduction<3>(pixels, 16, MAX_REDUCE);
     Pixel<3> expected_min = cpu_image_reduction<3>(pixels, 16, MIN_REDUCE);
 
-    std::cout << "crash here? expected max: " << std::endl;
-
     Pixel<3> real_max, real_min;
-    real_max = {SHORT_MIN, SHORT_MIN, SHORT_MIN};
-    real_min = {SHORT_MAX, SHORT_MAX, SHORT_MAX}; 
 
     Pixel<3> *d_pixels;
     cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
@@ -307,8 +294,10 @@ TEST(OtherKernels, image_reduction_randomized) {
     image_reduction<3>(d_pixels, &real_max, 16, MAX_REDUCE);
     image_reduction<3>(d_pixels, &real_min, 16, MIN_REDUCE);
 
-    ASSERT_EQ(real_max, expected_max);
-    ASSERT_EQ(real_min, expected_min);
+    for(int i = 0; i < 3; i++) {
+        ASSERT_EQ(real_max.at(i), expected_max.at(i));
+        ASSERT_EQ(real_min.at(i), expected_min.at(i));
+    }
 
     cudaFree(d_pixels);
 }
