@@ -2,6 +2,8 @@ FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 WORKDIR /usr/src/app
 
+COPY . .
+
 # in order to configure the nvidia-container-toolkit repository, we need to install some dependencies
 RUN apt-get update && \
     apt-get install -y \ 
