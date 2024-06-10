@@ -28,10 +28,10 @@ void print_to(const Pixel<4>& pixel, ::std::ostream* os) {
 
 // Helper function to initialize an array of pixels
 template<unsigned int channels>
-void init_image(Pixel<channels> *d_image, int pixels) {
+void init_image(Pixel<channels> *h_image, int pixels) {
     for (int i = 0; i < pixels; ++i) {
         for (int channel = 0; channel < channels; ++channel) {
-            d_image[i].set(channel, rand() % 256);
+            h_image[i].set(channel, rand() % 256);
         }
     }
 }
@@ -238,7 +238,7 @@ TEST(OtherKernels, image_reduction_simple) {
     };
 
     Pixel<3> *d_pixels = nullptr;
-    cudaMalloc(&d_pixels, 16 * sizeof(short4));
+    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
     CUDA_CHECK_ERROR("malloc");
     cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
     CUDA_CHECK_ERROR("memcpy");
@@ -262,13 +262,13 @@ TEST(OtherKernels, image_reduction_simple) {
     cudaMemcpy(h_expected_min, d_expected_min, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
 
     for(int i = 0; i < 3; i++) {
-        ASSERT_EQ(h_expected_max->at(i), 255);
-        ASSERT_EQ(h_expected_min->at(i), 0);
+        ASSERT_EQ(h_expected_max->at(i), 255) << "Mismatch at channel " << i;
+        ASSERT_EQ(h_expected_min->at(i), 0) << "Mismatch at channel " << i;
     }
 
     for(int i = 0; i < 3; i++) {
-        ASSERT_EQ(h_expected_max->at(i), expected_max.at(i));
-        ASSERT_EQ(h_expected_min->at(i), expected_min.at(i));
+        ASSERT_EQ(h_expected_max->at(i), expected_max.at(i)) << "Mismatch at channel " << i;
+        ASSERT_EQ(h_expected_min->at(i), expected_min.at(i)) << "Mismatch at channel " << i;
     }
 
     cudaFree(d_pixels);
@@ -282,52 +282,111 @@ TEST(OtherKernels, image_reduction_randomized) {
     Pixel<3> pixels[16];
     init_image<3>(pixels, 16);
 
+    // print the values of pixels after randomization nicely
+    for(int i = 0; i < 16; i++) {
+        std::cout << "Pixel " << i << ": ";
+        print_to(pixels[i], &std::cout);
+        std::cout << std::endl;
+    }
+
+    Pixel<3> *d_pixels = nullptr;
+    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
+    CUDA_CHECK_ERROR("malloc");
+    cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+    CUDA_CHECK_ERROR("memcpy");
+
+    Pixel<3> *d_expected_max, *d_expected_min;
+    Pixel<3> *h_expected_max, *h_expected_min;
+    cudaMalloc(&d_expected_max, sizeof(Pixel<3>));
+    cudaMalloc(&d_expected_min, sizeof(Pixel<3>));
+
+    // assert cpu image reduction is correct
     Pixel<3> expected_max = cpu_image_reduction<3>(pixels, 16, MAX_REDUCE);
     Pixel<3> expected_min = cpu_image_reduction<3>(pixels, 16, MIN_REDUCE);
 
-    Pixel<3> real_max, real_min;
+    image_reduction<3>(d_pixels, d_expected_max, 16, MAX_REDUCE);
+    image_reduction<3>(d_pixels, d_expected_min, 16, MIN_REDUCE);
 
-    Pixel<3> *d_pixels;
-    cudaMalloc(&d_pixels, 16 * sizeof(Pixel<3>));
-    cudaMemcpy(d_pixels, pixels, 16 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+    h_expected_max = new Pixel<3>;
+    h_expected_min = new Pixel<3>;
 
-    image_reduction<3>(d_pixels, &real_max, 16, MAX_REDUCE);
-    image_reduction<3>(d_pixels, &real_min, 16, MIN_REDUCE);
+    cudaMemcpy(h_expected_max, d_expected_max, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_expected_min, d_expected_min, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
 
     for(int i = 0; i < 3; i++) {
-        ASSERT_EQ(real_max.at(i), expected_max.at(i));
-        ASSERT_EQ(real_min.at(i), expected_min.at(i));
+        ASSERT_EQ(h_expected_max->at(i), expected_max.at(i)) << "Mismatch at channel " << i;
+        ASSERT_EQ(h_expected_min->at(i), expected_min.at(i)) << "Mismatch at channel " << i;
     }
 
     cudaFree(d_pixels);
+    cudaFree(d_expected_max);
+    cudaFree(d_expected_min);
+    delete h_expected_max;
+    delete h_expected_min;
+}
+
+TEST(OtherKernels, image_reduction_large_scale_randomized) {
+    Pixel<3> pixels[8192];
+    init_image<3>(pixels, 8192);
+
+    Pixel<3> *d_pixels = nullptr;
+    cudaMalloc(&d_pixels, 8192 * sizeof(Pixel<3>));
+    CUDA_CHECK_ERROR("malloc");
+    cudaMemcpy(d_pixels, pixels, 8192 * sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+    CUDA_CHECK_ERROR("memcpy");
+
+    Pixel<3> *d_expected_max, *d_expected_min;
+    Pixel<3> *h_expected_max, *h_expected_min;
+    cudaMalloc(&d_expected_max, sizeof(Pixel<3>));
+    cudaMalloc(&d_expected_min, sizeof(Pixel<3>));
+
+    // assert cpu image reduction is correct
+    Pixel<3> expected_max = cpu_image_reduction<3>(pixels, 8192, MAX_REDUCE);
+    Pixel<3> expected_min = cpu_image_reduction<3>(pixels, 8192, MIN_REDUCE);
+
+    image_reduction<3>(d_pixels, d_expected_max, 8192, MAX_REDUCE);
+    image_reduction<3>(d_pixels, d_expected_min, 8192, MIN_REDUCE);
+
+    h_expected_max = new Pixel<3>;
+    h_expected_min = new Pixel<3>;
+
+    cudaMemcpy(h_expected_max, d_expected_max, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_expected_min, d_expected_min, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+
+    for(int i = 0; i < 3; i++) {
+        ASSERT_EQ(h_expected_max->at(i), expected_max.at(i)) << "Mismatch at channel " << i;
+        ASSERT_EQ(h_expected_min->at(i), expected_min.at(i)) << "Mismatch at channel " << i;
+    }
+
+    cudaFree(d_pixels);
+    cudaFree(d_expected_max);
+    cudaFree(d_expected_min);
+    delete h_expected_max;
+    delete h_expected_min;
 }
 
 TEST(ApplyFilter, apply_filter_identity_simple) {
-    Pixel<3> pixels[16] = {
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
-    };
+    Pixel<3> *h_pixels = new Pixel<3>[16];
+    Pixel<3> *h_output = new Pixel<3>[16];
+    Pixel<3> *h_expected = new Pixel<3>[16];
 
-    Pixel<3> expected[16] = {
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255},
-        {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}
-    };
-    
-    Pixel<3> *output = new Pixel<3>[16];
+    init_image<3>(h_pixels, 16);
+    memcpy(h_expected, h_pixels, 16 * sizeof(Pixel<3>));
 
     filter_args args;
     memset(&args, 0, sizeof(filter_args));
+    args.passes = 1;
+    args.filter_strength = 0;
     args.dimension = 3;
 
-    run_kernel<3>("Identity", pixels, output, 4, 4, args);
+    run_kernel<3>("Identity", h_pixels, h_output, 4, 4, args);
 
     for(int i = 0; i < 16; i++) {
-        ASSERT_EQ(output[i], expected[i]) << "Mismatch at index " << i;
+        ASSERT_EQ(h_pixels[i], h_expected[i]) << "Mismatch at index " << i;
     }
+
+    delete[] h_pixels;
+    delete[] h_expected;
 }
 
 int main(int argc, char **argv) {

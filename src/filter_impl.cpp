@@ -25,7 +25,7 @@ const filter* find_basic_filter(const char *name) {
 }
 
 const filter* create_filter(const char *filter_name, unsigned char filter_dimension,
-                      char filter_strength) {
+                            char filter_strength) {
     const filter *basic_filter = find_basic_filter(filter_name);
     if(basic_filter == nullptr) {
         return nullptr;

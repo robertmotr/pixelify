@@ -23,6 +23,7 @@ RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearm
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        gdb \
         valgrind \
         nvidia-container-toolkit \
         build-essential \

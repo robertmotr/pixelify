@@ -75,7 +75,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-
   cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying to device");
 
@@ -444,12 +443,13 @@ void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, 
 
     Pixel<channels> *d_intermediate;
     cudaMalloc(&d_intermediate, gridSize * sizeof(Pixel<channels>));
+    CUDA_CHECK_ERROR("cudamalloc'ing intermediate");
 
     // First level of reduction
     image_reduction_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>(
         d_image, d_intermediate, pixels, reduce_type);
     cudaDeviceSynchronize();
-    CUDA_CHECK_ERROR("First level reduction");
+    CUDA_CHECK_ERROR("First level reduction kernel call");
 
     // recursively reduce until we have only one pixel left
     unsigned char iterations = 0;
@@ -466,7 +466,6 @@ void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, 
         gridSize = (new_pixels + blockSize - 1) / blockSize;
         image_reduction_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>
           (d_intermediate, d_intermediate, new_pixels, reduce_type);
-
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("Recursive reduction step failed");
         iterations++;
@@ -474,8 +473,9 @@ void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, 
 
     // copy the final result back to the original pointer
     cudaMemcpy(d_result, d_intermediate, sizeof(Pixel<channels>), cudaMemcpyDeviceToDevice);
+    CUDA_CHECK_ERROR("cudamemcpy at end of image_reduction");
     cudaFree(d_intermediate);
-    CUDA_CHECK_ERROR("Final reduction cleanup");
+    CUDA_CHECK_ERROR("cudafree at end of image_reduction");
 }
 
 // EXPLICIT INSTANTIATIONS: 

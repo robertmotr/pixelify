@@ -8,7 +8,8 @@
 #define INTERNAL_CHANNEL_SIZE 4
 
 template<unsigned int channels>
-struct Pixel {
+class Pixel {
+public:
     short4 data;
 
     // Sets the value of the pixel at index i to val 
@@ -143,6 +144,24 @@ struct Pixel {
     __host__ __device__
     bool operator==(const Pixel &other) const {
         return data.x == other.data.x && data.y == other.data.y && data.z == other.data.z && data.w == other.data.w;
+    }
+
+    // Operator overload for comparing inequality
+    __host__ __device__
+    bool operator!=(const Pixel &other) const {
+        return !(*this == other);
+    }
+
+    // Operator overload for << to print the pixel
+    friend std::ostream& operator<<(std::ostream& os, const Pixel& pixel) {
+        os << "(" << pixel.data.x << ", " << pixel.data.y << ", " << pixel.data.z << ", " << pixel.data.w << ")";
+        return os;
+    }
+
+    // Operator overload for << to print the pixel (ptr version)
+    friend std::ostream& operator<<(std::ostream& os, const Pixel *pixel) {
+        os << "(" << pixel->data.x << ", " << pixel->data.y << ", " << pixel->data.z << ", " << pixel->data.w << ")";
+        return os;
     }
 
     // Constructor for variadic arguments
