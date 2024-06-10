@@ -35,6 +35,7 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
     else if(basic_filter->filter_dimension == filter_dimension &&
             filter_strength == 0) {
         #ifdef _DEBUG
+            printf("Filter already exists, printing data\n");
             // print filter data of new_filter against its size nicely formatted
             printf("Filter data for %s with dimension %d and strength %d\n", filter_name, filter_dimension, filter_strength);
             // print as a matrix
@@ -63,6 +64,7 @@ const filter* create_filter(const char *filter_name, unsigned char filter_dimens
         new_filter->properties->basic_filter = false;
 
         #ifdef _DEBUG
+            printf("Filter does not exist, creating new filter\n");
             // print filter data of new_filter against its size nicely formatted
             printf("Filter data for %s with dimension %d and strength %d\n", filter_name, filter_dimension, filter_strength);
             // print as a matrix

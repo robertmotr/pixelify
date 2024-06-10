@@ -18,7 +18,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   Pixel<channels>                                        *d_largest, *d_smallest;
   Pixel<channels>                                        *h_pinned_input, *h_pinned_output;
   Pixel<channels>                                        *h_smallest, *h_largest;          
-  int blockSize  =                                       1024;
+  int blockSize  =                                       0;
   int gridSize;
   h_smallest =                                           new Pixel<channels>{SHORT_MAX};
   h_largest =                                            new Pixel<channels>{SHORT_MIN};
@@ -44,9 +44,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // create copy of input, output on pinned memory on host
   cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
   cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); 
-  cudaMemcpyAsync(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
+  cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   #ifdef _DEBUG
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("pinned memory");  
   #endif
 
@@ -56,26 +55,18 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
   #ifdef _DEBUG
-    cudaDeviceSynchronize();
     CUDA_CHECK_ERROR("mallocs on device");
-    printf("size of image in bytes on h_pinned_input: %lu\n", pixels * sizeof(Pixel<channels>));
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-    int maxSize = prop.maxTexture1D;
-    printf("max size of 1d texture: %d\n", maxSize);
   #endif
 
   // copying filter data to constant memory
   cudaMemcpyToSymbol(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
   cudaMemcpyToSymbol(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
-  cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying to constant memory");
 
   // MEMCPYS FROM HOST TO DEVICE
   cudaMemcpy(device_input, h_pinned_input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
   cudaMemcpy(d_largest, h_largest, sizeof(Pixel<channels>), cudaMemcpyHostToDevice);
-  cudaDeviceSynchronize();
   CUDA_CHECK_ERROR("copying to device");
 
   // apply filter first if filter is not NULL
@@ -110,7 +101,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   // for each channel respectively
   image_reduction<channels>(device_output, d_largest, pixels, MAX_REDUCE);
   image_reduction<channels>(device_output, d_smallest, pixels, MIN_REDUCE);
-  // block size should be 1024 for optimal performance
   CUDA_CHECK_ERROR("reduction");
 
   // if d_largest or d_smallest are out of bounds
@@ -123,13 +113,19 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   for(int ch = 0; ch < channels; ch++) {
     if(h_smallest->at(ch) < 0 || h_smallest->at(ch) > 255 ||
       h_largest->at(ch) < 0 || h_largest->at(ch) > 255) {
+          #ifdef _DEBUG
+            std::cout << "normalizing image" << std::endl;
+            std::cout << "smallest: " << h_smallest->at(ch) << std::endl;
+            std::cout << "largest: " << h_largest->at(ch) << std::endl;
+          #endif
+
           normalize_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest, extra.normalize);
           CUDA_CHECK_ERROR("normalize");
           break;
     }
   }
 
-  cudaMemcpy(output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_pinned_output, device_output, pixels * sizeof(Pixel<channels>), cudaMemcpyDeviceToHost);
   cudaMemcpy(output, h_pinned_output, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
   CUDA_CHECK_ERROR("copying back d_output to pinned output");
 
@@ -142,6 +138,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaFree(d_smallest);
   cudaFree(d_largest);
   cudaFree(device_output); 
+  CUDA_CHECK_ERROR("freeing memory");
+
   // TODO: determine if this first run_kernel call and if so dont free device_output/device_input
   // we can reuse device_output/device_input for the next call because when we process the image
   // we copy back so we can just leave it there
@@ -150,9 +148,6 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     delete h_filter; // only delete if its NOT a basic filter
     // basic filters get reused
   }
-
-  cudaDeviceSynchronize();
-  CUDA_CHECK_ERROR("freeing memory");
 }
 
 // applies the filter to the input image at the given row and column
