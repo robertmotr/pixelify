@@ -554,22 +554,16 @@ TEST(ImageProcessing, stb_conversion) {
         FAIL();
     }
 
-    Pixel<3> *pixels_in = new Pixel<3>[width * height];
-    imgui_get_pixels<3>(image_data, pixels_in, width * height);
+    Pixel<4> *pixels_in = new Pixel<4>[width * height];
+    imgui_get_pixels<4>(image_data, pixels_in, width * height);
 
     if(pixels_in == nullptr) {
         printf("Failed to convert image to pixels\n");
         FAIL();
     }
 
-    for(int i = 0; i < width * height; i++) {
-        pixels_in[i].data.x /= 2;
-        pixels_in[i].data.y /= 2;
-        pixels_in[i].data.z /= 2;
-    }
-
     unsigned char *image_out = new unsigned char[width * height * INTERNAL_CHANNEL_SIZE];
-    imgui_get_raw_image<3>(pixels_in, image_out, width * height);
+    imgui_get_raw_image<4>(pixels_in, image_out, width * height);
 
     if(image_out == nullptr) {
         printf("Failed to convert image to raw image\n");
@@ -578,7 +572,7 @@ TEST(ImageProcessing, stb_conversion) {
 
     // assert that image is the same between image out and image data
     for (int i = 0; i < width * height * channels; i++) {
-        ASSERT_EQ(image_data[i] / 2, image_out[i]) << "Mismatch at index " << i;
+        ASSERT_EQ(image_data[i], image_out[i]) << "Mismatch at index " << i;
     }
 
     // free memory
@@ -616,18 +610,18 @@ TEST(ImageProcessing, identity_filter_on_real_image) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
     }
-    Pixel<3> *pixels_in = new Pixel<3>[width * height];
-    imgui_get_pixels<3>(image_data, pixels_in, width * height);
-    Pixel<3> *pixels_out = new Pixel<3>[width * height];
+    Pixel<4> *pixels_in = new Pixel<4>[width * height];
+    imgui_get_pixels<4>(image_data, pixels_in, width * height);
+    Pixel<4> *pixels_out = new Pixel<4>[width * height];
 
     struct filter_args extra;
     memset(&extra, 0, sizeof(filter_args));
     extra.passes = 1;
     extra.dimension = 3;
 
-    run_kernel<3>("Identity", pixels_in, pixels_out, width, height, extra);
+    run_kernel<4>("Identity", pixels_in, pixels_out, width, height, extra);
     unsigned char *image_out = new unsigned char[width * height * INTERNAL_CHANNEL_SIZE];
-    imgui_get_raw_image<3>(pixels_out, image_out, width * height);
+    imgui_get_raw_image<4>(pixels_out, image_out, width * height);
 
     // assert that image is the same between image out and image data
     for (int i = 0; i < width * height * channels; i++) {
