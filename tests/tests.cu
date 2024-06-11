@@ -397,7 +397,8 @@ TEST(ApplyFilter, simple_box_blur) {
         {4, 4, 4}, {5, 5, 5}, {6, 6, 6},
         {7, 7, 7}, {8, 8, 8}, {9, 9, 9}
     };
-    Pixel<3> output[9] = {0};
+    Pixel<3> output[9];
+    memset(output, 0, sizeof(output));
 
     Pixel<3> expected[9] = {
         {12, 12, 12}, {21, 21, 21}, {16, 16, 16},
@@ -405,11 +406,14 @@ TEST(ApplyFilter, simple_box_blur) {
         {24, 24, 24}, {39, 39, 39}, {28, 28, 28}
     };
 
+    for(int i = 0; i < 9; i++) {
+        ASSERT_EQ(input[i], input[i]) << "Mismatch at index " << i;
+    }
+
     struct filter_args extra;
     memset(&extra, 0, sizeof(filter_args));
     extra.passes = 1;
     extra.dimension = 3;
-    extra.filter_strength = 100;
 
     run_kernel<3>("Box Blur", input, output, 3, 3, extra);
 
@@ -534,7 +538,6 @@ TEST(ImageProcessing, stb_conversion) {
         strcat(full_path, "/sample_images/Puzzle_Mountain.png");
     }
     else {
-        free(full_path);
         printf("Error: current_dir environment variable not set\n");
         FAIL();
     }
@@ -551,18 +554,27 @@ TEST(ImageProcessing, stb_conversion) {
         FAIL();
     }
 
-    Pixel<3> *pixels_in = nullptr; 
+    Pixel<3> *pixels_in = new Pixel<3>[width * height];
     imgui_get_pixels<3>(image_data, pixels_in, width * height);
+
+    if(pixels_in == nullptr) {
+        printf("Failed to convert image to pixels\n");
+        FAIL();
+    }
 
     for(int i = 0; i < width * height; i++) {
         pixels_in[i].data.x /= 2;
         pixels_in[i].data.y /= 2;
         pixels_in[i].data.z /= 2;
-        pixels_in[i].data.w /= 2;
     }
 
-    unsigned char *image_out = nullptr;
+    unsigned char *image_out = new unsigned char[width * height * INTERNAL_CHANNEL_SIZE];
     imgui_get_raw_image<3>(pixels_in, image_out, width * height);
+
+    if(image_out == nullptr) {
+        printf("Failed to convert image to raw image\n");
+        FAIL();
+    }
 
     // assert that image is the same between image out and image data
     for (int i = 0; i < width * height * channels; i++) {
@@ -586,7 +598,6 @@ TEST(ImageProcessing, identity_filter_on_real_image) {
         strcat(full_path, "/sample_images/Puzzle_Mountain.png");
     }
     else {
-        free(full_path);
         printf("Error: current_dir environment variable not set\n");
         FAIL();
     }
@@ -605,7 +616,7 @@ TEST(ImageProcessing, identity_filter_on_real_image) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         FAIL();
     }
-    Pixel<3> *pixels_in;
+    Pixel<3> *pixels_in = new Pixel<3>[width * height];
     imgui_get_pixels<3>(image_data, pixels_in, width * height);
     Pixel<3> *pixels_out = new Pixel<3>[width * height];
 
@@ -615,7 +626,7 @@ TEST(ImageProcessing, identity_filter_on_real_image) {
     extra.dimension = 3;
 
     run_kernel<3>("Identity", pixels_in, pixels_out, width, height, extra);
-    unsigned char *image_out = nullptr;
+    unsigned char *image_out = new unsigned char[width * height * INTERNAL_CHANNEL_SIZE];
     imgui_get_raw_image<3>(pixels_out, image_out, width * height);
 
     // assert that image is the same between image out and image data

@@ -93,6 +93,7 @@
         "ranges": "cpp",
         "shared_mutex": "cpp",
         "text_encoding": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "*.inc": "cpp"
     }
 }

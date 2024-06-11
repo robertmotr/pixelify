@@ -92,14 +92,14 @@ void initialize_filter_data() {
         0, -1, 0
     };
     box_blur_filter_data = new float[9] {
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1
+        1, 1, 1,
+        1, 1, 1,
+        1, 1, 1
     };
     gaussian_blur_filter_data = new float[9] {
-        1/16, 2/16, 1/16,
-        2/16, 4/16, 2/16,
-        1/16, 2/16, 1/16
+        1, 2, 1,
+        2, 4, 2,
+        1, 2, 1
     };
     unsharp_mask_filter_data = new float[9] {
         -1, -1, -1,

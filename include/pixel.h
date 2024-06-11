@@ -176,13 +176,13 @@ public:
             data.x = (num_args > 0) ? vals[0] : 0;
             data.y = (num_args > 1) ? vals[1] : 0;
             data.z = (num_args > 2) ? vals[2] : 0;
-            data.w = (channels == 3) ? 255 : ((num_args > 3) ? vals[3] : 0);
+            data.w = (channels == 3) ? 0 : ((num_args > 3) ? vals[3] : 0);
         } else {
             // Handle the zero-arguments case
             data.x = 0;
             data.y = 0;
             data.z = 0;
-            data.w = (channels == 3) ? 255 : 0;
+            data.w = (channels == 3) ? 0 : 255;
         }
     }
 
@@ -194,23 +194,27 @@ public:
         data.x = (size > 0) ? *i : 0;
         data.y = (size > 1) ? *(i + 1) : 0;
         data.z = (size > 2) ? *(i + 2) : 0;
-        data.w = (channels == 3) ? 255 : ((size > 3) ? *(i + 3) : 0);
+        data.w = (channels == 3) ? 0 : ((size > 3) ? *(i + 3) : 0);
     }
 
     // Default constructor
     __host__ __device__ 
-    Pixel() : data({0, 0, 0, (channels == 3) ? 255 : 0}) {}
+    Pixel() : data({0, 0, 0, (channels == 3) ? 0 : 255}) {}
 
     // Constructor for single value
     __host__ __device__ 
     Pixel(short val) {
-        data = make_short4(val, val, val, (channels == 3) ? 255 : val);
+        data = make_short4(val, val, val, (channels == 3) ? 0 : val);
     }
 };
 
 // Sets output to the value of input which is a Pixel array of size size
 template<unsigned int channels>
 void imgui_get_raw_image(const Pixel<channels> *input, unsigned char *output, unsigned int size) {
+    assert(channels <= 4);
+    assert(input != nullptr);
+    assert(output != nullptr);
+
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
             output[i * INTERNAL_CHANNEL_SIZE + j] = static_cast<unsigned char>(input[i].at(j));
@@ -225,6 +229,10 @@ void imgui_get_raw_image(const Pixel<channels> *input, unsigned char *output, un
 // Sets output to the value of input which is a primitive RGBA array of size size
 template<unsigned int channels>
 void imgui_get_pixels(const unsigned char *input, Pixel<channels> *output, unsigned int size) {
+    assert(channels <= 4);
+    assert(input != nullptr);
+    assert(output != nullptr);
+    
     for (unsigned int i = 0; i < size; i++) {
         for (unsigned int j = 0; j < channels; j++) {
             output[i].set(j, static_cast<short>(input[i * INTERNAL_CHANNEL_SIZE + j]));

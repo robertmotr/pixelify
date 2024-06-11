@@ -39,28 +39,26 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     assert(blockSize > 0);
     assert(gridSize > 0);
     printf("grid size: %d\n", gridSize);
+    assert(h_filter != nullptr);
   #endif
 
   // create copy of input, output on pinned memory on host
   cudaHostAlloc(&h_pinned_input, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped);
   cudaHostAlloc(&h_pinned_output, pixels * sizeof(Pixel<channels>), cudaHostAllocMapped); 
   cudaMemcpy(h_pinned_input, input, pixels * sizeof(Pixel<channels>), cudaMemcpyHostToHost);
-  #ifdef _DEBUG
-    CUDA_CHECK_ERROR("pinned memory");  
-  #endif
+  CUDA_CHECK_ERROR("pinned memory allocation");
 
   // MALLOCS ON DEVICE
   cudaMalloc(&device_output, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&device_input, pixels * sizeof(Pixel<channels>));
   cudaMalloc(&d_largest, sizeof(Pixel<channels>));
   cudaMalloc(&d_smallest, sizeof(Pixel<channels>));
-  #ifdef _DEBUG
-    CUDA_CHECK_ERROR("mallocs on device");
-  #endif
+  CUDA_CHECK_ERROR("device malloc");
 
   // copying filter data to constant memory
   cudaMemcpyToSymbol(global_const_filter, h_filter->filter_data, h_filter->filter_dimension * h_filter->filter_dimension * sizeof(float), 0, cudaMemcpyHostToDevice);
-  cudaMemcpyToSymbol(global_const_filter_dim, &h_filter->filter_dimension, sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbol(global_const_filter_dim, &(h_filter->filter_dimension), sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
+  // possible bug here in terms of using & operator on global object? apparently doesnt work on GPU cached memory
   CUDA_CHECK_ERROR("copying to constant memory");
 
   // MEMCPYS FROM HOST TO DEVICE
@@ -153,36 +151,28 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
 // applies the filter to the input image at the given row and column
 // returns sum of filter application
 template<unsigned int channels>
-__device__ __forceinline__ short apply_filter(const Pixel<channels> __restrict_arr *device_input, unsigned int mask, int width, 
-                                            int height, int row, int col) {
-    #ifdef _DEBUG
-      assert(device_input != nullptr);
-      assert(mask < channels);
-      assert(find_index(width, height, row, col) >= 0);
-      assert(find_index(width, height, row, col) < width * height);
-    #endif
-      
-    const __restrict_arr volatile float *const_filter = global_const_filter;
-    const __restrict_arr volatile unsigned char const_filter_dim = global_const_filter_dim;
-
+__device__ __forceinline__ short apply_filter(const __restrict_arr Pixel<channels> *device_input, unsigned int mask, int width, 
+                                              int height, int row, int col) {
     float sum = 0;
-    int start_i = row - const_filter_dim;
-    int start_j = col - const_filter_dim;
+    int start_i = row - global_const_filter_dim / 2;
+    int start_j = col - global_const_filter_dim / 2;
 
     // iterate over the filter
     #pragma unroll
-    for (int i = 0; i < const_filter_dim; i++) {
+    for (int i = 0; i < global_const_filter_dim; i++) {
         #pragma unroll
-        for (int j = 0; j < const_filter_dim; j++) {
+        for (int j = 0; j < global_const_filter_dim; j++) {
 
             int filter_x = start_i + i;
             int filter_y = start_j + j;
 
             int idx = find_index(width, height, filter_x, filter_y);
-            short member_value = __ldcs(device_input[idx].at_ptr(mask)); // fast load using constant memory
+            if(idx != OUT_OF_BOUNDS) {
+              short member_value = __ldg(device_input[idx].at_ptr(mask)); // fast load using caching from global memory
 
-            float filter_value = const_filter[i * const_filter_dim + j];
-            sum = __fmaf_rn(member_value, filter_value, sum); // fast multiply and add
+              float filter_value = __ldg(global_const_filter + i * global_const_filter_dim + j);
+              sum = __fmaf_rn(member_value, filter_value, sum); // fast multiply and add
+            }
         }
     }
     return (short) sum;
@@ -190,11 +180,8 @@ __device__ __forceinline__ short apply_filter(const Pixel<channels> __restrict_a
 
 // main kernel that applies the filter to the input image
 template<unsigned int channels>
-__global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, Pixel<channels> *out, int width, int height,
-                              const struct filter_args args) {
-  #ifdef _DEBUG
-    assert(out != nullptr);
-  #endif                      
+__global__ void filter_kernel(const __restrict_arr Pixel<channels> *in, __restrict_arr Pixel<channels> *out, int width, int height,
+                              const struct filter_args args) {    
   
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int total_threads = blockDim.x * gridDim.x;
@@ -299,21 +286,17 @@ __global__ void invert_kernel(Pixel<channels> *d_pixels, int width, int height,
 
 // normalizes the input image to the range [0, 255] as cuda kernel
 template<unsigned int channels>
-__global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
+__global__ void normalize_kernel(__restrict_arr Pixel<channels> *target, int width, int height,
                           const Pixel<channels> __restrict_arr *smallest,
                           const Pixel<channels> __restrict_arr *largest,
                           bool normalize) {
-
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
-
   #ifdef _DEBUG
     assert(target != nullptr);
     assert(smallest != nullptr);
-    assert(largest != nullptr);
-    printf("smallest: %d %d %d %d\n", smallest->at(0), smallest->at(1), smallest->at(2), smallest->at(3));
-    printf("largest: %d %d %d %d\n", largest->at(0), largest->at(1), largest->at(2), largest->at(3));
-    printf("Normalize: %d\n", normalize);
-  #endif
+    assert(largest != nullptr); 
+  #endif  
+
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
   
   #pragma unroll
   for(int pixel_idx = tid; pixel_idx < width * height; pixel_idx += blockDim.x * gridDim.x) {
@@ -344,6 +327,7 @@ __global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
 #else
   template<typename T>
   __forceinline__ __device__ T warp_reduce_max(T val) {
+      #pragma unroll
       for (int offset = warpSize / 2; offset > 0; offset /= 2) {
           val = max(val, __shfl_down_sync(0xFFFFFFFF, val, offset));
       }
@@ -352,6 +336,7 @@ __global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
 
   template<typename T>
   __forceinline__ __device__ T warp_reduce_min(T val) {
+      #pragma unroll
       for (int offset = warpSize / 2; offset > 0; offset /= 2) {
           val = min(val, __shfl_down_sync(0xFFFFFFFF, val, offset));
       }
@@ -361,7 +346,8 @@ __global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
 
 // Image reduction kernel for finding the largest and smallest pixel values
 template<unsigned int channels>
-__global__ void image_reduction_kernel(const Pixel<channels> *d_image, Pixel<channels> *d_out, int pixels, bool reduce_type) {
+__global__ void image_reduction_kernel(const __restrict_arr Pixel<channels> *d_image, Pixel<channels> *d_out, 
+                                       int pixels, bool reduce_type) {
     // shared memory for storing intermediate results
     Pixel<channels> *sdata = SharedMemory<Pixel<channels>>();
 
@@ -425,7 +411,9 @@ __global__ void image_reduction_kernel(const Pixel<channels> *d_image, Pixel<cha
 
 // Host function for performing image reduction
 template <unsigned int channels>
-void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, int pixels, bool reduce_type) {
+void image_reduction(const __restrict_arr Pixel<channels> *d_image, Pixel<channels> *d_result, 
+                     int pixels, bool reduce_type) {
+
     int blockSize = 1024;
     int gridSize = (pixels + blockSize - 1) / blockSize;
 
@@ -461,7 +449,6 @@ void image_reduction(const Pixel<channels> *d_image, Pixel<channels> *d_result, 
         gridSize = (new_pixels + blockSize - 1) / blockSize;
         image_reduction_kernel<channels><<<gridSize, blockSize, blockSize * sizeof(Pixel<channels>)>>>
           (d_intermediate, d_intermediate, new_pixels, reduce_type);
-        cudaDeviceSynchronize();
         CUDA_CHECK_ERROR("Recursive reduction step failed");
         iterations++;
     }
