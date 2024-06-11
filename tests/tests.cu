@@ -60,6 +60,8 @@ Pixel<channels> cpu_image_reduction(const Pixel<channels> *image, int pixels, bo
     return result;
 }
 
+
+
 TEST(KernelHelpers, find_index) {
     int index = find_index(0, 0, 3, 3);
     ASSERT_EQ(index, -1);
@@ -365,7 +367,7 @@ TEST(OtherKernels, image_reduction_large_scale_randomized) {
     delete h_expected_min;
 }
 
-TEST(ApplyFilter, apply_filter_identity_simple) {
+TEST(ApplyFilter, identity_randomized) {
     Pixel<3> *h_pixels = new Pixel<3>[16];
     Pixel<3> *h_output = new Pixel<3>[16];
     Pixel<3> *h_expected = new Pixel<3>[16];
@@ -376,7 +378,6 @@ TEST(ApplyFilter, apply_filter_identity_simple) {
     filter_args args;
     memset(&args, 0, sizeof(filter_args));
     args.passes = 1;
-    args.filter_strength = 0;
     args.dimension = 3;
 
     run_kernel<3>("Identity", h_pixels, h_output, 4, 4, args);
@@ -387,6 +388,247 @@ TEST(ApplyFilter, apply_filter_identity_simple) {
 
     delete[] h_pixels;
     delete[] h_expected;
+    delete[] h_output;
+}
+
+TEST(ApplyFilter, simple_box_blur) {
+    Pixel<3> input[9] = {
+        {1, 1, 1}, {2, 2, 2}, {3, 3, 3},
+        {4, 4, 4}, {5, 5, 5}, {6, 6, 6},
+        {7, 7, 7}, {8, 8, 8}, {9, 9, 9}
+    };
+    Pixel<3> output[9] = {0};
+
+    Pixel<3> expected[9] = {
+        {12, 12, 12}, {21, 21, 21}, {16, 16, 16},
+        {27, 27, 27}, {45, 45, 45}, {33, 33, 33},
+        {24, 24, 24}, {39, 39, 39}, {28, 28, 28}
+    };
+
+    struct filter_args extra;
+    memset(&extra, 0, sizeof(filter_args));
+    extra.passes = 1;
+    extra.dimension = 3;
+    extra.filter_strength = 100;
+
+    run_kernel<3>("Box Blur", input, output, 3, 3, extra);
+
+    for (int i = 0; i < 9; i++) {
+        ASSERT_EQ(expected[i], output[i]) << "Mismatch at index " << i;
+    }
+}
+
+TEST(Reduction, small_image) {
+    Pixel<3> input[9] = {
+        {1, 1, 1}, {2, 2, 2}, {3, 3, 3},
+        {4, 4, 4}, {5, 5, 5}, {6, 6, 6},
+        {7, 7, 7}, {8, 8, 8}, {9, 9, 9}
+    };
+
+    Pixel<3> *d_input;
+    cudaMalloc(&d_input, sizeof(Pixel<3>) * 9);
+    cudaMemcpy(d_input, input, sizeof(Pixel<3>) * 9, cudaMemcpyHostToDevice);
+
+    Pixel<3> *d_largest;
+    Pixel<3> *d_smallest;
+
+    Pixel<3> *h_largest = new Pixel<3>{SHORT_MIN};
+    Pixel<3> *h_smallest = new Pixel<3>{SHORT_MAX};
+
+    cudaMalloc(&d_largest, sizeof(Pixel<3>));
+    cudaMalloc(&d_smallest, sizeof(Pixel<3>));
+
+    cudaMemcpy(d_largest, h_largest, sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_smallest, h_smallest, sizeof(Pixel<3>), cudaMemcpyHostToDevice);
+
+    image_reduction<3>(d_input, d_largest, 9, MAX_REDUCE);
+    image_reduction<3>(d_input, d_smallest, 9, MIN_REDUCE);
+    cudaDeviceSynchronize();
+    CUDA_CHECK_ERROR("synchronize after reduction");
+
+    // copy back d_input to double check its unchanged
+    Pixel<3> *h_input = new Pixel<3>[9];
+    cudaMemcpy(h_input, d_input, sizeof(Pixel<3>) * 9, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 9; i++) {
+        ASSERT_EQ(input[i], h_input[i]);
+    }
+
+    cudaMemcpy(h_largest, d_largest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_smallest, d_smallest, sizeof(Pixel<3>), cudaMemcpyDeviceToHost);
+
+    ASSERT_EQ(*h_largest, input[8]);
+    ASSERT_EQ(*h_smallest, input[0]);
+
+    cudaFree(d_input);
+    cudaFree(d_largest);
+    cudaFree(d_smallest);
+    delete h_largest;
+    delete h_smallest;
+}
+
+TEST(Normalization, identity) {
+    Pixel<3> input[9] = {
+        {1, 2, 3}, {4, 5, 6}, {7, 8, 9},
+        {10, 11, 12}, {13, 14, 15}, {16, 17, 18},
+        {19, 20, 21}, {289, 324, 367}, {25, 26, 27}
+    };
+    Pixel<3> output[9]; 
+
+    struct filter_args extra;
+    memset(&extra, 0, sizeof(filter_args));
+    extra.passes = 1;
+    extra.dimension = 3;
+    extra.normalize = true;
+
+    run_kernel<3>("Identity", input, output, 3, 3, extra);
+
+    Pixel<3> expected[9] = {
+        {0, 0, 0}, {2, 2, 2}, {5, 4, 4},
+        {7, 7, 6}, {10, 9, 8}, {13, 11, 10},
+        {15, 14, 12}, {255, 255, 255}, {21, 19, 16}
+    };
+
+    // check output == new_expected
+    for(int i = 0; i < 9; i++) {
+        ASSERT_EQ(expected[i], output[i]) << "Mismatch at index " << i;
+    } 
+}
+
+TEST(Normalization, simple_case) {
+    Pixel<3> input[9] = {
+        {1, 2, 3}, {4, 5, 6}, {7, 8, 9},
+        {10, 11, 12}, {13, 14, 15}, {16, 17, 18},
+        {19, 20, 21}, {289, 324, 367}, {25, 26, 27}
+    };
+
+    Pixel<3> output[9] = {0};
+    Pixel<3> expected[9] = {
+        {0, 0, 0}, {2, 2, 2}, {5, 4, 4},
+        {7, 7, 6}, {10, 9, 8}, {13, 11, 10},
+        {15, 14, 12}, {255, 255, 255}, {21, 19, 16}
+    };
+
+    struct filter_args extra;
+    memset(&extra, 0, sizeof(filter_args));
+    extra.passes = 1;
+    extra.dimension = 3;
+    extra.normalize = true;
+
+    run_kernel<3>("Identity", input, output, 3, 3, extra);
+
+    // check output == expected
+    for (int i = 0; i < 9; i++) {
+        ASSERT_EQ(expected[i], output[i]);
+    }
+}
+
+TEST(ImageProcessing, stb_conversion) {
+    int width, height, channels;
+
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
+        printf("Current dir: %s\nImage_processing_correctness running for stb_conversion\n", env_var);
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/Puzzle_Mountain.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
+
+    int ok = stbi_info(full_path, &width, &height, &channels);
+    if(ok != 1) {
+        printf("Failed to get image properties: %s\n", stbi_failure_reason());
+        FAIL();
+    }
+
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
+    if (image_data == NULL) {
+        printf("Failed to load image: %s\n", stbi_failure_reason());
+        FAIL();
+    }
+
+    Pixel<3> *pixels_in = nullptr; 
+    imgui_get_pixels<3>(image_data, pixels_in, width * height);
+
+    for(int i = 0; i < width * height; i++) {
+        pixels_in[i].data.x /= 2;
+        pixels_in[i].data.y /= 2;
+        pixels_in[i].data.z /= 2;
+        pixels_in[i].data.w /= 2;
+    }
+
+    unsigned char *image_out = nullptr;
+    imgui_get_raw_image<3>(pixels_in, image_out, width * height);
+
+    // assert that image is the same between image out and image data
+    for (int i = 0; i < width * height * channels; i++) {
+        ASSERT_EQ(image_data[i] / 2, image_out[i]) << "Mismatch at index " << i;
+    }
+
+    // free memory
+    stbi_image_free(image_data);
+    delete[] pixels_in;
+    delete[] image_out;
+    delete[] full_path;
+}
+
+TEST(ImageProcessing, identity_filter_on_real_image) {
+    const char *env_var = getenv("current_dir");
+    char *full_path = NULL;
+    if(env_var != NULL) {
+        full_path = new char[strlen(env_var) + strlen("/sample_images/Puzzle_Mountain.png") + 1];
+        printf("Current dir: %s\nRunning identity_filter image processing correctness\n", env_var);
+        strcpy(full_path, env_var);
+        strcat(full_path, "/sample_images/Puzzle_Mountain.png");
+    }
+    else {
+        free(full_path);
+        printf("Error: current_dir environment variable not set\n");
+        FAIL();
+    }
+
+    int width, height, channels;
+    int ok = stbi_info(full_path, &width, &height, &channels);
+    if(ok != 1) {
+        printf("Failed to get image properties: %s\n", stbi_failure_reason());
+        FAIL();
+    }
+    // print image properties
+    printf("Image width: %d\nImage height: %d\nImage channels: %d\n", width, height, channels);
+
+    unsigned char* image_data = stbi_load(full_path, &width, &height, &channels, 0);
+    if (image_data == NULL) {
+        printf("Failed to load image: %s\n", stbi_failure_reason());
+        FAIL();
+    }
+    Pixel<3> *pixels_in;
+    imgui_get_pixels<3>(image_data, pixels_in, width * height);
+    Pixel<3> *pixels_out = new Pixel<3>[width * height];
+
+    struct filter_args extra;
+    memset(&extra, 0, sizeof(filter_args));
+    extra.passes = 1;
+    extra.dimension = 3;
+
+    run_kernel<3>("Identity", pixels_in, pixels_out, width, height, extra);
+    unsigned char *image_out = nullptr;
+    imgui_get_raw_image<3>(pixels_out, image_out, width * height);
+
+    // assert that image is the same between image out and image data
+    for (int i = 0; i < width * height * channels; i++) {
+        ASSERT_EQ(image_data[i], image_out[i]) << "Mismatch at index " << i;
+    }
+
+    // free memory
+    stbi_image_free(image_data);
+    delete[] pixels_in;
+    delete[] image_out;
+    delete[] pixels_out;
+    delete[] full_path;
 }
 
 int main(int argc, char **argv) {

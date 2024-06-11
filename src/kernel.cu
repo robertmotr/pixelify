@@ -114,7 +114,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
     if(h_smallest->at(ch) < 0 || h_smallest->at(ch) > 255 ||
       h_largest->at(ch) < 0 || h_largest->at(ch) > 255) {
           #ifdef _DEBUG
-            std::cout << "normalizing image" << std::endl;
+            std::cout << "smallest/largest are out of bounds, need to clamp/normalize" << std::endl;
             std::cout << "smallest: " << h_smallest->at(ch) << std::endl;
             std::cout << "largest: " << h_largest->at(ch) << std::endl;
           #endif
@@ -328,7 +328,7 @@ __global__ void normalize_kernel(Pixel<channels> *target, int width, int height,
 // utility functions for finding the largest and smallest pixel values
 // this assumes we have compute capability > 6 because shuffle down instructions are relatively new
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 600
-#error "This code requires a GPU with compute capability of 6.0 or higher. Shuffle down instructions are not yet supported."
+  #error "This code requires a GPU with compute capability of 6.0 or higher. Shuffle down instructions are not yet supported."
 #elif defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   template<typename T>
   __forceinline__ __device__ T warp_reduce_max(T val) {
