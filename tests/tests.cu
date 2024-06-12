@@ -12,6 +12,10 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
+#ifndef RUNNING_IN_TESTS
+    #define RUNNING_IN_TESTS
+#endif
+
 #pragma GCC diagnostic pop
 
 const filter** filters = init_filters();

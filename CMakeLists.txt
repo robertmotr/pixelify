@@ -102,9 +102,18 @@ target_include_directories(pixelify_tests PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googletest/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googlemock/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends
 )
+
 add_executable(tests tests/tests.cu)
-target_link_libraries(tests pixelify_tests gtest_main gtest)
+target_link_libraries(tests 
+    pixelify_tests 
+    imgui_lib
+    gtest_main 
+    gtest
+)
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
