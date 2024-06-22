@@ -36,3 +36,21 @@ Image processor that applies filters to images using CUDA.
 - set filter size slider to be dependent on filter selected, i.e identity can only have 3x3 
 - optimize kernels to get ~200ms runtime preferably even lower (update: getting consistently sub 20ms which is fantastic)
 - imgui implementation 
+
+
+# Building
+
+## Arch linux
+Git clone the repository, which is this command:
+```
+git clone https://github.com/robertmotr/pixelify.git
+```
+Make sure you have OpenGL installed. For more information on how to install it, please visit the arch wiki:
+
+https://wiki.archlinux.org/title/OpenGL
+
+Install the following packages using your AUR helper:
+```
+cuda glfw glew exiv2
+```
+Then, run the "setup.bash" file in the home directory.
