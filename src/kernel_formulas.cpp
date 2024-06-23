@@ -49,6 +49,8 @@ float unsharp_mask(int i, int j, char strength, unsigned char dimension) {
 }
 
 float emboss(int i, int j, char strength, unsigned char dimension) {
+    assert(i < 3 && j < 3 && "i and j must be less than 3");
+
     float embossKernel[3][3] = {
         {-1, -1, 0},
         {-1,  1, 1},
@@ -56,8 +58,8 @@ float emboss(int i, int j, char strength, unsigned char dimension) {
     };
 
     float embossedPixel = 0.0;
-    for (int ki = 0; ki < dimension; ++ki) {
-        for (int kj = 0; kj < dimension; ++kj) {
+    for (int ki = 0; ki < 3; ++ki) {
+        for (int kj = 0; kj < 3; ++kj) {
             if(ki == i && kj == j) {
                 embossedPixel = embossKernel[ki][kj] * (float)strength / 10.0f;
             }
@@ -72,6 +74,7 @@ float laplacian(int i, int j, char strength, unsigned char dimension) {
 }
 
 float horizontal_shear(int i, int j, char strength, unsigned char dimension) {
+    assert(i < 3 && j < 3 && "i and j must be less than 3");
 
     float h_shear[3][3] = {
         1, 1, 0,
@@ -88,6 +91,7 @@ float horizontal_shear(int i, int j, char strength, unsigned char dimension) {
 }
 
 float vertical_shear(int i, int j, char strength, unsigned char dimension) {
+    assert(i < 3 && j < 3 && "i and j must be less than 3");
 
     float v_shear[3][3] = {
         1, 0, 0,

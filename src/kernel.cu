@@ -124,27 +124,7 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
             std::cout << "smallest: " << h_smallest->at(ch) << std::endl;
             std::cout << "largest: " << h_largest->at(ch) << std::endl;
           #endif
-
-          #ifndef RUNNING_IN_TESTS
-            // TODO: get this to work, popup doesnt show up
-
-            ImGui::GetCurrentContext();
-            ImGui::OpenPopup("clamped");
-            // center popup
-            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-            if(ImGui::BeginPopupModal("clamped", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-              ImGui::SetWindowFocus("clamped");
-              ImGui::Text("Pixels were clamped to [0, 255] range");
-              ImGui::Text("If you want to normalize the image, please enable the normalize option in the filter settings.");
-              if(ImGui::Button("OK", ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-              }
-              ImGui::EndPopup();
-            }
-          #endif
-          
+        
           normalize_kernel<channels><<<gridSize, blockSize>>>(device_output, width, height, d_smallest, d_largest, extra.normalize);
           CUDA_CHECK_ERROR("normalize");
           break;
@@ -164,11 +144,8 @@ void run_kernel(const char *filter_name, const Pixel<channels> *input,
   cudaFree(d_smallest);
   cudaFree(d_largest);
   cudaFree(device_output); 
+  cudaFree(device_input);
   CUDA_CHECK_ERROR("freeing memory");
-
-  // TODO: determine if this first run_kernel call and if so dont free device_output/device_input
-  // we can reuse device_output/device_input for the next call because when we process the image
-  // we copy back so we can just leave it there
   
   if(!(h_filter->properties->basic_filter)) {
     delete h_filter; // only delete if its NOT a basic filter

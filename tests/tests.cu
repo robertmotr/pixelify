@@ -64,8 +64,6 @@ Pixel<channels> cpu_image_reduction(const Pixel<channels> *image, int pixels, bo
     return result;
 }
 
-
-
 TEST(KernelHelpers, find_index) {
     int index = find_index(0, 0, 3, 3);
     ASSERT_EQ(index, -1);
@@ -405,9 +403,9 @@ TEST(ApplyFilter, simple_box_blur) {
     memset(output, 0, sizeof(output));
 
     Pixel<3> expected[9] = {
-        {12, 12, 12}, {21, 21, 21}, {16, 16, 16},
-        {27, 27, 27}, {45, 45, 45}, {33, 33, 33},
-        {24, 24, 24}, {39, 39, 39}, {28, 28, 28}
+        {1, 1, 1}, {2, 2, 2}, {1, 1, 1},
+        {2, 2, 2}, {4, 4, 4}, {3, 3, 3},
+        {2, 2, 2}, {3, 3, 3}, {2, 2, 2}
     };
 
     for(int i = 0; i < 9; i++) {

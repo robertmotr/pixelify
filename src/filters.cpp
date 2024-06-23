@@ -66,7 +66,7 @@ void initialize_properties() {
     unsharp_mask_properties =       new filter_properties {true, true, new unsigned char[7]{3, 5, 7, 9, 11, 13, 15}, 7, 0, 10, true};
     emboss_properties =             new filter_properties {false, true, nullptr, 0, 0, 100, true};
     laplacian_properties =          new filter_properties {false, true, nullptr, 0, 0, 100, true};
-    motion_blur_properties =        new filter_properties {true, true, new unsigned char[5]{3, 5, 7, 9, 11}, 5, 0, 100, true};
+    motion_blur_properties =        new filter_properties {true, false, new unsigned char[5]{3, 5, 7, 9, 11}, 5, 0, 0, true};
     horizontal_shear_properties =   new filter_properties {false, true, nullptr, 0, -100, 100, true};
     vertical_shear_properties =     new filter_properties {false, true, nullptr, 0, -100, 100, true};
     sobel_x_properties =            new filter_properties {false, false, nullptr, 0, 0, 0, true};
@@ -92,9 +92,9 @@ void initialize_filter_data() {
         0, -1, 0
     };
     box_blur_filter_data = new float[9] {
-        1, 1, 1,
-        1, 1, 1,
-        1, 1, 1
+        0.1, 0.1, 0.1,
+        0.1, 0.1, 0.1,
+        0.1, 0.1, 0.1
     };
     gaussian_blur_filter_data = new float[9] {
         1, 2, 1,
