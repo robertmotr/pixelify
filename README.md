@@ -38,18 +38,27 @@ Image processor that applies filters to images using CUDA.
 - imgui implementation 
 
 
-# Building
+# Building:
+## Linux:
 
-## Arch linux
-Git clone the repository, which is this command:
+## Required dependencies:
+- git 
+- GoogleTest
+- https://wiki.archlinux.org/title/OpenGL
+- GLEW
+- glfw3
+- exiv2
+- gcc
+- CUDA
+
+Install all these dependencies using your package manager, depending on which distro you have.
+
+Git clone the repository:
 ```
 git clone https://github.com/robertmotr/pixelify.git
 ```
-Make sure you have OpenGL installed. For more information on how to install it, please visit the arch wiki:
 
-https://wiki.archlinux.org/title/OpenGL
-
-Install the following packages using your AUR helper:
+Install the following packages using your AUR helper (on Arch) or your package manager on other distros:
 ```
 cuda glfw glew exiv2
 ```
