@@ -7,15 +7,10 @@
 - parse filter file -> get filter array of pixels 
 - support anti-aliasing methods + other applications aside from filters?
 - cuda <--> amd, work on any GPU, maybe use HIP or some transpiling method
-- add contrast, should be easy with CUB histogram
-- add gamma option
-- add flip option
 
 # In progress:
 - redo all tests to fix bugs and have safety
 - realtime rendering if fast enough (maybe?)
-- add rotate kernel
-- add shear option + kernel
 
 # Done:
 - add zoom in/zoom out/pan tool + texture map
