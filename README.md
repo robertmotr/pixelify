@@ -1,5 +1,5 @@
-# pixelify
-Image processor that applies filters to images using CUDA. 
+# Pixelify
+### Image processor that applies filters to images using CUDA. 
 
 # TODO:
 - add analytics tab and keep track of rendering times, maybe have a naive CPU comparison too
@@ -10,17 +10,14 @@ Image processor that applies filters to images using CUDA.
 - add contrast, should be easy with CUB histogram
 - add gamma option
 - add flip option
-- dynamically determine an optimized grid size based on GPU + image
 
-# in progress:
+# In progress:
 - redo all tests to fix bugs and have safety
-- stop using CUB for image reductions and just write kernel myself
-- add invert image, threshold
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
 
-# done:
+# Done:
 - add zoom in/zoom out/pan tool + texture map
 - profile texture/shared/constant memory for filter and use whichever one is faster
 - move allocating image data and stuff to opening input file to make rendering seem faster,
@@ -36,3 +33,46 @@ Image processor that applies filters to images using CUDA.
 - set filter size slider to be dependent on filter selected, i.e identity can only have 3x3 
 - optimize kernels to get ~200ms runtime preferably even lower (update: getting consistently sub 20ms which is fantastic)
 - imgui implementation 
+
+
+# Installation:
+## On Linux:
+
+### Required dependencies:
+- git 
+- GoogleTest
+- OpenGL
+- GLEW
+- glfw3
+- exiv2
+- gcc
+- CUDA
+
+### Optional dependencies:
+- docker
+- nvidia-container-toolkit
+
+Install all these dependencies using your package manager, depending on which distro you have.
+
+`git clone` the repository:
+```
+git clone https://github.com/robertmotr/pixelify.git
+```
+
+Inside your locally cloned repository, update all the external libraries:
+```
+git submodule update --init --recursive --remote
+```
+
+If you decide to use docker (assuming you installed the optional dependencies), then start a docker daemon using `dockerd`, and then run the following build scripts:
+```
+sh base-build.sh && sh full-build.sh
+```
+
+Finally run `sh run-dockerized.sh` to launch Pixelify through Docker. If you decide not to use Docker, then run the following commands: 
+`mkdir build && cd build && cmake -j${nproc} -DCBUILD_TYPE=Release ..`
+Once the build finishes, launch the application by executing `./pixelify`.
+
+## On Windows:
+The latest executables for Windows are released under 
+`https://github.com/robertmotr/pixelify/releases/`.
