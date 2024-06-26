@@ -73,6 +73,6 @@ Finally run `sh run-dockerized.sh` to launch Pixelify through Docker. If you dec
 `mkdir build && cd build && cmake -j${nproc} -DCBUILD_TYPE=Release ..`
 Once the build finishes, launch the application by executing `./pixelify`.
 
-## Windows:
+## On Windows:
 The latest executables for Windows are released under 
 `https://github.com/robertmotr/pixelify/releases/`.
