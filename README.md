@@ -1,5 +1,5 @@
-# pixelify
-Image processor that applies filters to images using CUDA. 
+# Pixelify
+### Image processor that applies filters to images using CUDA. 
 
 # TODO:
 - add analytics tab and keep track of rendering times, maybe have a naive CPU comparison too
@@ -39,27 +39,43 @@ Image processor that applies filters to images using CUDA.
 
 
 # Building:
-## Linux:
+## On Linux:
 
-## Required dependencies:
+### Required dependencies:
 - git 
 - GoogleTest
-- https://wiki.archlinux.org/title/OpenGL
+- OpenGL
 - GLEW
 - glfw3
 - exiv2
 - gcc
 - CUDA
 
+### Optional dependencies:
+- docker
+- nvidia-container-toolkit
+
 Install all these dependencies using your package manager, depending on which distro you have.
 
-Git clone the repository:
+`git clone` the repository:
 ```
 git clone https://github.com/robertmotr/pixelify.git
 ```
 
-Install the following packages using your AUR helper (on Arch) or your package manager on other distros:
+Inside your locally cloned repository, update all the external libraries:
 ```
-cuda glfw glew exiv2
+git submodule update --init --recursive --remote
 ```
-Then, run the "setup.bash" file in the home directory.
+
+If you decide to use docker (assuming you installed the optional dependencies), then start a docker daemon using `dockerd`, and then run the following build scripts:
+```
+sh base-build.sh && sh full-build.sh
+```
+
+Finally run `sh run-dockerized.sh` to launch Pixelify through Docker. If you decide not to use Docker, then run the following commands: 
+`mkdir build && cd build && cmake -j${nproc} -DCBUILD_TYPE=Release ..`
+Once the build finishes, launch the application by executing `./pixelify`.
+
+## Windows:
+The latest executables for Windows are released under 
+`https://github.com/robertmotr/pixelify/releases/`.
