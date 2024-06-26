@@ -10,17 +10,14 @@
 - add contrast, should be easy with CUB histogram
 - add gamma option
 - add flip option
-- dynamically determine an optimized grid size based on GPU + image
 
-# in progress:
+# In progress:
 - redo all tests to fix bugs and have safety
-- stop using CUB for image reductions and just write kernel myself
-- add invert image, threshold
 - realtime rendering if fast enough (maybe?)
 - add rotate kernel
 - add shear option + kernel
 
-# done:
+# Done:
 - add zoom in/zoom out/pan tool + texture map
 - profile texture/shared/constant memory for filter and use whichever one is faster
 - move allocating image data and stuff to opening input file to make rendering seem faster,
@@ -38,7 +35,7 @@
 - imgui implementation 
 
 
-# Building:
+# Installation:
 ## On Linux:
 
 ### Required dependencies:
