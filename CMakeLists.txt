@@ -7,13 +7,19 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(exiv2 REQUIRED)
+find_package(GTest REQUIRED)
 enable_testing()
 
 # set architecture flags
 # this depends on your GPU
 # see link below
 # https://developer.nvidia.com/cuda-gpus
-set(CMAKE_CUDA_ARCHITECTURES 61)
+set(CMAKE_CUDA_ARCHITECTURES 89)
+
+# Ensure correct GCC and G++ are used
+set(CMAKE_C_COMPILER /usr/bin/gcc-11)
+set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
+set(CMAKE_CUDA_HOST_COMPILER /usr/bin/gcc-11)
 
 set(SOURCES 
     src/main.cu
@@ -116,7 +122,7 @@ target_link_libraries(tests
 )
 
 # both Debug and Release builds
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mtune=native")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG -ggdb3 -fno-omit-frame-pointer -fstack-protector-all -Wformat -Wformat-security")
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -D_DEBUG -O0 -G -diag-suppress=326")
@@ -131,3 +137,4 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 else()
     message(FATAL_ERROR "Unsupported build type: ${CMAKE_BUILD_TYPE}")
 endif()
+ 
