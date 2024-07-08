@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.22)
 
 project(pixelify LANGUAGES CXX CUDA)
 include(CTest)
-include(GoogleTest REQUIRED)
+# below was removed
+#include(GoogleTest REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
@@ -17,8 +18,9 @@ enable_testing()
 set(CMAKE_CUDA_ARCHITECTURES 89)
 
 # Ensure correct GCC and G++ are used
-set(CMAKE_C_COMPILER /usr/bin/gcc-11)
-set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
+# set compiler to version 14 because of GTest "testing"
+set(CMAKE_C_COMPILER /usr/bin/gcc)
+set(CMAKE_CXX_COMPILER /usr/bin/g++)
 set(CMAKE_CUDA_HOST_COMPILER /usr/bin/gcc-11)
 
 set(SOURCES 
@@ -114,12 +116,18 @@ target_include_directories(pixelify_tests PUBLIC
 )
 
 add_executable(tests tests/tests.cu)
+# target_include_directories(tests PRIVATE ${INCLUDE_DIRS})
 target_link_libraries(tests 
     pixelify_tests 
     imgui_lib
-    gtest_main 
-    gtest
+    GTest::GTest
+    GTest::Main
+    pthread
 )
+# GTest::GTest and GTest::Main used to be
+#    gtest_main 
+#    gtest
+
 
 # both Debug and Release builds
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mtune=native")
@@ -137,4 +145,3 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 else()
     message(FATAL_ERROR "Unsupported build type: ${CMAKE_BUILD_TYPE}")
 endif()
- 
