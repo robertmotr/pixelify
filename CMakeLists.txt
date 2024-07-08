@@ -107,8 +107,8 @@ set(HEADERS_TEST
 add_library(pixelify_tests STATIC ${SOURCES_TEST})
 target_include_directories(pixelify_tests PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googletest/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googlemock/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/googletest/include/gtest
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/googlemock/googletest/include/gtest
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
@@ -120,8 +120,8 @@ add_executable(tests tests/tests.cu)
 target_link_libraries(tests 
     pixelify_tests 
     imgui_lib
-    GTest::GTest
-    GTest::Main
+    gtest_main 
+    gtest_main 
     pthread
 )
 # GTest::GTest and GTest::Main used to be
