@@ -17,15 +17,15 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
     ImGui::Text("size = %d x %d", width, height);
     ImGuiIO& io = ImGui::GetIO();
     ImVec2 pos = ImGui::GetCursorScreenPos();
-    if(ImGuiTexInspect::BeginInspectorPanel("##IMAGE", (void*)(intptr_t)texture, ImVec2(width, height), 
+    if(ImGuiTexInspect::BeginInspectorPanel("##IMAGE", (void*)(intptr_t)texture, ImVec2(width, height),
                                             ImGuiTexInspect::InspectorFlags_FillHorizontal | ImGuiTexInspect::InspectorFlags_FillVertical)) {
         ImGuiTexInspect::DrawAnnotations(ImGuiTexInspect::ValueText(ImGuiTexInspect::ValueText::BytesDec));
-    }   
+    }
     ImGuiTexInspect::EndInspectorPanel();
     struct ImGuiTexInspect::Context *ctx = ImGuiTexInspect::GetContext();
     struct ImGuiTexInspect::Inspector *inspector = ctx->CurrentInspector;
 
-    if (ImGui::IsMouseHoveringRect(inspector->ViewTopLeftPixel, ImVec2(inspector->ViewTopLeftPixel.x + inspector->ViewSize.x, 
+    if (ImGui::IsMouseHoveringRect(inspector->ViewTopLeftPixel, ImVec2(inspector->ViewTopLeftPixel.x + inspector->ViewSize.x,
                                                                    inspector->ViewTopLeftPixel.y + inspector->ViewSize.y))) {
 
     ImGui::BeginTooltip();
@@ -199,21 +199,20 @@ void show_ui(ImGuiIO& io) {
     static const filter** filters =             init_filters();
     static int current_filter_dropdown_idx =    0;
     static ImGuiComboFlags flags =              0;
-    static filter* selected_filter =            const_cast<filter*>(filters[current_filter_dropdown_idx]);   
+    static filter* selected_filter =            const_cast<filter*>(filters[current_filter_dropdown_idx]);
     static void *pixels_in =                    NULL;
     static void *pixels_out =                   NULL;
     // static vector<analytic> analytics;
 
-    ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize
-     | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar
-     | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+    // Copy the contents of std::string to the buffer for ImGui to use
+    strncpy(inputBuffer, input.c_str(), sizeof(inputBuffer));
+    strncpy(outputBuffer, output.c_str(), sizeof(outputBuffer));
 
-    ImVec2 main_panel_size = ImVec2(2 * ImGui::GetContentRegionAvail().x / 3,
-                                     ImGui::GetContentRegionAvail().y - 75);
-    ImVec2 side_panel_1_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
-                                     (2 * ImGui::GetContentRegionAvail().y - 80) / 3);
-    ImVec2 side_panel_2_size = ImVec2(ImGui::GetContentRegionAvail().x / 3,
-                                     (ImGui::GetContentRegionAvail().y - 80) / 3 - 22);
+    ImGui::Begin("Workshop", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+
+    ImVec2 main_panel_size = ImVec2(2 * ImGui::GetContentRegionAvail().x / 3, ImGui::GetContentRegionAvail().y - 75);
+    ImVec2 side_panel_1_size = ImVec2(ImGui::GetContentRegionAvail().x / 3, (2 * ImGui::GetContentRegionAvail().y - 80) / 3);
+    ImVec2 side_panel_2_size = ImVec2(ImGui::GetContentRegionAvail().x / 3, (ImGui::GetContentRegionAvail().y - 80) / 3 - 22);
 
     ImGui::SetWindowSize(main_panel_size);
     ImVec2 parent_cursor_start = ImGui::GetCursorPos();
@@ -224,7 +223,9 @@ void show_ui(ImGuiIO& io) {
     ImGui::EndChild();
     ImGui::SetCursorPos(ImVec2(main_panel_size.x + 10, parent_cursor_start.y));
     ImGui::BeginChild("Side panel 1", side_panel_1_size, true);
-    ImGui::InputTextWithHint("Input file path", "Absolute path of your input image", input.data(), IM_ARRAYSIZE(input.c_str()));
+
+    // Use the buffer in ImGui::InputTextWithHint
+    ImGui::InputTextWithHint("Input file path", "Absolute path of your input image", inputBuffer, sizeof(inputBuffer));
     ImGui::Spacing();
 
     if (ImGui::Button("Select input file")) {
@@ -239,6 +240,7 @@ void show_ui(ImGuiIO& io) {
             std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
             std::string file_path = ImGuiFileDialog::Instance()->GetCurrentPath();
             input = file_path_name;
+            strncpy(inputBuffer, input.c_str(), sizeof(inputBuffer));
         }
         ImGuiFileDialog::Instance()->Close();
     }
@@ -322,6 +324,7 @@ void show_ui(ImGuiIO& io) {
         show_original = false;
         show_preview = false;
 
+        // not sure if from here to end of if statement is needed
         if(texture_orig != 0) {
             glDeleteTextures(1, &texture_orig);
             texture_orig = 0;
@@ -333,6 +336,8 @@ void show_ui(ImGuiIO& io) {
         printf("Cleared original + preview image successfully.\n");
     }
 
+    // not sure if needed/can be changed
+    // **
     if(ImGui::BeginPopup("Error loading image")) {
         ImGui::Text("Error loading image, select a valid path");
         if(ImGui::Button("OK")) {
@@ -340,13 +345,17 @@ void show_ui(ImGuiIO& io) {
         }
         ImGui::EndPopup();
     }
+    // **
 
     ImGui::Spacing();
     ImGui::Spacing();
-    ImGui::InputTextWithHint("##output", "Absolute path for your output image", output.data(), IM_ARRAYSIZE(output.c_str()));
-    ImGui::SameLine();
-    ImGui::Spacing();
-    ImGui::Spacing();
+
+    ImGui::InputTextWithHint("##output", "Absolute path for your output image", outputBuffer, sizeof(outputBuffer));
+
+    // Update the std::string with the buffer content after the user inputs text
+    input = std::string(inputBuffer);
+    output = std::string(outputBuffer);
+
     // Using the generic BeginCombo() API, you have full control over how to display the combo contents.
     // (your selection data could be an index, a pointer to the object, an id for the object, a flag intrusively
     // stored in the object itself, etc.)

@@ -8,4 +8,6 @@ export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 
 # Run CMake and Make
-cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j$(nproc)
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+
+make -j$(nproc)
