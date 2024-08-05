@@ -6,7 +6,7 @@
 - Ensure you have CUDA, gcc, CMake, OpenGL, glfw and GLEW installed.
 - `git clone` the repository, then run the following inside of it:
 ```
-mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ../ && ninja -j8
+mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j${nproc}
 ```
 - Finally, run the executable `pixelify` using `./pixelify` to start the app.
 
