@@ -32,7 +32,7 @@ inline void display_image(const GLuint& texture, const int& width, const int& he
     ImGui::Text("Hold left Ctrl to inspect the image.\nYou can also zoom in/out and pan the image.");
     ImGui::EndTooltip();
 
-        // check if user is holding left ctrl key
+    // check if user is holding left ctrl key
         if(io.KeyCtrl) {
             ImVec2 mousePos = ImGui::GetMousePos();
             ImVec2 mousePosTexel = inspector->PixelsToTexels * mousePos;

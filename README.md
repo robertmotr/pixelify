@@ -1,6 +1,19 @@
 # Pixelify
 ### Image processor that applies filters to images using CUDA. 
 
+# Installation steps:
+## Linux:
+- Ensure you have CUDA, gcc, CMake, OpenGL, glfw and GLEW installed.
+- `git clone` the repository, then run the following inside of it:
+```
+mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ../ && ninja -j8
+```
+- Finally, run the executable `pixelify` using `./pixelify` to start the app.
+
+### Using Docker:
+- Ensure that docker is installed, and that the repository has been cloned.
+- Run the following scripts inside the repo: `sh full-build.sh && sh run-dockerized.sh`
+
 # TODO:
 - add analytics tab and keep track of rendering times, maybe have a naive CPU comparison too
 - keyboard shortcuts for tabbing between original/preview
