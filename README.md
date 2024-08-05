@@ -1,6 +1,11 @@
 # Pixelify
 ### Image processor that applies filters to images using CUDA. 
 
+<video width="600" height="600" controls>
+  <source src="example.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+
 # Installation steps:
 ## On Linux:
 
